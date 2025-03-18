@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スライドパズル</title>
+    <style>
+        :root {
+            /* カラーパレット - モダンでアクセシブルな配色 */
+            --color-primary: #4361ee;
+            --color-primary-dark: #3a56d4;
+            --color-secondary: #D9E1EC; /* リセットボタン色 */
+            --color-accent: #48bfe3;
+            --color-success: #F39C35; /* スタートボタン色 */
+            --color-success-dark: #e08a27;
+            --color-background: #f8f9fa;
+            --color-surface: #ffffff;
+            --color-text: #212529;
+            --color-text-secondary: #495057;
+            --color-border: #dee2e6;
+            
+            /* タイルの色 */
+            --tile-odd: #3F5FB6;
+            --tile-even: #26B7C0;
+            
+            /* サイズと間隔 */
+            --container-size: min(85vw, 360px);
+            --tile-gap: 5px;
+            --border-radius-sm: 8px;
+            --border-radius-md: 16px;
+            --border-radius-lg: 24px;
+            
+            /* アニメーション */
+            --transition-speed: 0.25s;
+            --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* リセットとベーススタイル */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html {
+            height: 100%;
+            font-size: 16px;
+        }
+        
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        
+        /* ヘッダーセクション */
+        header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            animation: fadeIn 0.8s var(--transition-timing);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: 1rem;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* 難易度選択 */
+        .difficulty-select {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .difficulty-select label {
+            position: relative;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius-md);
+            background-color: var(--color-surface);
+            transition: all var(--transition-speed) var(--transition-timing);
+            border: 2px solid transparent;
+            color: var(--color-text-secondary);
+        }
+        
+        .difficulty-select label:hover {
+            background-color: rgba(67, 97, 238, 0.1);
+        }
+        
+        .difficulty-select input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .difficulty-select label:has(input:checked) {
+            background-color: rgba(67, 97, 238, 0.15);
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+            font-weight: 600;
+            transform: translateY(-2px);
+        }
+        
+        /* ゲーム情報セクション */
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            width: var(--container-size);
+            margin-bottom: 1rem;
+        }
+        
+        .moves, .timer {
+            display: flex;
+            align-items: center;
+            background-color: var(--color-surface);
+            padding: 0.6rem 1rem;
+            border-radius: var(--border-radius-lg);
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            border: 1px solid var(--color-border);
+        }
+        
+        .moves::before {
+            content: "👆";
+            margin-right: 0.5rem;
+        }
+        
+        .timer::before {
+            content: "⏱️";
+            margin-right: 0.5rem;
+        }
+        
+        /* パズルコンテナ */
+        #puzzle-container {
+            width: var(--container-size);
+            height: var(--container-size);
+            background-color: rgba(222, 226, 230, 0.5);
+            border-radius: var(--border-radius-md);
+            position: relative;
+            margin-bottom: 1.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            touch-action: manipulation;
+            transition: transform 0.3s var(--transition-timing);
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        
+        #puzzle-container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        /* タイル */
+        .tile {
+            position: absolute;
+            background: var(--tile-odd);
+            border-radius: var(--border-radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            transition: transform var(--transition-speed) var(--transition-timing);
+            cursor: pointer;
+            z-index: 1;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            transform-style: preserve-3d;
+            will-change: transform;
+            box-sizing: border-box;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .tile:hover {
+            filter: brightness(1.05);
+        }
+        
+        .tile:active {
+            transform-origin: center center;
+            transform: scale(0.95) translate(var(--x), var(--y)) !important;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* スタート画面 */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(63, 95, 182, 0.1) 0%, rgba(38, 183, 192, 0.1) 100%);
+            border: 2px solid rgba(63, 95, 182, 0.3);
+            border-radius: var(--border-radius-md);
+            z-index: 20;
+            opacity: 1;
+            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+        }
+        
+        #start-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(1.05);
+        }
+        
+        .start-message {
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-align: center;
+            padding: 1.2rem 1.6rem;
+            color: #2a3042;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: var(--border-radius-lg);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08), 0 3px 6px rgba(0, 0, 0, 0.12);
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+            max-width: 85%;
+            letter-spacing: 0.01em;
+            line-height: 1.4;
+        }
+        
+        #start-screen:before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 95%;
+            height: 95%;
+            background: radial-gradient(circle, rgba(243, 156, 53, 0.2) 0%, rgba(243, 156, 53, 0) 70%);
+            transform: translate(-50%, -50%);
+            border-radius: var(--border-radius-md);
+            z-index: -1;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: translate(-50%, -50%) scale(0.95);
+                opacity: 0.5;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.7;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(0.95);
+                opacity: 0.5;
+            }
+        }
+        
+        .start-message:hover {
+            transform: translateY(-2px);
+        }
+        
+        /* タイルの背景パターン */
+        .tile::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+            pointer-events: none;
+        }
+        
+        /* コントロールセクション */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 0.8rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background-color: var(--color-secondary);
+            color: var(--color-text);
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: var(--border-radius-lg);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s var(--transition-timing);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(255,255,255,0.2), rgba(255,255,255,0));
+            pointer-events: none;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        #start-button {
+            background-color: var(--color-success);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #start-button:after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 70%);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: transform 0.4s, opacity 0.4s;
+        }
+        
+        #start-button.highlight:after {
+            opacity: 1;
+            transform: scale(1);
+            animation: pulse-button 1.5s infinite;
+        }
+        
+        @keyframes pulse-button {
+            0% { opacity: 0.2; }
+            50% { opacity: 0.5; }
+            100% { opacity: 0.2; }
+        }
+        
+        #start-button:active {
+            background-color: var(--color-success-dark);
+        }
+        
+        #start-button.disabled {
+            background-color: #adb5bd;
+            cursor: not-allowed;
+        }
+        
+        /* 完了メッセージ */
+        .complete-message {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s var(--transition-timing);
+            -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
+        }
+        
+        .complete-message.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .message-content {
+            background-color: var(--color-surface);
+            padding: 2rem;
+            border-radius: var(--border-radius-md);
+            text-align: center;
+            max-width: 85%;
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.4s var(--transition-timing);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+        
+        .show .message-content {
+            transform: scale(1);
+            opacity: 1;
+        }
+        
+        .message-content h2 {
+            color: var(--color-success);
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+        }
+        
+        .message-content p {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            color: var(--color-text-secondary);
+        }
+        
+        .message-content button {
+            margin-top: 1rem;
+            background-color: var(--color-success);
+            color: white;
+            min-width: 180px;
+        }
+        
+        .message-content button:active {
+            background-color: var(--color-success-dark);
+        }
+        
+        /* コンフェッティアニメーション */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: var(--color);
+            opacity: 0.8;
+            border-radius: 0;
+            z-index: -1;
+        }
+        
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100vh) rotate(0deg); }
+            100% { transform: translateY(100vh) rotate(720deg); }
+        }
+        
+        /* ロード・シャッフルアニメーション */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--border-radius-md);
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s var(--transition-timing);
+        }
+        
+        .loading-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(67, 97, 238, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--color-primary);
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* モバイル最適化 */
+        @media (max-width: 480px) {
+            :root {
+                --container-size: min(90vw, 320px);
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            button {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.9rem;
+            }
+            
+            .message-content {
+                padding: 1.5rem;
+                max-width: 90%;
+            }
+            
+            .message-content h2 {
+                font-size: 1.5rem;
+            }
+        }
+        
+        /* 画面向き対応 */
+        @media (orientation: landscape) and (max-height: 500px) {
+            body {
+                padding: 0.5rem;
+            }
+            
+            header {
+                margin-bottom: 0.5rem;
+            }
+            
+            h1 {
+                font-size: 1.2rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .difficulty-select {
+                margin-bottom: 0.5rem;
+            }
+            
+            .game-info {
+                margin-bottom: 0.5rem;
+            }
+            
+            #puzzle-container {
+                margin-bottom: 0.5rem;
+            }
+        }
+        
+        /* アクセシビリティ - フォーカス表示 */
+        .tile:focus {
+            outline: 3px solid var(--color-accent);
+            outline-offset: 2px;
+        }
+        
+        button:focus {
+            outline: 3px solid var(--color-accent);
+            outline-offset: 2px;
+        }
+        
+        /* テーマ切り替えアニメーション */
+        .theme-transition {
+            transition: background-color 0.3s var(--transition-timing),
+                        color 0.3s var(--transition-timing);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>スライドパズル</h1>
+        <div class="difficulty-select" role="radiogroup" aria-label="難易度選択">
+            <label id="label-3x3">
+                <input type="radio" name="difficulty" value="3" checked aria-labelledby="label-3x3">
+                3×3
+            </label>
+            <label id="label-4x4">
+                <input type="radio" name="difficulty" value="4" aria-labelledby="label-4x4">
+                4×4
+            </label>
+            <label id="label-5x5">
+                <input type="radio" name="difficulty" value="5" aria-labelledby="label-5x5">
+                5×5
+            </label>
+        </div>
+    </header>
+    
+    <div class="game-info">
+        <div class="moves" aria-live="polite">手数: <span id="move-count">0</span></div>
+        <div class="timer" aria-live="polite">時間: <span id="timer">00:00</span></div>
+    </div>
+    
+    <div id="puzzle-container" role="grid" aria-label="スライドパズル" style="padding: 0;">
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="spinner" aria-label="読み込み中"></div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button id="start-button" aria-label="ゲームを開始">スタート</button>
+        <button id="reset-button" aria-label="ゲームをリセット">リセット</button>
+    </div>
+    
+    <div class="complete-message" id="complete-message" role="dialog" aria-labelledby="complete-title" aria-hidden="true">
+        <div class="message-content">
+            <h2 id="complete-title">クリア!</h2>
+            <p>手数: <span id="final-moves">0</span></p>
+            <p>時間: <span id="final-time">00:00</span></p>
+            <button id="play-again" aria-label="もう一度プレイする">もう一度プレイ</button>
+        </div>
+    </div>
+
+    <script>
+        "use strict";
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM要素の参照
+            const puzzleContainer = document.getElementById('puzzle-container');
+            const moveCountElement = document.getElementById('move-count');
+            const timerElement = document.getElementById('timer');
+            const finalMovesElement = document.getElementById('final-moves');
+            const finalTimeElement = document.getElementById('final-time');
+            const completeMessage = document.getElementById('complete-message');
+            const resetButton = document.getElementById('reset-button');
+            const startButton = document.getElementById('start-button');
+            const playAgainButton = document.getElementById('play-again');
+            const difficultyRadios = document.querySelectorAll('input[name="difficulty"]');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            
+            // ゲーム状態
+            let tiles = [];
+            let emptyPosition = { row: 0, col: 0 };
+            let moveCount = 0;
+            let timerInterval;
+            let timerStartTime;
+            let isPlaying = false;
+            let gridSize = 3;
+            let bestScores = {
+                '3': { moves: Infinity, time: Infinity },
+                '4': { moves: Infinity, time: Infinity },
+                '5': { moves: Infinity, time: Infinity }
+            };
+            
+            // 定数
+            const TILE_GAP = 5;
+            
+            // 変数を関数の外で定義して共有できるようにする
+            const getTileGapForGridSize = () => {
+                return Math.max(4, Math.min(TILE_GAP, 8 - gridSize));
+            };
+            
+            const getContainerMargin = () => {
+                return 12; // コンテナの端からの余白（固定）
+            };
+            
+            // タイルの色を取得
+            const getTileColor = (value) => {
+                // 奇数の場合は#3F5FB6、偶数の場合は#26B7C0
+                return value % 2 === 1 ? 'var(--tile-odd)' : 'var(--tile-even)';
+            };
+            
+            // ハプティックフィードバック (iOS)
+            const vibrateIfSupported = (pattern) => {
+                try {
+                    if (window.navigator && window.navigator.vibrate) {
+                        window.navigator.vibrate(pattern);
+                    }
+                    
+                    // iOS向けハプティックフィードバック
+                    if (window.navigator && window.navigator.userAgent && window.navigator.userAgent.match(/iPhone/i)) {
+                        const hapticFeedback = () => {
+                            try {
+                                const audio = new Audio("data:audio/mp3;base64,SUQzAwAAAAACTFRJVDIAAABUAAAAQUxCTTIAAABcAAAAVFBFMQAAABIAAABcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8=");
+                                audio.volume = 0.01;
+                                audio.play().catch(() => {});
+                            } catch (e) {
+                                // サイレントフェイル
+                            }
+                        };
+                        
+                        hapticFeedback();
+                    }
+                } catch (e) {
+                    // ハプティックフィードバックが利用できない環境でエラーを抑制
+                }
+            };
+            
+            // スタートボタンのハイライト
+            const highlightStartButton = () => {
+                startButton.classList.add('highlight');
+            };
+            
+            const removeStartButtonHighlight = () => {
+                startButton.classList.remove('highlight');
+            };
+            
+            // タイルサイズの計算
+            const calculateTileSize = () => {
+                const containerStyle = getComputedStyle(puzzleContainer);
+                const containerSize = parseInt(containerStyle.width);
+                
+                // コンテナの内側に適切なマージンを設定（グリッドサイズに応じてスケール）
+                const containerMargin = getContainerMargin();
+                const availableSpace = containerSize - (containerMargin * 2);
+                
+                // タイルの間隔を少し調整（グリッドサイズに応じて適切な間隔に）
+                const effectiveTileGap = getTileGapForGridSize();
+                
+                return (availableSpace - (effectiveTileGap * (gridSize - 1))) / gridSize;
+            };
+            
+            // タイルの位置計算
+            const calculateTilePosition = (row, col) => {
+                const tileSize = calculateTileSize();
+                const containerMargin = getContainerMargin();
+                const effectiveTileGap = getTileGapForGridSize();
+                
+                return {
+                    x: containerMargin + col * (tileSize + effectiveTileGap),
+                    y: containerMargin + row * (tileSize + effectiveTileGap)
+                };
+            };
+            
+            // パズル初期化
+            const initPuzzle = () => {
+                // パズルコンテナをクリア (ローディングオーバーレイを除く)
+                const existingTiles = puzzleContainer.querySelectorAll('.tile');
+                existingTiles.forEach(tile => tile.remove());
+                
+                tiles = [];
+                moveCount = 0;
+                moveCountElement.textContent = '0';
+                updateTimer(true);
+                clearInterval(timerInterval);
+                isPlaying = false;
+                
+                // スタートボタンをリセット
+                startButton.classList.remove('disabled');
+                startButton.disabled = false;
+                startButton.textContent = 'スタート';
+                
+                // スタートボタンをハイライト
+                setTimeout(highlightStartButton, 300);
+                
+                // タイルを作成
+                const tileSize = calculateTileSize();
+                const fragment = document.createDocumentFragment();
+                
+                for (let row = 0; row < gridSize; row++) {
+                    for (let col = 0; col < gridSize; col++) {
+                        const index = row * gridSize + col;
+                        
+                        // 最後のタイルは空白
+                        if (index === gridSize * gridSize - 1) {
+                            emptyPosition = { row, col };
+                            continue;
+                        }
+                        
+                        const tile = document.createElement('div');
+                        tile.className = 'tile';
+                        tile.textContent = index + 1;
+                        tile.dataset.row = row;
+                        tile.dataset.col = col;
+                        tile.dataset.index = index;
+                        tile.dataset.number = index + 1;
+                        tile.setAttribute('role', 'gridcell');
+                        tile.setAttribute('aria-label', `タイル ${index + 1}`);
+                        tile.setAttribute('tabindex', '0');
+                        
+                        // タイルのスタイル
+                        tile.style.background = getTileColor(index + 1);
+                        tile.style.width = `${tileSize}px`;
+                        tile.style.height = `${tileSize}px`;
+                        tile.style.fontSize = `${Math.max(tileSize / 2.8, 14)}px`;
+                        
+                        // 5x5グリッドの場合はフォントサイズを少し小さく
+                        if (gridSize >= 5) {
+                            tile.style.fontSize = `${Math.max(tileSize / 3, 12)}px`;
+                        }
+                        
+                        // 位置を計算
+                        const { x, y } = calculateTilePosition(row, col);
+                        tile.style.transform = `translate(${x}px, ${y}px)`;
+                        tile.style.setProperty('--x', `${x}px`);
+                        tile.style.setProperty('--y', `${y}px`);
+                        
+                        // イベントリスナー
+                        tile.addEventListener('click', () => moveTile(tile));
+                        tile.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                moveTile(tile);
+                            }
+                        });
+                        
+                        fragment.appendChild(tile);
+                        tiles.push(tile);
+                    }
+                }
+                
+                puzzleContainer.appendChild(fragment);
+            };
+            
+            // 移動可能タイルの取得
+            const getPossibleMoves = () => {
+                const possibleMoves = [];
+                
+                if (emptyPosition.row > 0) {
+                    possibleMoves.push({ row: emptyPosition.row - 1, col: emptyPosition.col });
+                }
+                if (emptyPosition.row < gridSize - 1) {
+                    possibleMoves.push({ row: emptyPosition.row + 1, col: emptyPosition.col });
+                }
+                if (emptyPosition.col > 0) {
+                    possibleMoves.push({ row: emptyPosition.row, col: emptyPosition.col - 1 });
+                }
+                if (emptyPosition.col < gridSize - 1) {
+                    possibleMoves.push({ row: emptyPosition.row, col: emptyPosition.col + 1 });
+                }
+                
+                return possibleMoves;
+            };
+            
+            // 指定位置のタイル取得
+            const findTile = (row, col) => {
+                return tiles.find(tile => 
+                    parseInt(tile.dataset.row) === row && 
+                    parseInt(tile.dataset.col) === col
+                );
+            };
+            
+            // タイルの移動処理
+            const moveTileElement = (tile, countMove = true) => {
+                const oldRow = parseInt(tile.dataset.row);
+                const oldCol = parseInt(tile.dataset.col);
+                
+                tile.dataset.row = emptyPosition.row;
+                tile.dataset.col = emptyPosition.col;
+                
+                // 新しい位置を計算
+                const { x, y } = calculateTilePosition(emptyPosition.row, emptyPosition.col);
+                tile.style.transform = `translate(${x}px, ${y}px)`;
+                tile.style.setProperty('--x', `${x}px`);
+                tile.style.setProperty('--y', `${y}px`);
+                
+                // 空白位置を更新
+                emptyPosition = { row: oldRow, col: oldCol };
+                
+                // 移動カウント
+                if (countMove) {
+                    moveCount++;
+                    moveCountElement.textContent = moveCount;
+                    vibrateIfSupported(5); // 短い振動
+                }
+            };
+            
+            // 空白隣接判定
+            const isAdjacentToEmpty = (row, col) => {
+                return (Math.abs(row - emptyPosition.row) === 1 && col === emptyPosition.col) || 
+                       (Math.abs(col - emptyPosition.col) === 1 && row === emptyPosition.row);
+            };
+            
+            // タイル移動
+            const moveTile = (tile) => {
+                // ゲームが始まっていない場合は何もしない
+                if (!isPlaying) return;
+                
+                const row = parseInt(tile.dataset.row);
+                const col = parseInt(tile.dataset.col);
+                
+                if (isAdjacentToEmpty(row, col)) {
+                    moveTileElement(tile, true);
+                    checkCompletion();
+                }
+            };
+            
+            // 完成判定
+            const isPuzzleComplete = () => {
+                for (let i = 0; i < tiles.length; i++) {
+                    const tile = tiles[i];
+                    const row = parseInt(tile.dataset.row);
+                    const col = parseInt(tile.dataset.col);
+                    const currentPos = row * gridSize + col;
+                    const value = parseInt(tile.textContent);
+                    
+                    if (value !== currentPos + 1) {
+                        return false;
+                    }
+                }
+                
+                // 空白が右下か確認
+                return emptyPosition.row === gridSize - 1 && emptyPosition.col === gridSize - 1;
+            };
+            
+            // 完成チェック
+            const checkCompletion = () => {
+                if (isPuzzleComplete()) {
+                    clearInterval(timerInterval);
+                    isPlaying = false;
+                    
+                    // 経過時間を計算
+                    const elapsedTime = Math.floor((Date.now() - timerStartTime) / 1000);
+                    const minutes = Math.floor(elapsedTime / 60);
+                    const seconds = elapsedTime % 60;
+                    
+                    // スコア記録
+                    recordScore(gridSize, moveCount, elapsedTime);
+                    
+                    finalMovesElement.textContent = moveCount;
+                    finalTimeElement.textContent = formatTime(minutes, seconds);
+                    
+                    // ハプティックフィードバック
+                    vibrateIfSupported([100, 50, 100]);
+                    
+                    // コンフェッティ表示の準備
+                    setTimeout(() => {
+                        completeMessage.classList.add('show');
+                        completeMessage.setAttribute('aria-hidden', 'false');
+                        createConfetti();
+                    }, 500);
+                }
+            };
+            
+            // コンフェッティ生成
+            const createConfetti = () => {
+                try {
+                    const colors = ['#4361ee', '#3a0ca3', '#7209b7', '#f72585', '#4cc9f0'];
+                    const confettiCount = 100; // 軽量化のため少し減らす
+                    
+                    for (let i = 0; i < confettiCount; i++) {
+                        const confetti = document.createElement('div');
+                        confetti.className = 'confetti';
+                        confetti.style.left = `${Math.random() * 100}vw`;
+                        confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
+                        confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+                        confetti.style.setProperty('--color', colors[Math.floor(Math.random() * colors.length)]);
+                        
+                        // ランダムな形状
+                        if (Math.random() > 0.6) {
+                            confetti.style.borderRadius = '50%';
+                        } else if (Math.random() > 0.5) {
+                            confetti.style.width = '7px';
+                            confetti.style.height = '7px';
+                            confetti.style.transform = 'rotate(45deg)';
+                        }
+                        
+                        confetti.style.animation = 'confetti-fall 3s ease-in-out forwards';
+                        
+                        completeMessage.appendChild(confetti);
+                        
+                        // 自動クリーンアップ
+                        setTimeout(() => {
+                            if (confetti && confetti.parentNode) {
+                                confetti.remove();
+                            }
+                        }, 5000);
+                    }
+                } catch (e) {
+                    console.log('アニメーション効果を表示できませんでした');
+                }
+            };
+            
+            // ベストスコア記録
+            const recordScore = (size, moves, time) => {
+                const currentBest = bestScores[size];
+                
+                if (moves < currentBest.moves || (moves === currentBest.moves && time < currentBest.time)) {
+                    bestScores[size] = { moves, time };
+                    // セキュリティ環境に配慮してlocalStorageへの保存は試行のみ
+                    try {
+                        localStorage.setItem('slidePuzzle_bestScores', JSON.stringify(bestScores));
+                    } catch (e) {
+                        console.log('スコア保存機能は現在の環境では利用できません');
+                    }
+                }
+            };
+            
+            // Fisher-Yates シャッフルアルゴリズム
+            const shuffleArray = (array) => {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            };
+            
+            // 可解性を持つパズル状態の生成
+            const generateSolvablePuzzle = () => {
+                // タイルの初期配置を作成
+                const tileValues = Array.from({ length: gridSize * gridSize - 1 }, (_, i) => i + 1);
+                shuffleArray(tileValues);
+                
+                // 反転数を計算
+                let inversions = 0;
+                for (let i = 0; i < tileValues.length; i++) {
+                    for (let j = i + 1; j < tileValues.length; j++) {
+                        if (tileValues[i] > tileValues[j]) {
+                            inversions++;
+                        }
+                    }
+                }
+                
+                // 空白の行番号（下から数えて）
+                const emptyRow = gridSize - emptyPosition.row;
+                
+                // 3×3, 5×5の場合：反転数が偶数なら可解
+                // 4×4の場合：(反転数の偶奇 + 空白の行番号の偶奇)が偶数なら可解
+                const isSolvable = gridSize % 2 === 1
+                    ? inversions % 2 === 0
+                    : (inversions + emptyRow) % 2 === 0;
+                
+                if (!isSolvable) {
+                    // 最初の2つのタイルを入れ替えて可解にする
+                    [tileValues[0], tileValues[1]] = [tileValues[1], tileValues[0]];
+                }
+                
+                return tileValues;
+            };
+            
+            // パズルのシャッフル
+            const shufflePuzzle = () => {
+                startButton.disabled = true;
+                startButton.classList.add('disabled');
+                startButton.textContent = 'ゲーム中...';
+                removeStartButtonHighlight();
+                
+                // ローディング表示
+                loadingOverlay.classList.add('show');
+                
+                // 処理を少し遅らせてUIのブロックを防止
+                setTimeout(() => {
+                    resetGame();
+                    
+                    const tileValues = generateSolvablePuzzle();
+                    let index = 0;
+                    
+                    // 新しい位置にタイルを配置
+                    for (let row = 0; row < gridSize; row++) {
+                        for (let col = 0; col < gridSize; col++) {
+                            if (row === emptyPosition.row && col === emptyPosition.col) {
+                                continue;
+                            }
+                            
+                            const tile = tiles[index];
+                            const value = tileValues[index];
+                            
+                            tile.textContent = value;
+                            tile.dataset.number = value;
+                            
+                            // 視覚的に異なる色を設定 (奇数/偶数)
+                            tile.style.background = getTileColor(value);
+                            
+                            // 新しい位置を設定
+                            tile.dataset.row = row;
+                            tile.dataset.col = col;
+                            
+                            const { x, y } = calculateTilePosition(row, col);
+                            tile.style.transform = `translate(${x}px, ${y}px)`;
+                            tile.style.setProperty('--x', `${x}px`);
+                            tile.style.setProperty('--y', `${y}px`);
+                            
+                            index++;
+                        }
+                    }
+                    
+                    // ローディング非表示
+                    loadingOverlay.classList.remove('show');
+                    
+                    // タイマー開始
+                    startTimer();
+                }, 300);
+            };
+            
+            // タイマー開始
+            const startTimer = () => {
+                clearInterval(timerInterval);
+                timerStartTime = Date.now();
+                updateTimer(true);
+                
+                timerInterval = setInterval(() => {
+                    const elapsedTime = Math.floor((Date.now() - timerStartTime) / 1000);
+                    const minutes = Math.floor(elapsedTime / 60);
+                    const seconds = elapsedTime % 60;
+                    updateTimer(false, minutes, seconds);
+                }, 1000);
+                
+                isPlaying = true;
+            };
+            
+            // タイマー更新
+            const updateTimer = (reset = false, minutes = 0, seconds = 0) => {
+                if (reset) {
+                    timerElement.textContent = '00:00';
+                    return;
+                }
+                
+                timerElement.textContent = formatTime(minutes, seconds);
+            };
+            
+            // 時間のフォーマット
+            const formatTime = (minutes, seconds) => {
+                return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            };
+            
+            // ゲームリセット
+            const resetGame = () => {
+                initPuzzle();
+            };
+            
+            // イベントリスナー設定
+            startButton.addEventListener('click', () => {
+                if (!isPlaying && !startButton.disabled) {
+                    shufflePuzzle();
+                }
+            });
+            
+            resetButton.addEventListener('click', () => {
+                if (isPlaying) {
+                    // ゲーム中はリセット
+                    resetGame();
+                } else {
+                    // ゲーム開始前はリセット
+                    resetGame();
+                }
+            });
+            
+            playAgainButton.addEventListener('click', () => {
+                completeMessage.classList.remove('show');
+                completeMessage.setAttribute('aria-hidden', 'true');
+                resetGame();
+            });
+            
+            // 難易度変更イベント
+            difficultyRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    gridSize = parseInt(e.target.value);
+                    resetGame();
+                });
+            });
+            
+            // キーボードナビゲーション
+            document.addEventListener('keydown', (e) => {
+                if (!isPlaying) return;
+                
+                const directions = {
+                    'ArrowUp': { dr: 1, dc: 0 }, // 空白の下のタイルを上に移動
+                    'ArrowDown': { dr: -1, dc: 0 }, // 空白の上のタイルを下に移動
+                    'ArrowLeft': { dr: 0, dc: 1 }, // 空白の右のタイルを左に移動
+                    'ArrowRight': { dr: 0, dc: -1 } // 空白の左のタイルを右に移動
+                };
+                
+                if (directions[e.key]) {
+                    e.preventDefault();
+                    const { dr, dc } = directions[e.key];
+                    const newRow = emptyPosition.row + dr;
+                    const newCol = emptyPosition.col + dc;
+                    
+                    if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
+                        const tileToMove = findTile(newRow, newCol);
+                        if (tileToMove) {
+                            moveTile(tileToMove);
+                        }
+                    }
+                }
+            });
+            
+            // タッチデバイス向けスワイプ処理
+            let touchStartX, touchStartY;
+            
+            puzzleContainer.addEventListener('touchstart', (e) => {
+                if (!isPlaying) return;
+                
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            });
+            
+            puzzleContainer.addEventListener('touchend', (e) => {
+                if (!isPlaying) return;
+                if (!touchStartX || !touchStartY) return;
+                
+                const touchEndX = e.changedTouches[0].screenX;
+                const touchEndY = e.changedTouches[0].screenY;
+                
+                const diffX = touchStartX - touchEndX;
+                const diffY = touchStartY - touchEndY;
+                
+                // スワイプ方向の判定
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    // 水平スワイプ
+                    if (Math.abs(diffX) > 20) { // 閾値: 20px
+                        if (diffX > 0) {
+                            // 左スワイプ - 空白の左にあるタイルを右に移動
+                            if (emptyPosition.col > 0) {
+                                const tileToMove = findTile(emptyPosition.row, emptyPosition.col - 1);
+                                if (tileToMove) moveTile(tileToMove);
+                            }
+                        } else {
+                            // 右スワイプ - 空白の右にあるタイルを左に移動
+                            if (emptyPosition.col < gridSize - 1) {
+                                const tileToMove = findTile(emptyPosition.row, emptyPosition.col + 1);
+                                if (tileToMove) moveTile(tileToMove);
+                            }
+                        }
+                    }
+                } else {
+                    // 垂直スワイプ
+                    if (Math.abs(diffY) > 20) { // 閾値: 20px
+                        if (diffY > 0) {
+                            // 上スワイプ - 空白の上にあるタイルを下に移動
+                            if (emptyPosition.row > 0) {
+                                const tileToMove = findTile(emptyPosition.row - 1, emptyPosition.col);
+                                if (tileToMove) moveTile(tileToMove);
+                            }
+                        } else {
+                            // 下スワイプ - 空白の下にあるタイルを上に移動
+                            if (emptyPosition.row < gridSize - 1) {
+                                const tileToMove = findTile(emptyPosition.row + 1, emptyPosition.col);
+                                if (tileToMove) moveTile(tileToMove);
+                            }
+                        }
+                    }
+                }
+                
+                // タッチ情報をリセット
+                touchStartX = null;
+                touchStartY = null;
+            });
+            
+            // ウィンドウリサイズ対応
+            window.addEventListener('resize', () => {
+                // すべてのタイルの位置を更新
+                tiles.forEach(tile => {
+                    const row = parseInt(tile.dataset.row);
+                    const col = parseInt(tile.dataset.col);
+                    const tileSize = calculateTileSize();
+                    
+                    // サイズ更新
+                    tile.style.width = `${tileSize}px`;
+                    tile.style.height = `${tileSize}px`;
+                    tile.style.fontSize = `${Math.max(tileSize / 2.5, 14)}px`;
+                    
+                    // 位置更新
+                    const { x, y } = calculateTilePosition(row, col);
+                    tile.style.transform = `translate(${x}px, ${y}px)`;
+                    tile.style.setProperty('--x', `${x}px`);
+                    tile.style.setProperty('--y', `${y}px`);
+                });
+            });
+            
+            // 初期化
+            initPuzzle();
+            console.log("スライドパズル初期化完了");
+        });
+    </script>
+</body>
+</html>

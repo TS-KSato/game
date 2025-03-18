@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="シンプルで楽しい迷路ゲーム。スマートフォンでも快適にプレイできます。">
+    <!-- セキュリティ強化のためのCSP設定 -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
+    <title>迷路ゲーム</title>
+    <style>
+        :root {
+            /* カラーパレット変数 */
+            --primary-color: #F38181;
+            --secondary-color: #FCE38A;
+            --background-color: #EAFFD0;
+            --accent-color: #95E1D3;
+            --text-color: #333333;
+            --light-text: #777777;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --border-radius: 10px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            font-family: sans-serif;
+        }
+        
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        
+        main.app-container {
+            position: relative;
+            width: 92vw;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        header.game-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        h1.game-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        section.game-stats {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .stat-item {
+            flex: 1;
+            margin: 0 5px;
+            background-color: white;
+            border-radius: var(--border-radius);
+            padding: 10px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--light-text);
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .game-canvas-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            margin-bottom: 15px;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: 0 4px 8px var(--shadow-color);
+            background-color: white;
+        }
+        
+        #maze-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        nav.help-controls {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .help-btn {
+            padding: 8px 15px;
+            border-radius: 15px;
+            border: none;
+            background-color: white;
+            color: var(--light-text);
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        
+        .help-btn:hover, .help-btn:focus {
+            background-color: #f5f5f5;
+            outline: 2px solid var(--accent-color);
+        }
+        
+        .help-btn:active {
+            transform: scale(0.97);
+            box-shadow: 0 1px 3px var(--shadow-color);
+        }
+        
+        section.controls-area {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .direction-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .control-btn {
+            aspect-ratio: 1 / 1;
+            border-radius: var(--border-radius);
+            border: none;
+            background-color: white;
+            color: var(--accent-color);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+        }
+        
+        .control-btn:hover, .control-btn:focus {
+            background-color: #f5f5f5;
+            outline: 2px solid var(--accent-color);
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 1px 3px var(--shadow-color);
+        }
+        
+        .control-btn svg {
+            width: 40%;
+            height: 40%;
+            fill: var(--accent-color);
+        }
+        
+        .control-btn.hidden {
+            visibility: hidden;
+        }
+        
+        .action-buttons {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .action-btn {
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: none;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+        }
+        
+        .action-btn:hover, .action-btn:focus {
+            outline: 2px solid var(--accent-color);
+        }
+        
+        .action-btn:active {
+            transform: scale(0.97);
+            box-shadow: 0 1px 3px var(--shadow-color);
+        }
+        
+        .primary-btn {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .primary-btn:hover, .primary-btn:focus {
+            background-color: #e77676;
+        }
+        
+        .secondary-btn {
+            background-color: white;
+            color: var(--accent-color);
+        }
+        
+        .secondary-btn:hover, .secondary-btn:focus {
+            background-color: #f5f5f5;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 15px;
+            padding: 20px;
+            width: 85%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            text-align: center;
+        }
+        
+        .modal-overlay.show .modal-content {
+            transform: translateY(0);
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .modal-subtitle {
+            font-size: 16px;
+            color: var(--light-text);
+            line-height: 1.5;
+        }
+        
+        .difficulty-selection {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .difficulty-option {
+            position: relative;
+            background-color: #f9f9f9;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            border: 2px solid transparent;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        
+        .difficulty-option:hover, .difficulty-option:focus {
+            background-color: #f0f0f0;
+            outline: none;
+        }
+        
+        .difficulty-option.selected {
+            border-color: var(--accent-color);
+            background-color: rgba(149, 225, 211, 0.1);
+        }
+        
+        .difficulty-name {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .result-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        
+        .result-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .result-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+        
+        .result-label {
+            font-size: 14px;
+            color: var(--light-text);
+        }
+        
+        .star-rating {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .star {
+            width: 35px;
+            height: 35px;
+            color: #ddd;
+            transition: color 0.3s;
+        }
+        
+        .star.filled {
+            color: var(--secondary-color);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app-container">
+        <header class="game-header">
+            <h1 class="game-title">迷路ゲーム</h1>
+        </header>
+        
+        <section class="game-stats" aria-label="ゲーム状態">
+            <div class="stat-item">
+                <div class="stat-label" id="steps-label">ステップ</div>
+                <div class="stat-value" id="steps-display" aria-labelledby="steps-label">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label" id="time-label">タイム</div>
+                <div class="stat-value" id="time-display" aria-labelledby="time-label">0:00</div>
+            </div>
+        </section>
+        
+        <nav class="help-controls" aria-label="ゲームコントロール">
+            <button class="help-btn" id="help-btn" aria-label="ヘルプを表示">ヘルプ</button>
+            <button class="help-btn" id="hint-btn" aria-label="ヒントを表示">ヒント</button>
+            <button class="help-btn" id="restart-btn" aria-label="ゲームをリスタート">リスタート</button>
+        </nav>
+        
+        <div class="game-canvas-container">
+            <canvas id="maze-canvas" aria-label="迷路ゲーム画面。キーボードの矢印キーでも操作できます。"></canvas>
+            <!-- スクリーンリーダー用の説明 -->
+            <div class="sr-only" aria-live="polite" id="game-status">
+                迷路ゲームが始まりました。左上のスタート地点から右下のゴールまで移動しましょう。
+            </div>
+        </div>
+        
+        <section class="controls-area" aria-label="操作方法">
+            <div class="direction-controls">
+                <div class="control-btn hidden"></div>
+                <button class="control-btn" id="btn-up" aria-label="上へ移動">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 4l-8 8h6v8h4v-8h6z"></path>
+                    </svg>
+                </button>
+                <div class="control-btn hidden"></div>
+                
+                <button class="control-btn" id="btn-left" aria-label="左へ移動">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 12l8-8v6h8v4h-8v6z"></path>
+                    </svg>
+                </button>
+                
+                <div class="control-btn hidden"></div>
+                
+                <button class="control-btn" id="btn-right" aria-label="右へ移動">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M20 12l-8-8v6h-8v4h8v6z"></path>
+                    </svg>
+                </button>
+                
+                <div class="control-btn hidden"></div>
+                <button class="control-btn" id="btn-down" aria-label="下へ移動">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 20l8-8h-6v-8h-4v8h-6z"></path>
+                    </svg>
+                </button>
+                <div class="control-btn hidden"></div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="action-btn primary-btn" id="new-game-btn">新しい迷路</button>
+            </div>
+        </section>
+    </main>
+    
+    <!-- スタートモーダル -->
+    <div class="modal-overlay" id="start-modal" role="dialog" aria-modal="true" aria-labelledby="start-title">
+        <article class="modal-content">
+            <header class="modal-header">
+                <h2 class="modal-title" id="start-title">迷路ゲーム</h2>
+                <p class="modal-subtitle">難易度を選んでスタート</p>
+            </header>
+            
+            <div class="difficulty-selection">
+                <div class="difficulty-option selected" data-difficulty="easy" tabindex="0" role="radio" aria-checked="true">
+                    <div class="difficulty-name">初級 (7×7)</div>
+                </div>
+                
+                <div class="difficulty-option" data-difficulty="medium" tabindex="0" role="radio" aria-checked="false">
+                    <div class="difficulty-name">中級 (11×11)</div>
+                </div>
+                
+                <div class="difficulty-option" data-difficulty="hard" tabindex="0" role="radio" aria-checked="false">
+                    <div class="difficulty-name">上級 (15×15)</div>
+                </div>
+            </div>
+            
+            <button class="action-btn primary-btn" id="start-game-btn">
+                スタート
+            </button>
+        </article>
+    </div>
+    
+    <!-- クリアモーダル -->
+    <div class="modal-overlay" id="clear-modal" role="dialog" aria-modal="true" aria-labelledby="clear-title">
+        <article class="modal-content">
+            <header class="modal-header">
+                <h2 class="modal-title" id="clear-title">クリア！</h2>
+                <p class="modal-subtitle">おめでとうございます！</p>
+            </header>
+            
+            <div class="result-stats">
+                <div class="result-stat">
+                    <div class="result-value" id="result-steps">0</div>
+                    <div class="result-label">ステップ</div>
+                </div>
+                <div class="result-stat">
+                    <div class="result-value" id="result-time">0:00</div>
+                    <div class="result-label">タイム</div>
+                </div>
+            </div>
+            
+            <div class="star-rating" aria-label="評価">
+                <svg class="star" viewBox="0 0 24 24" id="star-1" aria-hidden="true">
+                    <path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                </svg>
+                <svg class="star" viewBox="0 0 24 24" id="star-2" aria-hidden="true">
+                    <path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                </svg>
+                <svg class="star" viewBox="0 0 24 24" id="star-3" aria-hidden="true">
+                    <path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                </svg>
+                <span class="sr-only" id="star-rating-text">3つ星のうち<span id="star-count">0</span>つ獲得</span>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="action-btn secondary-btn" id="back-btn">
+                    メニューへ
+                </button>
+                <button class="action-btn primary-btn" id="next-game-btn">
+                    次の迷路
+                </button>
+            </div>
+        </article>
+    </div>
+    
+    <!-- ヘルプモーダル -->
+    <div class="modal-overlay" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+        <article class="modal-content">
+            <header class="modal-header">
+                <h2 class="modal-title" id="help-title">遊び方</h2>
+            </header>
+            
+            <div style="text-align: left; margin: 20px 0;">
+                <p style="margin-bottom: 10px; line-height: 1.5;">
+                    <strong style="color: var(--primary-color);">目的:</strong> 
+                    スタート地点(左上)からゴール(右下)まで到達しましょう。
+                </p>
+                
+                <p style="margin-bottom: 10px; line-height: 1.5;">
+                    <strong style="color: var(--primary-color);">操作:</strong> 
+                    矢印ボタンか、画面をスワイプして移動できます。
+                </p>
+                
+                <p style="margin-bottom: 10px; line-height: 1.5;">
+                    <strong style="color: var(--primary-color);">ヒント:</strong> 
+                    「ヒント」ボタンで次の一手を表示します。
+                </p>
+            </div>
+            
+            <button class="action-btn primary-btn" id="close-help-btn">
+                閉じる
+            </button>
+        </article>
+    </div>
+    
+    <script>
+        // ゲーム状態を管理するオブジェクト
+        const gameState = {
+            maze: [],
+            cellSize: 0,
+            playerX: 0,
+            playerY: 0,
+            goalX: 0,
+            goalY: 0,
+            mazeWidth: 0,
+            mazeHeight: 0,
+            steps: 0,
+            startTime: 0,
+            timerInterval: null,
+            gameActive: false,
+            currentDifficulty: 'easy',
+            solutionPath: [],
+            showingSolution: false,
+            bestSolutionLength: 0
+        };
+        
+        // DOM要素の取得
+        const elements = {
+            canvas: document.getElementById('maze-canvas'),
+            stepsDisplay: document.getElementById('steps-display'),
+            timeDisplay: document.getElementById('time-display'),
+            startModal: document.getElementById('start-modal'),
+            clearModal: document.getElementById('clear-modal'),
+            helpModal: document.getElementById('help-modal'),
+            gameStatus: document.getElementById('game-status'),
+            starRatingText: document.getElementById('star-rating-text'),
+            starCount: document.getElementById('star-count')
+        };
+        
+        // コンテキストの取得
+        const ctx = elements.canvas.getContext('2d');
+        
+        // 難易度の設定
+        const difficulties = {
+            easy: { width: 7, height: 7 },
+            medium: { width: 11, height: 11 },
+            hard: { width: 15, height: 15 }
+        };
+        
+        // フォーカストラップのための最初と最後のフォーカス可能な要素を設定
+        function setFocusTrap(modalId) {
+            const modal = document.getElementById(modalId);
+            const focusableElements = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+            
+            modal.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    if (e.shiftKey && document.activeElement === firstElement) {
+                        e.preventDefault();
+                        lastElement.focus();
+                    } else if (!e.shiftKey && document.activeElement === lastElement) {
+                        e.preventDefault();
+                        firstElement.focus();
+                    }
+                } else if (e.key === 'Escape') {
+                    if (modalId === 'help-modal') {
+                        document.getElementById('close-help-btn').click();
+                    } else if (modalId === 'start-modal') {
+                        document.getElementById('start-game-btn').click();
+                    }
+                }
+            });
+        }
+        
+        // ゲームの初期化
+        function initGame() {
+            try {
+                // フォーカストラップを設定
+                setFocusTrap('start-modal');
+                setFocusTrap('clear-modal');
+                setFocusTrap('help-modal');
+                
+                // スタートモーダルを表示
+                elements.startModal.classList.add('show');
+                // 最初のボタンにフォーカス
+                setTimeout(() => {
+                    const firstButton = elements.startModal.querySelector('button');
+                    if (firstButton) firstButton.focus();
+                }, 100);
+                
+                // イベントリスナーの設定
+                setupEventListeners();
+                
+                // キャンバスのリサイズ
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+            } catch (error) {
+                console.error('ゲーム初期化中にエラーが発生しました:', error);
+                elements.gameStatus.textContent = 'ゲーム読み込み中にエラーが発生しました。ページを再読み込みしてください。';
+            }
+        }
+        
+        // イベントリスナーの設定
+        function setupEventListeners() {
+            try {
+                // 難易度の選択
+                document.querySelectorAll('.difficulty-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        document.querySelectorAll('.difficulty-option').forEach(opt => {
+                            opt.classList.remove('selected');
+                            opt.setAttribute('aria-checked', 'false');
+                        });
+                        option.classList.add('selected');
+                        option.setAttribute('aria-checked', 'true');
+                        gameState.currentDifficulty = option.getAttribute('data-difficulty');
+                    });
+                    
+                    // キーボード操作
+                    option.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            option.click();
+                            e.preventDefault();
+                        }
+                    });
+                });
+                
+                // スタートボタン
+                document.getElementById('start-game-btn').addEventListener('click', () => {
+                    elements.startModal.classList.remove('show');
+                    startGame();
+                });
+                
+                // 新しいゲームボタン
+                document.getElementById('new-game-btn').addEventListener('click', () => {
+                    elements.startModal.classList.add('show');
+                    // 最初のボタンにフォーカス
+                    setTimeout(() => {
+                        const firstButton = elements.startModal.querySelector('button');
+                        if (firstButton) firstButton.focus();
+                    }, 100);
+                });
+                
+                // 次のゲームボタン
+                document.getElementById('next-game-btn').addEventListener('click', () => {
+                    elements.clearModal.classList.remove('show');
+                    startGame();
+                });
+                
+                // メニューへボタン
+                document.getElementById('back-btn').addEventListener('click', () => {
+                    elements.clearModal.classList.remove('show');
+                    elements.startModal.classList.add('show');
+                    // 最初のボタンにフォーカス
+                    setTimeout(() => {
+                        const firstButton = elements.startModal.querySelector('button');
+                        if (firstButton) firstButton.focus();
+                    }, 100);
+                });
+                
+                // ヒントボタン
+                document.getElementById('hint-btn').addEventListener('click', () => {
+                    showHint();
+                });
+                
+                // ヘルプボタン
+                document.getElementById('help-btn').addEventListener('click', () => {
+                    elements.helpModal.classList.add('show');
+                    // 閉じるボタンにフォーカス
+                    setTimeout(() => {
+                        const closeButton = document.getElementById('close-help-btn');
+                        if (closeButton) closeButton.focus();
+                    }, 100);
+                });
+                
+                // ヘルプを閉じるボタン
+                document.getElementById('close-help-btn').addEventListener('click', () => {
+                    elements.helpModal.classList.remove('show');
+                    // ヘルプボタンにフォーカスを戻す
+                    document.getElementById('help-btn').focus();
+                });
+                
+                // リスタートボタン
+                document.getElementById('restart-btn').addEventListener('click', () => {
+                    resetGame();
+                });
+                
+                // 方向ボタン
+                document.getElementById('btn-up').addEventListener('click', () => {
+                    movePlayer(0, -1);
+                });
+                
+                document.getElementById('btn-right').addEventListener('click', () => {
+                    movePlayer(1, 0);
+                });
+                
+                document.getElementById('btn-down').addEventListener('click', () => {
+                    movePlayer(0, 1);
+                });
+                
+                document.getElementById('btn-left').addEventListener('click', () => {
+                    movePlayer(-1, 0);
+                });
+                
+                // スワイプ操作
+                let touchStartX = 0;
+                let touchStartY = 0;
+                
+                elements.canvas.addEventListener('touchstart', (e) => {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    e.preventDefault();
+                }, { passive: false });
+                
+                elements.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+                
+                elements.canvas.addEventListener('touchend', (e) => {
+                    try {
+                        if (!gameState.gameActive) return;
+                        
+                        const touchEndX = e.changedTouches[0].clientX;
+                        const touchEndY = e.changedTouches[0].clientY;
+                        
+                        const deltaX = touchEndX - touchStartX;
+                        const deltaY = touchEndY - touchStartY;
+                        
+                        // スワイプの方向を決定する
+                        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                            // 水平方向のスワイプ
+                            if (deltaX > 20) {
+                                movePlayer(1, 0); // 右
+                            } else if (deltaX < -20) {
+                                movePlayer(-1, 0); // 左
+                            }
+                        } else {
+                            // 垂直方向のスワイプ
+                            if (deltaY > 20) {
+                                movePlayer(0, 1); // 下
+                            } else if (deltaY < -20) {
+                                movePlayer(0, -1); // 上
+                            }
+                        }
+                        
+                        e.preventDefault();
+                    } catch (error) {
+                        console.error('スワイプ処理中にエラーが発生しました:', error);
+                    }
+                }, { passive: false });
+                
+                // キーボード操作（デスクトップ用）
+                document.addEventListener('keydown', (e) => {
+                    try {
+                        if (!gameState.gameActive) return;
+                        
+                        switch (e.key) {
+                            case 'ArrowUp':
+                                movePlayer(0, -1);
+                                break;
+                            case 'ArrowRight':
+                                movePlayer(1, 0);
+                                break;
+                            case 'ArrowDown':
+                                movePlayer(0, 1);
+                                break;
+                            case 'ArrowLeft':
+                                movePlayer(-1, 0);
+                                break;
+                        }
+                    } catch (error) {
+                        console.error('キーボード操作中にエラーが発生しました:', error);
+                    }
+                });
+            } catch (error) {
+                console.error('イベントリスナー設定中にエラーが発生しました:', error);
+                elements.gameStatus.textContent = 'ゲーム設定中にエラーが発生しました。ページを再読み込みしてください。';
+            }
+        }
+        
+        // ゲームの開始
+        function startGame() {
+            try {
+                const difficulty = difficulties[gameState.currentDifficulty];
+                gameState.mazeWidth = difficulty.width;
+                gameState.mazeHeight = difficulty.height;
+                
+                // 迷路の生成
+                generateMaze();
+                
+                // プレーヤーとゴールの位置を設定
+                gameState.playerX = 0;
+                gameState.playerY = 0;
+                gameState.goalX = gameState.mazeWidth - 1;
+                gameState.goalY = gameState.mazeHeight - 1;
+                
+                // 最適解の計算
+                findSolution();
+                
+                // ゲーム状態のリセット
+                gameState.steps = 0;
+                elements.stepsDisplay.textContent = '0';
+                gameState.startTime = Date.now();
+                gameState.showingSolution = false;
+                
+                if (gameState.timerInterval) {
+                    clearInterval(gameState.timerInterval);
+                }
+                
+                gameState.timerInterval = setInterval(updateTimer, 1000);
+                gameState.gameActive = true;
+                
+                // 迷路の描画
+                resizeCanvas();
+                drawMaze();
+                
+                // スクリーンリーダー向けの状態更新
+                elements.gameStatus.textContent = `${gameState.currentDifficulty === 'easy' ? '初級' : (gameState.currentDifficulty === 'medium' ? '中級' : '上級')}の迷路ゲームが始まりました。左上のスタート地点から右下のゴールまで移動しましょう。`;
+            } catch (error) {
+                console.error('ゲーム開始中にエラーが発生しました:', error);
+                elements.gameStatus.textContent = 'ゲーム開始中にエラーが発生しました。もう一度試してください。';
+            }
+        }
+        
+        // ゲームのリセット（同じ迷路で再スタート）
+        function resetGame() {
+            try {
+                // プレーヤーの位置をリセット
+                gameState.playerX = 0;
+                gameState.playerY = 0;
+                
+                // ゲーム状態のリセット
+                gameState.steps = 0;
+                elements.stepsDisplay.textContent = '0';
+                gameState.startTime = Date.now();
+                gameState.showingSolution = false;
+                
+                if (gameState.timerInterval) {
+                    clearInterval(gameState.timerInterval);
+                }
+                
+                gameState.timerInterval = setInterval(updateTimer, 1000);
+                gameState.gameActive = true;
+                
+                // 迷路の再描画
+                drawMaze();
+                
+                // スクリーンリーダー向けの状態更新
+                elements.gameStatus.textContent = 'ゲームをリスタートしました。左上のスタート地点から右下のゴールまで移動しましょう。';
+            } catch (error) {
+                console.error('ゲームリセット中にエラーが発生しました:', error);
+                elements.gameStatus.textContent = 'ゲームリセット中にエラーが発生しました。もう一度試してください。';
+            }
+        }
+        
+        // タイマーの更新
+        function updateTimer() {
+            try {
+                const elapsedSeconds = Math.floor((Date.now() - gameState.startTime) / 1000);
+                const minutes = Math.floor(elapsedSeconds / 60);
+                const seconds = elapsedSeconds % 60;
+                
+                elements.timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            } catch (error) {
+                console.error('タイマー更新中にエラーが発生しました:', error);
+            }
+        }
+        
+        // キャンバスのリサイズ
+        function resizeCanvas() {
+            try {
+                const container = elements.canvas.parentElement;
+                elements.canvas.width = container.clientWidth;
+                elements.canvas.height = container.clientHeight;
+                
+                if (gameState.gameActive) {
+                    drawMaze();
+                }
+            } catch (error) {
+                console.error('キャンバスリサイズ中にエラーが発生しました:', error);
+            }
+        }
+        
+        // 迷路の生成（深さ優先探索）
+        function generateMaze() {
+            try {
+                // 迷路の初期化
+                gameState.maze = [];
+                for (let y = 0; y < gameState.mazeHeight; y++) {
+                    const row = [];
+                    for (let x = 0; x < gameState.mazeWidth; x++) {
+                        row.push({ visited: false, walls: [true, true, true, true] }); // 上右下左
+                    }
+                    gameState.maze.push(row);
+                }
+                
+                // 深さ優先探索で迷路を生成
+                function carve(x, y) {
+                    gameState.maze[y][x].visited = true;
+                    
+                    // 方向をランダムに並べ替え
+                    const directions = shuffle([0, 1, 2, 3]); // 上右下左
+                    
+                    for (const dir of directions) {
+                        let nx = x;
+                        let ny = y;
+                        
+                        switch (dir) {
+                            case 0: ny--; break; // 上
+                            case 1: nx++; break; // 右
+                            case 2: ny++; break; // 下
+                            case 3: nx--; break; // 左
+                        }
+                        
+                        // 範囲内で、まだ訪れていない場合
+                        if (nx >= 0 && nx < gameState.mazeWidth && ny >= 0 && ny < gameState.mazeHeight && !gameState.maze[ny][nx].visited) {
+                            // 壁を取り除く
+                            gameState.maze[y][x].walls[dir] = false;
+                            gameState.maze[ny][nx].walls[(dir + 2) % 4] = false; // 反対側の壁も取り除く
+                            
+                            carve(nx, ny); // 再帰的に処理
+                        }
+                    }
+                }
+                
+                // スタートから掘り始める
+                carve(0, 0);
+                
+                // 各セルの訪問フラグをリセット
+                for (let y = 0; y < gameState.mazeHeight; y++) {
+                    for (let x = 0; x < gameState.mazeWidth; x++) {
+                        gameState.maze[y][x].visited = false;
+                    }
+                }
+            } catch (error) {
+                console.error('迷路生成中にエラーが発生しました:', error);
+                elements.gameStatus.textContent = '迷路生成中にエラーが発生しました。もう一度試してください。';
+            }
+        }
+        
+        // 最適解を見つける（幅優先探索）
+        function findSolution() {
+            try {
+                const queue = [{ x: 0, y: 0, path: [] }];
+                const visited = new Array(gameState.mazeHeight).fill(0).map(() => new Array(gameState.mazeWidth).fill(false));
+                visited[0][0] = true;
+                
+                while (queue.length > 0) {
+                    const { x, y, path } = queue.shift();
+                    
+                    // ゴールに到達した場合
+                    if (x === gameState.goalX && y === gameState.goalY) {
+                        gameState.solutionPath = path;
+                        gameState.bestSolutionLength = path.length;
+                        return;
+                    }
+                    
+                    // 隣接セルを調査
+                    const directions = [
+                        { dx: 0, dy: -1, dir: 0 }, // 上
+                        { dx: 1, dy: 0, dir: 1 },  // 右
+                        { dx: 0, dy: 1, dir: 2 },  // 下
+                        { dx: -1, dy: 0, dir: 3 }  // 左
+                    ];
+                    
+                    for (const { dx, dy, dir } of directions) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        
+                        // 範囲内で訪問していないセルで、壁がない場合
+                        if (nx >= 0 && nx < gameState.mazeWidth && ny >= 0 && ny < gameState.mazeHeight && !visited[ny][nx] && !gameState.maze[y][x].walls[dir]) {
+                            visited[ny][nx] = true;
+                            queue.push({ x: nx, y: ny, path: [...path, { x: nx, y: ny }] });
+                        }
+                    }
+                }
+                
+                // 解が見つからない場合（通常は起きないはず）
+                gameState.solutionPath = [];
+                gameState.bestSolutionLength = 0;
+            } catch (error) {
+                console.error('最適解探索中にエラーが発生しました:', error);
+            }
+        }
+        
+        // ヒントを表示
+        function showHint() {
+            try {
+                if (!gameState.gameActive || gameState.showingSolution) return;
+                
+                gameState.showingSolution = true;
+                
+                // 現在地から最短経路を探索
+                const currentPath = findPathFromCurrent();
+                
+                if (currentPath.length > 0) {
+                    // 次の移動先をハイライト
+                    const nextStep = currentPath[0];
+                    
+                    // 一時的にハイライト表示
+                    const originalStyle = ctx.fillStyle;
+                    ctx.fillStyle = 'rgba(252, 227, 138, 0.7)';
+                    ctx.beginPath();
+                    ctx.arc(
+                        nextStep.x * gameState.cellSize + gameState.cellSize / 2,
+                        nextStep.y * gameState.cellSize + gameState.cellSize / 2,
+                        gameState.cellSize / 3,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    ctx.fillStyle = originalStyle;
+                    
+                    // スクリーンリーダー向けにヒント情報を提供
+                    const directions = ['上', '右', '下', '左'];
+                    let directionText = '';
+                    
+                    if (nextStep.x > gameState.playerX) directionText = directions[1];
+                    else if (nextStep.x < gameState.playerX) directionText = directions[3];
+                    else if (nextStep.y > gameState.playerY) directionText = directions[2];
+                    else if (nextStep.y < gameState.playerY) directionText = directions[0];
+                    
+                    elements.gameStatus.textContent = `ヒント: ${directionText}に進むと良いでしょう。`;
+                    
+                    // 一定時間後に通常表示に戻す
+                    setTimeout(() => {
+                        gameState.showingSolution = false;
+                        drawMaze();
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error('ヒント表示中にエラーが発生しました:', error);
+                gameState.showingSolution = false;
+            }
+        }
+        
+        // 現在地からの最短経路を見つける
+        function findPathFromCurrent() {
+            try {
+                const queue = [{ x: gameState.playerX, y: gameState.playerY, path: [] }];
+                const visited = new Array(gameState.mazeHeight).fill(0).map(() => new Array(gameState.mazeWidth).fill(false));
+                visited[gameState.playerY][gameState.playerX] = true;
+                
+                while (queue.length > 0) {
+                    const { x, y, path } = queue.shift();
+                    
+                    // ゴールに到達した場合
+                    if (x === gameState.goalX && y === gameState.goalY) {
+                        return path;
+                    }
+                    
+                    // 隣接セルを調査
+                    const directions = [
+                        { dx: 0, dy: -1, dir: 0 }, // 上
+                        { dx: 1, dy: 0, dir: 1 },  // 右
+                        { dx: 0, dy: 1, dir: 2 },  // 下
+                        { dx: -1, dy: 0, dir: 3 }  // 左
+                    ];
+                    
+                    for (const { dx, dy, dir } of directions) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        
+                        // 範囲内で訪問していないセルで、壁がない場合
+                        if (nx >= 0 && nx < gameState.mazeWidth && ny >= 0 && ny < gameState.mazeHeight && !visited[ny][nx] && !gameState.maze[y][x].walls[dir]) {
+                            visited[ny][nx] = true;
+                            queue.push({ x: nx, y: ny, path: [...path, { x: nx, y: ny }] });
+                        }
+                    }
+                }
+                
+                return [];
+            } catch (error) {
+                console.error('経路探索中にエラーが発生しました:', error);
+                return [];
+            }
+        }
+        
+        // 配列のシャッフル
+        function shuffle(array) {
+            try {
+                const result = [...array];
+                for (let i = result.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [result[i], result[j]] = [result[j], result[i]];
+                }
+                return result;
+            } catch (error) {
+                console.error('配列シャッフル中にエラーが発生しました:', error);
+                return array; // エラー時は元の配列を返す
+            }
+        }
+        
+        // 迷路の描画
+        function drawMaze() {
+            try {
+                // キャンバスをクリア
+                ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
+                
+                // セルサイズの計算
+                gameState.cellSize = Math.min(elements.canvas.width / gameState.mazeWidth, elements.canvas.height / gameState.mazeHeight);
+                
+                // 迷路全体を中央に配置するためのオフセット
+                const offsetX = (elements.canvas.width - gameState.cellSize * gameState.mazeWidth) / 2;
+                const offsetY = (elements.canvas.height - gameState.cellSize * gameState.mazeHeight) / 2;
+                
+                // 背景
+                ctx.fillStyle = 'white';
+                ctx.fillRect(offsetX, offsetY, gameState.cellSize * gameState.mazeWidth, gameState.cellSize * gameState.mazeHeight);
+                
+                // 迷路の描画
+                for (let y = 0; y < gameState.mazeHeight; y++) {
+                    for (let x = 0; x < gameState.mazeWidth; x++) {
+                        const cell = gameState.maze[y][x];
+                        const cellX = offsetX + x * gameState.cellSize;
+                        const cellY = offsetY + y * gameState.cellSize;
+                        
+                        // 壁の描画
+                        ctx.strokeStyle = '#95E1D3';
+                        ctx.lineWidth = 2;
+                        
+                        if (cell.walls[0]) { // 上
+                            ctx.beginPath();
+                            ctx.moveTo(cellX, cellY);
+                            ctx.lineTo(cellX + gameState.cellSize, cellY);
+                            ctx.stroke();
+                        }
+                        
+                        if (cell.walls[1]) { // 右
+                            ctx.beginPath();
+                            ctx.moveTo(cellX + gameState.cellSize, cellY);
+                            ctx.lineTo(cellX + gameState.cellSize, cellY + gameState.cellSize);
+                            ctx.stroke();
+                        }
+                        
+                        if (cell.walls[2]) { // 下
+                            ctx.beginPath();
+                            ctx.moveTo(cellX, cellY + gameState.cellSize);
+                            ctx.lineTo(cellX + gameState.cellSize, cellY + gameState.cellSize);
+                            ctx.stroke();
+                        }
+                        
+                        if (cell.walls[3]) { // 左
+                            ctx.beginPath();
+                            ctx.moveTo(cellX, cellY);
+                            ctx.lineTo(cellX, cellY + gameState.cellSize);
+                            ctx.stroke();
+                        }
+                    }
+                }
+                
+                // スタート地点のマーク
+                ctx.fillStyle = 'rgba(149, 225, 211, 0.5)';
+                ctx.fillRect(offsetX, offsetY, gameState.cellSize, gameState.cellSize);
+                
+                // ゴールの描画
+                ctx.fillStyle = '#FCE38A';
+                ctx.beginPath();
+                ctx.arc(
+                    offsetX + gameState.goalX * gameState.cellSize + gameState.cellSize / 2,
+                    offsetY + gameState.goalY * gameState.cellSize + gameState.cellSize / 2,
+                    gameState.cellSize * 0.3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                
+                // プレーヤーの描画
+                ctx.fillStyle = '#F38181';
+                ctx.beginPath();
+                ctx.arc(
+                    offsetX + gameState.playerX * gameState.cellSize + gameState.cellSize / 2,
+                    offsetY + gameState.playerY * gameState.cellSize + gameState.cellSize / 2,
+                    gameState.cellSize * 0.3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            } catch (error) {
+                console.error('迷路描画中にエラーが発生しました:', error);
+            }
+        }
+        
+        // プレーヤーの移動
+        function movePlayer(dx, dy) {
+            try {
+                if (!gameState.gameActive) return;
+                
+                const newX = gameState.playerX + dx;
+                const newY = gameState.playerY + dy;
+                
+                // 範囲内かチェック
+                if (newX < 0 || newX >= gameState.mazeWidth || newY < 0 || newY >= gameState.mazeHeight) {
+                    return;
+                }
+                
+                // 壁のチェック
+                if (dx === 1 && gameState.maze[gameState.playerY][gameState.playerX].walls[1]) return; // 右の壁
+                if (dx === -1 && gameState.maze[gameState.playerY][gameState.playerX].walls[3]) return; // 左の壁
+                if (dy === 1 && gameState.maze[gameState.playerY][gameState.playerX].walls[2]) return; // 下の壁
+                if (dy === -1 && gameState.maze[gameState.playerY][gameState.playerX].walls[0]) return; // 上の壁
+                
+                // 移動
+                gameState.playerX = newX;
+                gameState.playerY = newY;
+                
+                // ステップのカウント
+                gameState.steps++;
+                elements.stepsDisplay.textContent = gameState.steps;
+                
+                // スクリーンリーダー向けの移動情報
+                const positions = ['左上端', '右上端', '左下端', '右下端'];
+                let positionText = '';
+                
+                if (gameState.playerX === 0 && gameState.playerY === 0) {
+                    positionText = positions[0];
+                } else if (gameState.playerX === gameState.mazeWidth - 1 && gameState.playerY === 0) {
+                    positionText = positions[1];
+                } else if (gameState.playerX === 0 && gameState.playerY === gameState.mazeHeight - 1) {
+                    positionText = positions[2];
+                } else if (gameState.playerX === gameState.mazeWidth - 1 && gameState.playerY === gameState.mazeHeight - 1) {
+                    positionText = positions[3];
+                }
+                
+                if (positionText) {
+                    elements.gameStatus.textContent = `${positionText}に到達しました。`;
+                }
+                
+                // 迷路の再描画
+                drawMaze();
+                
+                // ゴールチェック
+                if (gameState.playerX === gameState.goalX && gameState.playerY === gameState.goalY) {
+                    gameWin();
+                }
+            } catch (error) {
+                console.error('プレイヤー移動中にエラーが発生しました:', error);
+            }
+        }
+        
+        // ゲームクリア
+        function gameWin() {
+            try {
+                gameState.gameActive = false;
+                clearInterval(gameState.timerInterval);
+                
+                // 経過時間の取得
+                const elapsedSeconds = Math.floor((Date.now() - gameState.startTime) / 1000);
+                const minutes = Math.floor(elapsedSeconds / 60);
+                const seconds = elapsedSeconds % 60;
+                const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                // 結果の表示
+                document.getElementById('result-steps').textContent = gameState.steps;
+                document.getElementById('result-time').textContent = timeString;
+                
+                // スター評価の計算
+                const stars = calculateStars(gameState.steps, elapsedSeconds, gameState.bestSolutionLength);
+                
+                // スター表示のリセット
+                document.querySelectorAll('.star').forEach(star => {
+                    star.classList.remove('filled');
+                });
+                
+                // 星を表示
+                for (let i = 1; i <= stars; i++) {
+                    document.getElementById(`star-${i}`).classList.add('filled');
+                }
+                
+                // スクリーンリーダー用のテキスト更新
+                elements.starCount.textContent = stars;
+                
+                // スクリーンリーダー向けの状態更新
+                elements.gameStatus.textContent = `クリアしました！ステップ数: ${gameState.steps}, タイム: ${timeString}, 星: ${stars}つ`;
+                
+                // モーダルを表示
+                setTimeout(() => {
+                    elements.clearModal.classList.add('show');
+                    // 最初のボタンにフォーカス
+                    setTimeout(() => {
+                        const firstButton = elements.clearModal.querySelector('button');
+                        if (firstButton) firstButton.focus();
+                    }, 100);
+                }, 500);
+            } catch (error) {
+                console.error('ゲームクリア処理中にエラーが発生しました:', error);
+                elements.gameStatus.textContent = 'ゲームクリア処理中にエラーが発生しました。';
+            }
+        }
+        
+        // スター評価の計算
+        function calculateStars(steps, time, optimal) {
+            try {
+                // 最適解との比較
+                const stepsRatio = optimal > 0 ? steps / optimal : 1;
+                
+                // 難易度に応じた時間の評価基準
+                const difficultyTimeThresholds = {
+                    easy: { perfect: 10, good: 20, ok: 30 },
+                    medium: { perfect: 20, good: 40, ok: 60 },
+                    hard: { perfect: 40, good: 80, ok: 120 }
+                };
+                
+                const thresholds = difficultyTimeThresholds[gameState.currentDifficulty];
+                
+                // 星3つ: 最適解に近く、素早くクリア
+                if (stepsRatio <= 1.1 && time <= thresholds.perfect) {
+                    return 3;
+                }
+                
+                // 星2つ: やや最適解から外れるか、やや時間がかかる
+                if (stepsRatio <= 1.3 && time <= thresholds.good) {
+                    return 2;
+                }
+                
+                // 星1つ: それ以外
+                return 1;
+            } catch (error) {
+                console.error('スター評価計算中にエラーが発生しました:', error);
+                return 1; // エラー時は1つ星を返す
+            }
+        }
+        
+        // ゲームの初期化を実行
+        initGame();
+    </script>
+</body>
+</html>

@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ナンバープレイス (数独)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            background-color: #F9F9F9; /* 薄いグレーの背景に変更 */
+            color: #333;
+            padding: 10px;
+            touch-action: manipulation; /* ズームのみ無効化、スクロールを許可 */
+            overflow-x: hidden;
+            position: relative;
+            /* サファリでの上下バウンス防止 */
+            overscroll-behavior: none;
+        }
+        
+        /* 振動代替視覚フィードバック */
+        .vibrate-effect {
+            animation: vibrateFlash 0.1s ease-in-out 3;
+        }
+
+        @keyframes vibrateFlash {
+            0%, 100% { background-color: inherit; }
+            50% { background-color: rgba(252, 186, 211, 0.2); }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 15px;
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            background-color: #FFFFFF; /* 白背景に変更 */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            margin-bottom: 0;
+            color: #AA96DA; /* Purple header text */
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 500px;
+            background-color: #FFFFFF; /* 白色の背景に変更 */
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 80px; /* 固定ナンバーパッド用の余白 */
+            position: relative;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            gap: 8px;
+        }
+        
+        .difficulty-selector {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .difficulty-btn {
+            background-color: #FFFFD2; /* Light Yellow for inactive buttons */
+            color: #333;
+            border: 2px solid #AA96DA; /* Purple border */
+            padding: 8px 6px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            flex-grow: 1;
+            margin: 0 4px;
+            transition: background-color 0.2s, transform 0.1s ease-in-out;
+        }
+        
+        .difficulty-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .difficulty-btn.active {
+            background-color: #FCBAD3; /* Pink for active button */
+            color: #333;
+            border-color: #FCBAD3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(252, 186, 211, 0.4);
+        }
+
+        .difficulty-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(168, 216, 234, 0.4);
+        }
+
+        .timer, .difficulty, .score, .errors, .hints-left {
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            flex-grow: 1;
+            flex-basis: calc(50% - 8px);
+            margin: 0;
+            text-align: center;
+            font-weight: bold;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .timer {
+            border-color: #A8D8EA; /* Pastel Blue border */
+            color: #333;
+        }
+
+        .score {
+            border-color: #AA96DA; /* Purple border */
+            will-change: transform, background-color;
+            transition: transform 0.3s, background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .score.updated {
+            background-color: #FFFFD2; /* Light Yellow background when updated */
+            transform: scale(1.05); /* シンプルな拡大のみに変更 */
+            box-shadow: 0 0 12px #AA96DA; /* Purple glow */
+            transition: transform 0.2s, background-color 0.2s; /* アニメーション時間短縮 */
+        }
+
+        .errors {
+            border-color: #FCBAD3; /* Pink border */
+        }
+
+        .hints-left {
+            border-color: #FFFFD2; /* Light Yellow border */
+        }
+
+        button {
+            background-color: #FCBAD3; /* Pink buttons */
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(252, 186, 211, 0.5);
+            transition: all 0.3s ease;
+            flex-grow: 1;
+            margin: 0 12px; /* マージンをさらに広げて誤タップを防止 */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        button:hover {
+            background-color: #fcabc8; /* Slightly lighter pink on hover */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(252, 186, 211, 0.6);
+        }
+
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 6px rgba(252, 186, 211, 0.4);
+        }
+
+        button.hint {
+            background-color: #A8D8EA; /* Pastel Blue for hint button */
+            box-shadow: 0 4px 10px rgba(168, 216, 234, 0.5);
+        }
+
+        button.hint:hover {
+            background-color: #95d0e7; /* Slightly darker blue on hover */
+            box-shadow: 0 6px 14px rgba(168, 216, 234, 0.6);
+        }
+
+        button.hint:disabled {
+            background-color: #d9d9d9;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        button.new-game {
+            background-color: #AA96DA; /* Purple for new game button */
+            box-shadow: 0 4px 10px rgba(170, 150, 218, 0.5);
+        }
+
+        button.new-game:hover {
+            background-color: #9d87d4; /* Slightly darker purple on hover */
+            box-shadow: 0 6px 14px rgba(170, 150, 218, 0.6);
+        }
+
+        .board-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin: 0 auto 20px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 1px;
+            border: 2px solid #AA96DA; /* 枠線を紫色に変更してはっきり表示 */
+            background-color: #DDD; /* グリッド線は薄いグレーに変更 */
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .cell {
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            min-height: 32px; /* モバイルでの最小高さを確保 */
+        }
+
+        .cell.selected {
+            background-color: #E5D4F0; /* ラベンダー色をより濃く */
+            border: 2px solid #8A63BE; /* パープルの枠線を濃く */
+            transform: scale(0.98);
+            z-index: 2;
+            color: #333;
+        }
+
+        .cell.highlighted {
+            background-color: #F0F0F0; /* ハイライトを少し濃く */
+        }
+
+        .cell.error {
+            color: #e74c3c;
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            border: 2px solid #e74c3c;
+            background-color: rgba(231, 76, 60, 0.2);
+        }
+
+        .cell.deleting {
+            background-color: #ffedf2; /* 消去中の色 */
+            transform: scale(0.9);
+            border: 2px dashed #FCBAD3;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) scale(1); background-color: rgba(231, 76, 60, 0.2); }
+            20% { transform: translateX(-5px) scale(1.05); background-color: rgba(231, 76, 60, 0.3); }
+            40% { transform: translateX(5px) scale(1.05); background-color: rgba(231, 76, 60, 0.4); }
+            60% { transform: translateX(-3px) scale(1.05); background-color: rgba(231, 76, 60, 0.3); }
+            80% { transform: translateX(3px) scale(1.05); background-color: rgba(231, 76, 60, 0.2); }
+        }
+
+        .cell.fixed {
+            color: #2c3e50;
+            font-weight: 900;
+        }
+
+        .cell.hint {
+            background-color: #FFFFD2; /* Light Yellow for hint cells */
+            color: #AA96DA; /* Purple hint text */
+            font-weight: 900;
+        }
+
+        /* Borders for 3x3 boxes */
+        .cell:nth-child(9n+1), 
+        .cell:nth-child(9n+2), 
+        .cell:nth-child(9n+3) {
+            border-left: 1px solid #bdc3c7;
+        }
+
+        .cell:nth-child(n+1):nth-child(-n+9),
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+37):nth-child(-n+45),
+        .cell:nth-child(n+55):nth-child(-n+63),
+        .cell:nth-child(n+73):nth-child(-n+81) {
+            border-top: 1px solid #bdc3c7;
+        }
+
+        .cell:nth-child(3n) {
+            border-right: 1px solid #bdc3c7;
+        }
+
+        .cell:nth-child(n+73) {
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .cell:nth-child(9n+4), 
+        .cell:nth-child(9n+5), 
+        .cell:nth-child(9n+6) {
+            border-left: 1px solid #bdc3c7;
+        }
+
+        .cell:nth-child(9n+7), 
+        .cell:nth-child(9n+8), 
+        .cell:nth-child(9n) {
+            border-left: 1px solid #bdc3c7;
+        }
+
+        /* Thicker borders for box divisions */
+        .cell:nth-child(3n+1), .cell:nth-child(3n+2), .cell:nth-child(3n+3) {
+            border-right: 1px solid #bdc3c7;
+        }
+
+        .cell:nth-child(3n) {
+            border-right: 2px solid #AA96DA; /* Purple borders for 3x3 boxes */
+        }
+
+        .cell:nth-child(9n) {
+            border-right: 1px solid #bdc3c7;
+        }
+
+        .cell:nth-child(n+19):nth-child(-n+27) {
+            border-top: 1px solid #bdc3c7;
+        }
+
+        .cell:nth-child(n+28):nth-child(-n+36) {
+            border-top: 2px solid #AA96DA; /* Purple borders for 3x3 boxes */
+        }
+
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            border-top: 1px solid #bdc3c7;
+        }
+
+        .cell:nth-child(n+55):nth-child(-n+63) {
+            border-top: 2px solid #AA96DA; /* Purple borders for 3x3 boxes */
+        }
+
+        /* 数字入力パッドを画面下部に固定 */
+        .number-pad-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-top: 2px solid #AA96DA;
+            padding: 8px;
+            display: flex;
+            justify-content: center;
+            z-index: 100;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .number-btn {
+            background-color: #FCBAD3; /* Pink for number buttons */
+            color: white;
+            border: none;
+            padding: 12px 5px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(252, 186, 211, 0.3);
+            transition: all 0.3s ease;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .number-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(252, 186, 211, 0.5);
+        }
+
+        .number-btn:active {
+            transform: translateY(1px);
+        }
+
+        .victory-modal, .gameover-modal, .hint-confirm-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .victory-modal.visible, .gameover-modal.visible, .hint-confirm-modal.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .victory-content {
+            background-color: #FFFFD2; /* Light Yellow for victory modal */
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            width: 85%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: 4px solid #A8D8EA; /* Pastel Blue border */
+            animation: pop 0.5s;
+        }
+
+        .gameover-content, .hint-confirm-content {
+            background-color: #C97A84; /* より落ち着いた赤に変更 */
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            width: 85%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 2px solid #AA96DA;
+            animation: pop 0.5s;
+            color: white;
+        }
+
+        .hint-confirm-content {
+            background-color: #A8D8EA; /* ヒント確認は青系の色に */
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            width: auto; /* 固定幅からautoに変更 */
+            max-width: 90%; /* 最大幅を増加 */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 2px solid #AA96DA;
+            animation: pop 0.5s;
+            color: #333;
+            margin: 0 auto; /* 中央配置の調整 */
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .victory-content h2 {
+            color: #AA96DA; /* Purple success text */
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+
+        .gameover-content h2, .hint-confirm-content h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.6rem;
+        }
+
+        .victory-content p, .gameover-content p, .hint-confirm-content p {
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .hint-confirm-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        /* Relaxed mode toggle */
+        .mode-switch {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+            margin-bottom: 5px;
+        }
+
+        .mode-switch label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .mode-switch input {
+            height: 0;
+            width: 0;
+            visibility: hidden;
+        }
+
+        .mode-switch span {
+            display: inline-block;
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background-color: #A8D8EA; /* Pastel Blue for toggle background */
+            border-radius: 15px;
+            margin-right: 10px;
+            transition: 0.3s;
+        }
+
+        .mode-switch span:after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .mode-switch input:checked + span {
+            background-color: #FCBAD3; /* Pink for active toggle */
+        }
+
+        .mode-switch input:checked + span:after {
+            left: calc(100% - 3px);
+            transform: translateX(-100%);
+        }
+
+        .mode-text {
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* スマホでの表示最適化 */
+        @media (max-width: 480px) {
+            header {
+                margin-bottom: 10px;
+                padding: 8px;
+            }
+            
+            h1 {
+                font-size: 1.4rem;
+            }
+            
+            .game-container {
+                padding: 10px;
+            }
+            
+            .info-panel {
+                font-size: 0.8rem;
+            }
+            
+            .cell {
+                font-size: 1.1rem;
+                min-height: 28px;
+            }
+            
+            .number-btn {
+                padding: 10px 2px;
+                font-size: 1.1rem;
+            }
+            
+            .controls button {
+                padding: 10px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .difficulty-btn {
+                font-size: 0.8rem;
+                padding: 6px 4px;
+            }
+        }
+
+        @media (min-width: 481px) {
+            .number-btn {
+                padding: 15px 10px;
+                font-size: 1.3rem;
+            }
+            
+            .cell {
+                font-size: 1.3rem;
+            }
+        }
+
+        /* キーボード入力用の隠しフィールド */
+        .keyboard-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>ナンバープレイス (数独)</h1>
+    </header>
+
+    <div class="game-container">
+        <div class="info-panel">
+            <div class="timer">時間: 00:00</div>
+            <div class="difficulty">難易度: 普通</div>
+            <div class="score">スコア: 0</div>
+            <div class="errors">ミス: 0/3</div>
+        </div>
+        
+        <div class="difficulty-selector">
+            <button class="difficulty-btn" data-difficulty="easy">簡単</button>
+            <button class="difficulty-btn active" data-difficulty="medium">普通</button>
+            <button class="difficulty-btn" data-difficulty="hard">難しい</button>
+        </div>
+        
+        <div class="controls">
+            <button class="new-game">新しいゲーム</button>
+            <button class="hint">ヒント (<span class="hints-count">3</span>)</button>
+        </div>
+
+        <div class="board-container">
+            <div class="board" id="sudoku-board"></div>
+        </div>
+        
+        <!-- 隠しキーボード入力フィールド -->
+        <input type="tel" class="keyboard-input" pattern="[0-9]*" inputmode="numeric" aria-label="数字入力" maxlength="1">
+        
+        <!-- Added Relaxed Mode Toggle -->
+        <div class="mode-switch">
+            <label>
+                <input type="checkbox" id="relaxed-mode">
+                <span></span>
+                <div class="mode-text">リラックスモード</div>
+            </label>
+        </div>
+    </div>
+
+    <!-- 固定された数字入力パッド -->
+    <div class="number-pad-container">
+        <div class="number-pad">
+            <button class="number-btn" data-number="1">1</button>
+            <button class="number-btn" data-number="2">2</button>
+            <button class="number-btn" data-number="3">3</button>
+            <button class="number-btn" data-number="4">4</button>
+            <button class="number-btn" data-number="5">5</button>
+            <button class="number-btn" data-number="6">6</button>
+            <button class="number-btn" data-number="7">7</button>
+            <button class="number-btn" data-number="8">8</button>
+            <button class="number-btn" data-number="9">9</button>
+        </div>
+    </div>
+
+    <div class="victory-modal">
+        <div class="victory-content">
+            <h2>おめでとうございます！</h2>
+            <p class="victory-time">クリア時間: 00:00</p>
+            <p class="victory-score">スコア: 0</p>
+            <button class="new-game">もう一度プレイ</button>
+        </div>
+    </div>
+
+    <div class="gameover-modal">
+        <div class="gameover-content">
+            <h2>ゲームオーバー</h2>
+            <p>ミスが3回に達しました</p>
+            <button class="new-game">もう一度チャレンジ</button>
+        </div>
+    </div>
+
+    <!-- ヒント確認ダイアログを追加 -->
+    <div class="hint-confirm-modal">
+        <div class="hint-confirm-content">
+            <h2>ヒントを使用しますか？</h2>
+            <p>残り <span class="hints-left-count">3</span> 回 (使用するとスコアが減少します)</p>
+            <div class="hint-confirm-buttons">
+                <button class="hint-cancel">キャンセル</button>
+                <button class="hint-confirm">使用する</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            "use strict"; // 厳密モードを有効化
+            
+            // Game variables
+            let board = Array(9).fill().map(() => Array(9).fill(0));
+            let solution = Array(9).fill().map(() => Array(9).fill(0));
+            let fixed = Array(9).fill().map(() => Array(9).fill(false));
+            let selectedCell = null;
+            let timer = 0;
+            let timerInterval;
+            let errorCount = 0;
+            let score = 0;
+            let gameActive = false;
+            let difficulty = 'medium'; // easy, medium, hard
+            let hintsRemaining = 3;  // ヒントの使用回数を制限
+            let backtrackCount = 0;  // バックトラック回数をカウント
+            const MAX_BACKTRACK = 10000;  // バックトラックの最大回数
+            let relaxedMode = false;  // リラックスモード (ミス制限なし)
+            let shouldStartNewGame = true; // 自動再開制御用
+            let scoreAnimationInProgress = false; // スコアアニメーション管理用
+            let timerAnimationFrame; // タイマーアニメーションフレーム参照
+            let lastTouchTime = 0; // タッチイベントの時間を記録
+            let errorUpdateInProgress = false; // エラー表示更新管理用
+            
+            // Document unload event handling for cleanup
+            window.addEventListener('beforeunload', function() {
+                // Clean up any timers and animation frames
+                clearInterval(timerInterval);
+                if (timerAnimationFrame) {
+                    cancelAnimationFrame(timerAnimationFrame);
+                    timerAnimationFrame = null;
+                }
+            });
+            
+            // DOM elements
+            const boardElement = document.getElementById('sudoku-board');
+            const timerElement = document.querySelector('.timer');
+            const scoreElement = document.querySelector('.score');
+            const errorsElement = document.querySelector('.errors');
+            const difficultyElement = document.querySelector('.difficulty');
+            const hintsCountElement = document.querySelector('.hints-count');
+            const hintsLeftCountElement = document.querySelector('.hints-left-count');
+            const hintButton = document.querySelector('.hint');
+            const victoryModal = document.querySelector('.victory-modal');
+            const victoryTime = document.querySelector('.victory-time');
+            const victoryScore = document.querySelector('.victory-score');
+            const gameoverModal = document.querySelector('.gameover-modal');
+            const relaxedModeToggle = document.getElementById('relaxed-mode');
+            const hintConfirmModal = document.querySelector('.hint-confirm-modal');
+            const hintCancelButton = document.querySelector('.hint-cancel');
+            const hintConfirmButton = document.querySelector('.hint-confirm');
+            const keyboardInput = document.querySelector('.keyboard-input');
+            
+            // 振動フィードバック関数
+            function vibrateFeedback(pattern) {
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(pattern || [20, 10, 20]);
+                    return true; // 振動APIが成功
+                } else {
+                    // iOS で振動が無効な場合の代替視覚フィードバック
+                    document.body.classList.add('vibrate-effect');
+                    setTimeout(() => document.body.classList.remove('vibrate-effect'), 300);
+                    return false; // 振動APIが失敗
+                }
+            }
+            
+            // エラーフィードバック（振動＋視覚）
+            function errorFeedback(cellElement) {
+                // 振動パターン（短い複数回の振動でiOSでも感じやすく）
+                const vibrated = vibrateFeedback([20, 10, 30, 10, 20]);
+                
+                // iOS対応：振動が効かなかった場合、視覚エフェクトを強化
+                if (!vibrated) {
+                    cellElement.style.boxShadow = '0 0 12px red';
+                    setTimeout(() => {
+                        cellElement.style.boxShadow = '';
+                    }, 500);
+                }
+                
+                // エラー表示を確実に消去
+                cellElement.classList.remove('error');
+                
+                // エラークラスを追加して視覚フィードバック
+                requestAnimationFrame(() => {
+                    cellElement.classList.add('error');
+                    
+                    // エラークラスを一定時間後に削除
+                    setTimeout(() => {
+                        cellElement.classList.remove('error');
+                    }, 500);
+                });
+            }
+            
+            // 正解フィードバック（振動＋視覚）
+            function correctFeedback(cellElement) {
+                // 振動パターン（短く穏やかな振動）
+                vibrateFeedback([15, 5, 15]);
+                
+                // 正解のアニメーション
+                cellElement.style.transition = 'transform 0.2s, background-color 0.2s';
+                cellElement.style.transform = 'scale(1.1)';
+                cellElement.style.backgroundColor = '#FFFFD2';
+                
+                setTimeout(() => {
+                    cellElement.style.transform = 'scale(1)';
+                    cellElement.style.backgroundColor = '';
+                }, 200);
+            }
+            
+            // セルの長押し処理のためのセットアップ
+            function setupCellLongPress() {
+                document.querySelectorAll('.cell').forEach(cell => {
+                    const row = parseInt(cell.dataset.row);
+                    const col = parseInt(cell.dataset.col);
+                    let holdTimeout;
+                    let longPressActive = false;
+                    
+                    // マウス/タッチの開始
+                    const startLongPress = () => {
+                        if (!gameActive || fixed[row][col]) return;
+                        
+                        longPressActive = false;
+                        holdTimeout = setTimeout(() => {
+                            longPressActive = true;
+                            cell.classList.add('deleting');
+                            
+                            // iOS対応：単発の長めの振動 + 視覚フィードバック
+                            if (!vibrateFeedback(50)) {
+                                // 振動が効かない場合は視覚フィードバックを強化
+                                cell.style.boxShadow = '0 0 8px #FCBAD3';
+                                setTimeout(() => {
+                                    cell.style.boxShadow = '';
+                                }, 300);
+                            }
+                            
+                            // 長押しが完了したら値を削除
+                            setTimeout(() => {
+                                if (longPressActive && !fixed[row][col] && board[row][col] !== 0) {
+                                    // 消去処理を handleNumberClick に統一
+                                    handleNumberClick(0);
+                                    vibrateFeedback([10, 5, 10]);
+                                }
+                                cell.classList.remove('deleting');
+                            }, 300);
+                        }, 300);
+                    };
+                    
+                    // マウス/タッチの終了
+                    const endLongPress = () => {
+                        clearTimeout(holdTimeout);
+                        cell.classList.remove('deleting');
+                        cell.style.boxShadow = '';
+                        longPressActive = false;
+                    };
+                    
+                    // マウスイベント
+                    cell.addEventListener('mousedown', startLongPress);
+                    cell.addEventListener('mouseup', endLongPress);
+                    cell.addEventListener('mouseleave', endLongPress);
+                    
+                    // タッチイベント
+                    cell.addEventListener('touchstart', (e) => {
+                        // 単一のタッチのみ処理
+                        if (e.touches.length === 1) {
+                            e.preventDefault(); // タッチスクロールを防止
+                            startLongPress();
+                        }
+                    }, { passive: false });
+                    cell.addEventListener('touchend', endLongPress);
+                    cell.addEventListener('touchcancel', endLongPress);
+                });
+            }
+            
+            // セルをクリックしたときの処理
+            function createBoard() {
+                boardElement.innerHTML = '';
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = i;
+                        cell.dataset.col = j;
+                        
+                        // セルのタップ領域を拡大するために内部divを追加
+                        cell.addEventListener('click', (e) => {
+                            e.preventDefault(); // デフォルトのタップ動作を防止
+                            selectCell(i, j);
+                            
+                            // キーボード入力を呼び出し
+                            if (gameActive && !fixed[i][j]) {
+                                // モバイルキーボードを開く
+                                focusKeyboardInput();
+                            }
+                        });
+                        
+                        // タッチイベントリスナーを追加（クリックだけでなくタッチも対応させる）
+                        cell.addEventListener('touchstart', (e) => {
+                            e.preventDefault();
+                            lastTouchTime = Date.now();
+                            selectCell(i, j);
+                            
+                            // キーボード入力を呼び出し
+                            if (gameActive && !fixed[i][j]) {
+                                // モバイルキーボードを開く
+                                focusKeyboardInput();
+                            }
+                        }, { passive: false });
+                        
+                        boardElement.appendChild(cell);
+                    }
+                }
+            }
+            
+            // モバイルキーボード入力にフォーカス
+            function focusKeyboardInput() {
+                keyboardInput.value = ''; // 入力をクリア
+                keyboardInput.focus();
+            }
+            
+            // Select a cell
+            function selectCell(row, col) {
+                if (!gameActive) return;
+                
+                // 矢印キー操作時の選択問題を解決するためネストしたrequestAnimationFrameを使用
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        // Clear all selections and highlights first
+                        document.querySelectorAll('.cell').forEach(cell => {
+                            cell.classList.remove('selected');
+                            cell.classList.remove('highlighted');
+                        });
+                        
+                        // Now select the new cell and add appropriate highlights
+                        const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                        if (!cellElement) return; // 要素が見つからない場合は終了
+                        
+                        cellElement.classList.add('selected');
+                        selectedCell = [row, col];
+                        
+                        // タイムアウトを使用して確実にハイライトを適用
+                        setTimeout(() => {
+                            // Highlight same value cells
+                            const value = board[row][col];
+                            if (value !== 0) {
+                                document.querySelectorAll('.cell').forEach(cell => {
+                                    const r = parseInt(cell.dataset.row);
+                                    const c = parseInt(cell.dataset.col);
+                                    if (board[r][c] === value) {
+                                        cell.classList.add('highlighted');
+                                    }
+                                });
+                            }
+                            
+                            // Highlight row, column and box
+                            for (let i = 0; i < 9; i++) {
+                                // Highlight row
+                                const rowCell = document.querySelector(`.cell[data-row="${row}"][data-col="${i}"]`);
+                                if (rowCell) rowCell.classList.add('highlighted');
+                                
+                                // Highlight column
+                                const colCell = document.querySelector(`.cell[data-row="${i}"][data-col="${col}"]`);
+                                if (colCell) colCell.classList.add('highlighted');
+                            }
+                            
+                            // Highlight 3x3 box
+                            const boxRow = Math.floor(row / 3) * 3;
+                            const boxCol = Math.floor(col / 3) * 3;
+                            for (let i = boxRow; i < boxRow + 3; i++) {
+                                for (let j = boxCol; j < boxCol + 3; j++) {
+                                    const boxCell = document.querySelector(`.cell[data-row="${i}"][data-col="${j}"]`);
+                                    if (boxCell) boxCell.classList.add('highlighted');
+                                }
+                            }
+                            
+                            // 選択したセルが確実に選択状態になるよう再適用
+                            cellElement.classList.add('selected');
+                        }, 10);
+                    });
+                });
+            }
+            
+            // Update board display
+            function updateBoard() {
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        const cellElement = document.querySelector(`.cell[data-row="${i}"][data-col="${j}"]`);
+                        const value = board[i][j];
+                        
+                        // Update cell value
+                        if (value !== 0) {
+                            cellElement.textContent = value;
+                            
+                            if (fixed[i][j]) {
+                                cellElement.classList.add('fixed');
+                            } else {
+                                cellElement.classList.remove('fixed');
+                            }
+                        } else {
+                            // Clear the cell text content
+                            cellElement.textContent = '';
+                            cellElement.classList.remove('fixed');
+                            cellElement.classList.remove('hint');
+                        }
+                    }
+                }
+            }
+            
+            // フォールバック用の事前定義されたパターン
+            const FALLBACK_SOLUTION = [
+                [5, 3, 4, 6, 7, 8, 9, 1, 2],
+                [6, 7, 2, 1, 9, 5, 3, 4, 8],
+                [1, 9, 8, 3, 4, 2, 5, 6, 7],
+                [8, 5, 9, 7, 6, 1, 4, 2, 3],
+                [4, 2, 6, 8, 5, 3, 7, 9, 1],
+                [7, 1, 3, 9, 2, 4, 8, 5, 6],
+                [9, 6, 1, 5, 3, 7, 2, 8, 4],
+                [2, 8, 7, 4, 1, 9, 6, 3, 5],
+                [3, 4, 5, 2, 8, 6, 1, 7, 9]
+            ];
+            
+            const FALLBACK_BOARD_EASY = [
+                [5, 3, 0, 0, 7, 0, 0, 0, 0],
+                [6, 0, 0, 1, 9, 5, 0, 0, 0],
+                [0, 9, 8, 0, 0, 0, 0, 6, 0],
+                [8, 0, 0, 0, 6, 0, 0, 0, 3],
+                [4, 0, 0, 8, 0, 3, 0, 0, 1],
+                [7, 0, 0, 0, 2, 0, 0, 0, 6],
+                [0, 6, 0, 0, 0, 0, 2, 8, 0],
+                [0, 0, 0, 4, 1, 9, 0, 0, 5],
+                [0, 0, 0, 0, 8, 0, 0, 7, 9]
+            ];
+            
+            // Generate Sudoku puzzle
+            function generateSudoku(difficulty) {
+                console.log(`Generating Sudoku for difficulty: ${difficulty}`); // デバッグ用
+                
+                // Reset board and solution
+                board = Array(9).fill().map(() => Array(9).fill(0));
+                solution = Array(9).fill().map(() => Array(9).fill(0));
+                fixed = Array(9).fill().map(() => Array(9).fill(false));
+                backtrackCount = 0;
+                
+                // 盤面生成の再試行を管理
+                let attemptCount = 0;
+                const maxAttempts = 5; // 最大再試行回数を増加（3→5）
+                
+                // 盤面生成を試み、失敗した場合に再試行
+                while (attemptCount < maxAttempts) {
+                    backtrackCount = 0;
+                    
+                    // Generate a solved board
+                    if (generateSolution(0, 0)) {
+                        break; // 成功したらループを抜ける
+                    }
+                    
+                    console.log(`Solution generation failed, attempt ${attemptCount + 1} of ${maxAttempts}`);
+                    attemptCount++;
+                    
+                    // 最後の試行でも生成できなかった場合
+                    if (attemptCount === maxAttempts) {
+                        console.error("Failed to generate sudoku after multiple attempts.");
+                        
+                        // 現在の難易度が「簡単」でなければ、難易度を下げて再試行
+                        if (difficulty !== 'easy') {
+                            console.log("Falling back to easy difficulty");
+                            return generateSudoku('easy'); // 簡単な難易度で再試行
+                        } else {
+                            // 「簡単」でも失敗した場合はフォールバックパターンを使用
+                            console.log("Using fallback pattern");
+                            useFallbackPattern();
+                            return true;
+                        }
+                    }
+                }
+                
+                // Copy solution to board
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        board[i][j] = solution[i][j];
+                    }
+                }
+                
+                // Define difficulty levels with cell removal counts
+                const difficultyLevels = {
+                    'easy': { cells: 35, maxAttempts: 50 },
+                    'medium': { cells: 45, maxAttempts: 100 },
+                    'hard': { cells: 55, maxAttempts: 150 }
+                };
+                
+                // Get difficulty configuration
+                const config = difficultyLevels[difficulty];
+                console.log(`Using difficulty config: cells=${config.cells}, maxAttempts=${config.maxAttempts}`);
+                
+                // Remove cells strategically to create the puzzle
+                let cellsToRemove = Math.min(config.cells, 60); // 上限を60に制限
+                let attempts = 0;
+                
+                // Store cells in random order
+                let cells = [];
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        cells.push([i, j]);
+                    }
+                }
+                cells = shuffleArray(cells);
+                
+                // Try to remove cells
+                for (let i = 0; i < cells.length && cellsToRemove > 0 && attempts < config.maxAttempts; i++) {
+                    const [row, col] = cells[i];
+                    const temp = board[row][col];
+                    board[row][col] = 0;
+                    
+                    // Check if puzzle still has a unique solution
+                    if (!hasUniqueSolution()) {
+                        // If not, restore the cell
+                        board[row][col] = temp;
+                        attempts++;
+                    } else {
+                        cellsToRemove--;
+                    }
+                }
+                
+                // Mark fixed cells
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        if (board[i][j] !== 0) {
+                            fixed[i][j] = true;
+                        }
+                    }
+                }
+                
+                // Show difficulty
+                const difficultyText = {
+                    'easy': '簡単',
+                    'medium': '普通',
+                    'hard': '難しい'
+                }[difficulty];
+                
+                difficultyElement.textContent = `難易度: ${difficultyText}`;
+                console.log(`Successfully generated puzzle with difficulty: ${difficulty}`);
+                return true;
+            }
+            
+            // フォールバックパターンを使用
+            function useFallbackPattern() {
+                // フォールバック用の解答と問題をコピー
+                solution = FALLBACK_SOLUTION.map(row => [...row]);
+                board = FALLBACK_BOARD_EASY.map(row => [...row]);
+                
+                // fixed配列を更新
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        fixed[i][j] = board[i][j] !== 0;
+                    }
+                }
+                
+                // 難易度表示を簡単に設定
+                difficultyElement.textContent = `難易度: 簡単`;
+                difficulty = 'easy';
+                
+                // 難易度ボタンを更新
+                document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.difficulty === 'easy') {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+            
+            /**
+             * 数独の解が一意（ユニーク）かどうかを判定する関数
+             * 
+             * @returns {boolean} - 解が一意であればtrue、複数の解がある場合はfalse
+             */
+            function hasUniqueSolution() {
+                // Create a copy of the board
+                let testBoard = [];
+                for (let i = 0; i < 9; i++) {
+                    testBoard[i] = [...board[i]];
+                }
+                
+                // Flag to track if we found a solution
+                let solutionFound = false;
+                let solutionCount = 0; // 解の数をカウント
+                
+                // Try to solve the board
+                function solveRecursive(row, col) {
+                    // If we've reached the end of the board, we found a solution
+                    if (row === 9) {
+                        solutionFound = true;
+                        solutionCount++;
+                        // If this is the second solution, return false immediately
+                        return solutionCount < 2;
+                    }
+                    
+                    // Move to the next cell
+                    let nextRow = col === 8 ? row + 1 : row;
+                    let nextCol = col === 8 ? 0 : col + 1;
+                    
+                    // If the current cell is filled, move to the next
+                    if (testBoard[row][col] !== 0) {
+                        return solveRecursive(nextRow, nextCol);
+                    }
+                    
+                    // Try each number in the current cell
+                    for (let num = 1; num <= 9; num++) {
+                        if (isValid(testBoard, row, col, num)) {
+                            testBoard[row][col] = num;
+                            
+                            // If we find a second solution, stop immediately
+                            if (!solveRecursive(nextRow, nextCol)) {
+                                return false;
+                            }
+                            
+                            // If we've already found one solution, try other numbers
+                            // to see if there's a second solution
+                            if (solutionCount >= 1) {
+                                testBoard[row][col] = 0;
+                            } else {
+                                // Backtrack
+                                testBoard[row][col] = 0;
+                                return solutionFound;
+                            }
+                        }
+                    }
+                    
+                    // If we tried all numbers and couldn't find a solution
+                    return solutionFound && solutionCount === 1;
+                }
+                
+                // Start solving from the first cell
+                return solveRecursive(0, 0) && solutionCount === 1;
+            }
+            
+            /**
+             * バックトラッキングを使用して数独の解答を生成する
+             * 効率的に解決可能な有効な数独パズルを生成するための関数
+             * 
+             * @param {number} row - 現在処理中の行番号（0-8）
+             * @param {number} col - 現在処理中の列番号（0-8）
+             * @returns {boolean} - 解答生成に成功したかどうか
+             */
+            function generateSolution(row, col) {
+                // Check if we've exceeded max backtrack count
+                if (backtrackCount > MAX_BACKTRACK) {
+                    return false;
+                }
+                
+                // If we've filled all rows, we're done
+                if (row === 9) {
+                    return true;
+                }
+                
+                // If we've filled this column, move to next row
+                if (col === 9) {
+                    return generateSolution(row + 1, 0);
+                }
+                
+                // If this cell is already filled, move to next cell
+                if (solution[row][col] !== 0) {
+                    return generateSolution(row, col + 1);
+                }
+                
+                // Try filling with each number 1-9
+                const numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+                
+                for (let i = 0; i < 9; i++) {
+                    const num = numbers[i];
+                    
+                    // Check if valid placement
+                    if (isValid(solution, row, col, num)) {
+                        solution[row][col] = num;
+                        
+                        // Recursively fill the next cell
+                        if (generateSolution(row, col + 1)) {
+                            return true;
+                        }
+                        
+                        // If we couldn't fill the next cell, backtrack
+                        solution[row][col] = 0;
+                        backtrackCount++;
+                    }
+                }
+                
+                // No valid number found, need to backtrack
+                return false;
+            }
+            
+            // Check if placing a number is valid
+            function isValid(board, row, col, num) {
+                // Check row
+                for (let i = 0; i < 9; i++) {
+                    if (board[row][i] === num) {
+                        return false;
+                    }
+                }
+                
+                // Check column
+                for (let i = 0; i < 9; i++) {
+                    if (board[i][col] === num) {
+                        return false;
+                    }
+                }
+                
+                // Check 3x3 box
+                const boxRow = Math.floor(row / 3) * 3;
+                const boxCol = Math.floor(col / 3) * 3;
+                
+                for (let i = boxRow; i < boxRow + 3; i++) {
+                    for (let j = boxCol; j < boxCol + 3; j++) {
+                        if (board[i][j] === num) {
+                            return false;
+                        }
+                    }
+                }
+                
+                return true;
+            }
+            
+            // Fisher-Yates shuffle algorithm
+            function shuffleArray(array) {
+                const newArray = [...array]; // Create a copy to avoid mutating the original
+                for (let i = newArray.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+                }
+                return newArray;
+            }
+            
+            // Check if the puzzle is solved
+            function checkSolution() {
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        if (board[i][j] !== solution[i][j]) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            
+            // 入力バリデーションを追加（数独ルールに則っているか）
+            function isValidInput(row, col, num) {
+                // 元の盤面には触れず、一時的なコピーを作成して検証
+                const tempBoard = board.map(r => [...r]);
+                tempBoard[row][col] = num;
+                
+                // 数字が0の場合は常に有効（消去は常に可能）
+                if (num === 0) return true;
+                
+                // 正解の数字かどうかをチェック（常に数独としては有効）
+                if (num === solution[row][col]) return true;
+                
+                // 行、列、ボックスの中で重複がないか確認
+                let isValid = true;
+                
+                // 行チェック - 同じ数字が複数あるか
+                const rowValues = new Set();
+                for (let j = 0; j < 9; j++) {
+                    if (tempBoard[row][j] !== 0) {
+                        if (rowValues.has(tempBoard[row][j])) {
+                            isValid = false;
+                            break;
+                        }
+                        rowValues.add(tempBoard[row][j]);
+                    }
+                }
+                
+                // 列チェック - 同じ数字が複数あるか
+                if (isValid) {
+                    const colValues = new Set();
+                    for (let i = 0; i < 9; i++) {
+                        if (tempBoard[i][col] !== 0) {
+                            if (colValues.has(tempBoard[i][col])) {
+                                isValid = false;
+                                break;
+                            }
+                            colValues.add(tempBoard[i][col]);
+                        }
+                    }
+                }
+                
+                // 3x3ボックスチェック - 同じ数字が複数あるか
+                if (isValid) {
+                    const boxRow = Math.floor(row / 3) * 3;
+                    const boxCol = Math.floor(col / 3) * 3;
+                    const boxValues = new Set();
+                    
+                    for (let i = 0; i < 3; i++) {
+                        for (let j = 0; j < 3; j++) {
+                            const r = boxRow + i;
+                            const c = boxCol + j;
+                            if (tempBoard[r][c] !== 0) {
+                                if (boxValues.has(tempBoard[r][c])) {
+                                    isValid = false;
+                                    break;
+                                }
+                                boxValues.add(tempBoard[r][c]);
+                            }
+                        }
+                        if (!isValid) break;
+                    }
+                }
+                
+                console.log(`入力検証: 位置(${row},${col}) 数字:${num} 有効:${isValid}`); // デバッグログ
+                return isValid;
+            }
+            
+            // Handle number button click
+            function handleNumberClick(num) {
+                if (!gameActive || !selectedCell) return;
+                
+                const [row, col] = selectedCell;
+                
+                // Skip fixed cells
+                if (fixed[row][col]) return;
+                
+                // 削除操作（num=0）または正解の場合
+                if (num === 0 || num === solution[row][col]) {
+                    // 正解または消去の場合のみ値を適用
+                    const oldValue = board[row][col];
+                    board[row][col] = num;
+                    
+                    // 値が変更された場合のみアニメーション
+                    if (oldValue !== num) {
+                        if (num !== 0) {
+                            // 正解のセル要素取得
+                            const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                            
+                            // 正解フィードバック
+                            correctFeedback(cellElement);
+                            
+                            // スコア更新
+                            updateScore(oldValue === 0 ? 10 : 5);
+                        }
+                    }
+                    
+                    updateBoard();
+                    
+                    // セルを選択し直して、ハイライトを更新
+                    selectCell(row, col);
+                    
+                    // Check if puzzle is solved
+                    if (checkSolution()) {
+                        gameWon();
+                    }
+                } else {
+                    // 不正解の場合の処理
+                    const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                    
+                    // エラーフィードバック
+                    errorFeedback(cellElement);
+                    
+                    // リラックスモードではエラーカウントを増やさない
+                    if (!relaxedMode) {
+                        errorCount++;
+                        
+                        // エラーカウント表示を確実に更新
+                        errorsElement.textContent = 'ミス: ' + errorCount + '/3';
+                        
+                        // ゲームオーバー判定
+                        if (errorCount >= 3) {
+                            setTimeout(function() {
+                                gameOver();
+                            }, 100);
+                        }
+                    } else {
+                        // リラックスモードの場合はカウント表示を更新
+                        errorsElement.textContent = 'ミス: ' + errorCount + '/∞';
+                    }
+                }
+            }
+            
+            // Update score with animation
+            function updateScore(points) {
+                // スコアが0未満にならないようリラックスモードでは減点を半分に
+                if (relaxedMode && points < 0) {
+                    points = Math.floor(points / 2);
+                }
+                
+                score = Math.max(0, score + points);
+                scoreElement.textContent = `スコア: ${score}`;
+                
+                // アニメーションが進行中なら処理をスキップ
+                if (!scoreAnimationInProgress) {
+                    scoreAnimationInProgress = true;
+                    
+                    // requestAnimationFrameを使用して次のフレームでアニメーション適用
+                    requestAnimationFrame(() => {
+                        // Add animation class
+                        scoreElement.classList.add('updated');
+                        
+                        // Remove animation class after animation completes
+                        setTimeout(() => {
+                            scoreElement.classList.remove('updated');
+                            
+                            // フラグリセットを遅延させて連続実行を防止
+                            setTimeout(() => {
+                                scoreAnimationInProgress = false;
+                            }, 50);
+                        }, 200); // アニメーション時間を短縮（300→200）
+                    });
+                }
+            }
+            
+            // Game over
+            function gameOver() {
+                gameActive = false;
+                clearInterval(timerInterval);
+                
+                // タイマーフレームのキャンセルを確実に行う
+                if (timerAnimationFrame) {
+                    cancelAnimationFrame(timerAnimationFrame);
+                    timerAnimationFrame = null;
+                }
+                
+                // Show gameover modal
+                gameoverModal.classList.add('visible');
+            }
+            
+            // Game won
+            function gameWon() {
+                gameActive = false;
+                clearInterval(timerInterval);
+                
+                // タイマーフレームのキャンセルを確実に行う
+                if (timerAnimationFrame) {
+                    cancelAnimationFrame(timerAnimationFrame);
+                    timerAnimationFrame = null;
+                }
+                
+                // Calculate final score with a minimum bonus of 100 points
+                const timeBonus = Math.max(100, 1000 - timer);
+                updateScore(timeBonus);
+                
+                // Update victory modal
+                victoryTime.textContent = `クリア時間: ${formatTime(timer)}`;
+                victoryScore.textContent = `スコア: ${score}`;
+                
+                // Show modal
+                victoryModal.classList.add('visible');
+                
+                // Save high score to local storage
+                saveHighScore();
+                
+                // 自動再開機能: 5秒後に新しいゲームを開始
+                if (shouldStartNewGame) {
+                    setTimeout(() => {
+                        if (victoryModal.classList.contains('visible')) {
+                            startNewGame();
+                        }
+                    }, 5000);
+                }
+            }
+            
+            // Save high score
+            function saveHighScore() {
+                try {
+                    // Get current high scores
+                    let highScores = {};
+                    try {
+                        const savedScores = localStorage.getItem('sudokuHighScores');
+                        if (savedScores) {
+                            highScores = JSON.parse(savedScores);
+                        }
+                    } catch (e) {
+                        console.warn('LocalStorage読み込みエラー:', e);
+                        highScores = {};
+                    }
+                    
+                    // Create an entry for this difficulty if it doesn't exist
+                    if (!highScores[difficulty]) {
+                        highScores[difficulty] = [];
+                    }
+                    
+                    // Add this score
+                    highScores[difficulty].push({
+                        score: score,
+                        time: timer,
+                        date: new Date().toISOString()
+                    });
+                    
+                    // Sort by score descending
+                    highScores[difficulty].sort((a, b) => b.score - a.score);
+                    
+                    // Keep only top 5 scores
+                    highScores[difficulty] = highScores[difficulty].slice(0, 5);
+                    
+                    // Save back to localStorage
+                    localStorage.setItem('sudokuHighScores', JSON.stringify(highScores));
+                } catch (e) {
+                    // LocalStorageが利用できない場合（プライベートブラウジングなど）
+                    console.warn('ハイスコア保存エラー:', e);
+                    // エラーは無視してゲーム進行には影響させない
+                }
+            }
+            
+            // Format time (seconds to MM:SS)
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+            
+            // Start new game
+            function startNewGame() {
+                // Clear any existing timers
+                clearInterval(timerInterval);
+                cancelAnimationFrame(timerAnimationFrame);
+                
+                // Reset game state
+                selectedCell = null;
+                timer = 0;
+                errorCount = 0;
+                score = 0;
+                hintsRemaining = 3;
+                gameActive = true;
+                errorUpdateInProgress = false;
+                
+                console.log(`Starting new game with difficulty: ${difficulty}`); // デバッグ用
+                
+                // Update UI
+                timerElement.textContent = `時間: 00:00`;
+                scoreElement.textContent = `スコア: 0`;
+                errorsElement.textContent = relaxedMode ? `ミス: 0/∞` : `ミス: 0/3`;
+                hintsCountElement.textContent = `${hintsRemaining}`;
+                hintsLeftCountElement.textContent = `${hintsRemaining}`;
+                hintButton.disabled = false;
+                
+                // Hide modals
+                victoryModal.classList.remove('visible');
+                gameoverModal.classList.remove('visible');
+                hintConfirmModal.classList.remove('visible');
+                
+                // 難易度表示を更新
+                updateDifficultyButtons();
+                
+                // Generate new puzzle with current difficulty
+                if (!generateSudoku(difficulty)) {
+                    console.error(`Failed to generate sudoku with difficulty: ${difficulty}`);
+                    return; // 盤面生成に失敗した場合、ここで終了
+                }
+                
+                updateBoard();
+                
+                // Start timer with requestAnimationFrame for better accuracy
+                startTimer();
+            }
+            
+            // 高精度タイマーの実装 - ズレの補正機能を追加
+            function startTimer() {
+                let startTime = performance.now();
+                let previousTime = 0;
+                let lastCorrectionTime = 0;
+                
+                function updateTimer(currentTime) {
+                    if (!gameActive) return;
+                    
+                    // 実際の経過時間を計算（ミリ秒）
+                    const actualElapsed = currentTime - startTime;
+                    
+                    // 表示用の経過時間（秒）
+                    const elapsedSeconds = Math.floor(actualElapsed / 1000);
+                    
+                    // タイマー表示の更新（1秒ごと）
+                    if (elapsedSeconds > previousTime) {
+                        previousTime = elapsedSeconds;
+                        timer = elapsedSeconds;
+                        timerElement.textContent = `時間: ${formatTime(timer)}`;
+                        
+                        // 1分ごとにタイマー基準を補正（長時間のズレを防止）
+                        if (timer % 60 === 0 && timer > lastCorrectionTime) {
+                            lastCorrectionTime = timer;
+                            startTime = currentTime - (timer * 1000);
+                        }
+                    }
+                    
+                    // 次のフレームを要求
+                    timerAnimationFrame = requestAnimationFrame(updateTimer);
+                }
+                
+                // タイマー開始
+                timerAnimationFrame = requestAnimationFrame(updateTimer);
+            }
+            
+            // 難易度ボタンの状態を更新
+            function updateDifficultyButtons() {
+                document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                    if (btn.dataset.difficulty === difficulty) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+                
+                // 難易度表示も更新
+                const difficultyText = {
+                    'easy': '簡単',
+                    'medium': '普通',
+                    'hard': '難しい'
+                }[difficulty];
+                
+                difficultyElement.textContent = `難易度: ${difficultyText}`;
+            }
+            
+            // ヒント確認ダイアログを表示
+            function showHintConfirmation() {
+                if (!gameActive || !selectedCell) return;
+                
+                const [row, col] = selectedCell;
+                
+                // 既に値が入力されているセルには適用しない
+                if (board[row][col] !== 0) {
+                    alert('空のセルを選択してヒントを使用してください');
+                    return;
+                }
+                
+                hintsLeftCountElement.textContent = hintsRemaining;
+                hintConfirmModal.classList.add('visible');
+            }
+            
+            // ヒント確認をキャンセル
+            function cancelHint() {
+                // モーダルを確実に非表示にする
+                hintConfirmModal.classList.remove('visible');
+                
+                // ヒントボタンの状態をリセット (無効化されないようにする)
+                if (hintsRemaining > 0) {
+                    hintButton.disabled = false;
+                }
+            }
+            
+            // Provide a hint
+            function provideHint() {
+                if (!gameActive || !selectedCell || hintsRemaining <= 0) return;
+                
+                const [row, col] = selectedCell;
+                
+                // モーダルを確実に非表示にする
+                hintConfirmModal.classList.remove('visible');
+                
+                // 既に値が入力されているセルにはヒントを適用しない
+                if (board[row][col] !== 0) return;
+                
+                // Fill with correct value
+                board[row][col] = solution[row][col];
+                
+                // Mark as hint
+                const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                cellElement.classList.add('hint');
+                
+                // Decrease hint count
+                hintsRemaining--;
+                hintsCountElement.textContent = `${hintsRemaining}`;
+                
+                // ヒントが残っていない場合のみヒントボタンを無効化
+                if (hintsRemaining <= 0) {
+                    hintButton.disabled = true;
+                }
+                
+                // ヒント使用フィードバック
+                vibrateFeedback([10, 10, 20, 10, 10]);
+                
+                // Cost for hint - アニメーション完了後にスコア減少
+                setTimeout(() => {
+                    updateScore(-20);
+                }, 200);
+                
+                updateBoard();
+                
+                // セルを選択し直して、ハイライトを更新
+                selectCell(row, col);
+                
+                // Check if puzzle is solved
+                if (checkSolution()) {
+                    gameWon();
+                }
+            }
+            
+            // Toggle relaxed mode
+            function toggleRelaxedMode() {
+                relaxedMode = relaxedModeToggle.checked;
+                console.log(`リラックスモード切替: ${relaxedMode}`); // デバッグログ
+                
+                // リラックスモード切替時にエラー表示を即座に更新
+                // DOM更新を直接的かつ明示的に行う
+                requestAnimationFrame(() => {
+                    if (relaxedMode) {
+                        errorsElement.textContent = `ミス: ${errorCount}/∞`;
+                    } else {
+                        errorsElement.textContent = `ミス: ${errorCount}/3`;
+                        
+                        // 通常モードに戻した時、既にエラーが3回以上ならゲームオーバー
+                        if (errorCount >= 3 && gameActive) {
+                            // 少し遅延させてゲームオーバー処理を実行
+                            setTimeout(() => {
+                                gameOver();
+                            }, 100);
+                        }
+                    }
+                });
+                
+                if (gameActive) {
+                    // 振動フィードバック
+                    vibrateFeedback([10, 5, 10]);
+                }
+            }
+            
+            // セルの長押し検出のためのイベントリスナー
+            function setupCellLongPressEvents() {
+                document.querySelectorAll('.cell').forEach(cell => {
+                    const row = parseInt(cell.dataset.row);
+                    const col = parseInt(cell.dataset.col);
+                    let longPressTimer;
+                    
+                    cell.addEventListener('mousedown', (e) => {
+                        if (gameActive && !fixed[row][col]) {
+                            longPressTimer = setTimeout(() => {
+                                board[row][col] = 0;
+                                updateBoard();
+                                selectCell(row, col);
+                                vibrateFeedback([10, 5, 10]);
+                            }, 500);
+                        }
+                    });
+                    
+                    cell.addEventListener('mouseup', () => {
+                        clearTimeout(longPressTimer);
+                    });
+                    
+                    cell.addEventListener('mouseleave', () => {
+                        clearTimeout(longPressTimer);
+                    });
+                    
+                    cell.addEventListener('touchstart', (e) => {
+                        if (gameActive && !fixed[row][col]) {
+                            longPressTimer = setTimeout(() => {
+                                board[row][col] = 0;
+                                updateBoard();
+                                selectCell(row, col);
+                                vibrateFeedback([10, 5, 10]);
+                            }, 500);
+                        }
+                    }, { passive: false });
+                    
+                    cell.addEventListener('touchend', () => {
+                        clearTimeout(longPressTimer);
+                    });
+                    
+                    cell.addEventListener('touchcancel', () => {
+                        clearTimeout(longPressTimer);
+                    });
+                });
+            }
+            
+            // イベントリスナーの設定を一元管理
+            function setupEventListeners() {
+                // 数字ボタンの処理
+                document.querySelectorAll('.number-btn').forEach(btn => {
+                    const num = parseInt(btn.dataset.number);
+                    if (!isNaN(num)) {
+                        // クリックイベントを直接使用
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            console.log(`数字ボタンがクリックされました: ${num}`);
+                            handleNumberClick(num);
+                        });
+                    }
+                });
+                
+                // キーボード入力の処理
+                keyboardInput.addEventListener('input', (e) => {
+                    const num = parseInt(e.target.value);
+                    if (!isNaN(num) && num >= 1 && num <= 9) {
+                        handleNumberClick(num);
+                    }
+                    // 入力後にフィールドをクリア
+                    e.target.value = '';
+                });
+                
+                // 難易度ボタンの処理
+                document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const newDifficulty = btn.dataset.difficulty;
+                        console.log(`Difficulty changed from ${difficulty} to ${newDifficulty}`);
+                        
+                        // ゲーム進行中の場合は確認ダイアログを表示
+                        if (gameActive && difficulty !== newDifficulty) {
+                            if (confirm('ゲームを中断して新しい難易度で始めますか？')) {
+                                difficulty = newDifficulty;
+                                updateDifficultyButtons();
+                                startNewGame();
+                            }
+                        } else {
+                            difficulty = newDifficulty;
+                            updateDifficultyButtons();
+                            startNewGame();
+                        }
+                    });
+                });
+                
+                // 新しいゲームボタン
+                document.querySelectorAll('.new-game').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        startNewGame();
+                    });
+                });
+                
+                // ヒントボタン - 確認ダイアログを表示
+                hintButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showHintConfirmation();
+                });
+                
+                // ヒント確認・キャンセルボタン
+                hintCancelButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    cancelHint(); // 専用のキャンセル関数を呼び出し
+                });
+                
+                hintConfirmButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    hintConfirmModal.classList.remove('visible');
+                    provideHint();
+                });
+                
+                // リラックスモードトグル
+                relaxedModeToggle.addEventListener('change', toggleRelaxedMode);
+                
+                // キーボード入力
+                document.addEventListener('keydown', (e) => {
+                    if (!gameActive || !selectedCell) return;
+                    
+                    if (e.key >= '1' && e.key <= '9') {
+                        handleNumberClick(parseInt(e.key));
+                    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                        // セルの値を消去
+                        handleNumberClick(0); // 消去は0として扱う
+                    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+                               e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                        // 矢印キーでセル移動
+                        if (selectedCell) {
+                            let [row, col] = selectedCell;
+                            
+                            if (e.key === 'ArrowUp') row = Math.max(0, row - 1);
+                            else if (e.key === 'ArrowDown') row = Math.min(8, row + 1);
+                            else if (e.key === 'ArrowLeft') col = Math.max(0, col - 1);
+                            else if (e.key === 'ArrowRight') col = Math.min(8, col + 1);
+                            
+                            selectCell(row, col);
+                        }
+                    }
+                });
+                
+                // スワイプでの誤操作防止
+                document.addEventListener('touchmove', (e) => {
+                    // 拡大縮小ジェスチャー（ピンチ）の検出
+                    if (e.touches.length > 1) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
+                // iOS の「戻る」ジェスチャーの誤作動防止
+                document.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1 && e.touches[0].clientX < 20) {
+                        e.preventDefault(); // 画面左端のスワイプを無効化
+                    }
+                }, { passive: false });
+                
+                // ズーム防止のための追加対策
+                document.addEventListener('gesturestart', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+                
+                // ダブルタップでのズーム防止
+                let lastTap = 0;
+                document.addEventListener('touchend', (e) => {
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - lastTap;
+                    if (tapLength < 300 && tapLength > 0) {
+                        e.preventDefault();
+                    }
+                    lastTap = currentTime;
+                }, { passive: false });
+            }
+            
+            // 初期化と起動
+            function init() {
+                createBoard();
+                updateDifficultyButtons();
+                setupEventListeners();
+                setupCellLongPress();
+                startNewGame();
+                
+                // アクセシビリティの強化（セルにaria属性を追加）
+                document.querySelectorAll('.cell').forEach(cell => {
+                    const row = parseInt(cell.dataset.row);
+                    const col = parseInt(cell.dataset.col);
+                    
+                    // セルにロールと位置情報を追加
+                    cell.setAttribute('role', 'gridcell');
+                    cell.setAttribute('aria-rowindex', row + 1);
+                    cell.setAttribute('aria-colindex', col + 1);
+                    cell.setAttribute('aria-label', `セル ${row + 1}行 ${col + 1}列`);
+                });
+            }
+            
+            // ゲーム初期化
+            init();
+        });
+    </script>
+</body>
+</html>

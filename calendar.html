@@ -1,0 +1,2588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日めくりカレンダー</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        :root {
+            /* カラーユニバーサルデザイン推奨配色セットから選定 */
+            --primary-color: #0065B5; /* 青 (E77-40V) - 濃い赤の代わりに青を使用 */
+            --accent-color: #E15A65; /* 赤橙 (E15-65X) - P型色覚の方に配慮 */
+            --today-button-color: #00873C; /* 青みの強い緑 (F47-60T) */
+            --text-color: #333333;
+            --light-text: #555555;
+            --bg-gradient: linear-gradient(135deg, #f7f9fc, #e3e7ee);
+            --card-bg: #ffffff;
+            --shadow: 0 calc(0.8vh + 0.5vw) calc(2.4vh + 1.5vw) rgba(0, 0, 0, 0.08);
+            --border-radius: calc(2vh + 1vw);
+            --button-radius: 50vw;
+            --padding: calc(2vh + 2vw);
+            --transition: all 1.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            --event-bg: rgba(0, 101, 181, 0.08); /* 青ベース */
+            --event-year-bg: rgba(225, 90, 101, 0.1); /* 赤橙ベース */
+            --event-shadow: 0 calc(0.4vh + 0.25vw) calc(1.2vh + 0.75vw) rgba(0,0,0,0.05);
+            --font-size-base: calc(1rem + 0.3vw);
+            --date-number-size: calc(8vw + 4vh);
+            --month-size: calc(1.3rem + 0.8vw);
+            --day-size: calc(1.2rem + 0.6vw);
+            --year-size: calc(0.9rem + 0.3vw);
+            --event-year-size: calc(0.85rem + 0.2vw);
+            --event-desc-size: calc(1rem + 0.2vw);
+            --btn-font-size: calc(0.9rem + 0.3vw);
+            --button-padding: calc(1vh + 1vw);
+            --button-margin: calc(1vh + 1vw);
+            /* 曜日表示用の色 - カラーユニバーサルデザイン対応 */
+            --sunday-color: #E15A65; /* 赤橙 - 日曜日 */
+            --saturday-color: #0065B5; /* 青 - 土曜日 */
+            /* 祝日表示用の色 */
+            --holiday-color: #E15A65; /* 赤橙 - 祝日も日曜日と同じ色で表示 */
+            --holiday-bg: rgba(225, 90, 101, 0.08); /* 祝日の背景色 */
+        }
+        
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-color);
+            line-height: 1.5;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 5vw;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-family: 'Noto Sans JP', sans-serif;
+            letter-spacing: 0.01em;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 90vw;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        /* スワイプガイド */
+        .swipe-guide {
+            text-align: center;
+            margin-bottom: calc(1.5vh + 0.5vw);
+            color: var(--light-text);
+            font-size: calc(0.8rem + 0.2vw);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .swipe-guide svg {
+            width: calc(1.6vh + 0.8vw);
+            height: calc(1.6vh + 0.8vw);
+            margin: 0 calc(0.4vh + 0.2vw);
+        }
+        
+        /* メインカレンダー */
+        .calendar-container {
+            position: relative;
+            perspective: 120vw;
+            min-height: 10vh;
+            height: auto;
+        }
+        
+        .calendar-card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: var(--padding);
+            position: relative;
+            transform-style: preserve-3d;
+            overflow: hidden;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        /* 日付表示部分 */
+        .date-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: calc(1.5vh + 0.5vw) 0;
+            position: relative;
+            width: 100%;
+        }
+        
+        .current-year {
+            color: var(--light-text);
+            font-size: var(--year-size);
+            margin-bottom: calc(0.8vh + 0.2vw);
+            font-weight: 500;
+            text-align: center;
+            letter-spacing: 0.02em;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .current-month {
+            color: var(--primary-color);
+            font-size: var(--month-size);
+            margin-bottom: calc(1.5vh + 0.5vw);
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        
+        .date-number {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: var(--date-number-size);
+            font-weight: 700;
+            line-height: 1;
+            color: var(--text-color);
+            margin: calc(1vh + 0.5vw) 0;
+            text-align: center;
+            display: inline-block;
+            position: relative;
+        }
+        
+        .date-number::after {
+            content: '';
+            position: absolute;
+            bottom: calc(-0.8vh - 0.2vw);
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(6vh + 3vw);
+            height: calc(0.4vh + 0.1vw);
+            background-color: var(--accent-color);
+            border-radius: calc(0.2vh + 0.05vw);
+        }
+        
+        .date-day {
+            font-size: var(--day-size);
+            font-weight: 500;
+            margin-top: calc(1.5vh + 0.5vw);
+            letter-spacing: 0.04em;
+        }
+        
+        /* 祝日表示用のスタイル */
+        .holiday-name {
+            font-size: calc(1rem + 0.2vw);
+            font-weight: 500;
+            color: var(--holiday-color);
+            margin-top: calc(0.8vh + 0.2vw);
+            padding: calc(0.5vh + 0.2vw) calc(1.2vh + 0.6vw);
+            background-color: var(--holiday-bg);
+            border-radius: calc(1vh + 0.5vw);
+            display: inline-block;
+            letter-spacing: 0.02em;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 0;
+            transform: translateY(calc(1vh + 0.5vw));
+            animation: fadeIn 1.2s forwards;
+            animation-delay: 0.5s;
+        }
+        
+        /* 歴史的出来事表示 */
+        .historical-event {
+            margin-top: calc(2vh + 1vw);
+            padding: calc(2vh + 1vw);
+            background-color: var(--event-bg);
+            border-radius: calc(1.5vh + 0.7vw);
+            position: relative;
+            opacity: 0;
+            transform: translateY(calc(2vh + 1vw));
+            animation: fadeIn 1.2s forwards;
+            animation-delay: 0.5s;
+            box-shadow: var(--event-shadow);
+            position: relative;
+            width: 100%;
+        }
+        
+        .historical-event::before {
+            content: '';
+            position: absolute;
+            top: calc(-1vh - 0.5vw);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: calc(1vh + 0.5vw) solid transparent;
+            border-right: calc(1vh + 0.5vw) solid transparent;
+            border-bottom: calc(1vh + 0.5vw) solid var(--event-bg);
+        }
+        
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .event-year {
+            font-size: var(--event-year-size);
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: calc(1.2vh + 0.4vw);
+            display: inline-block;
+            padding: calc(0.4vh + 0.2vw) calc(1.2vh + 0.6vw);
+            background-color: var(--event-year-bg);
+            border-radius: calc(1.5vh + 0.7vw);
+            letter-spacing: 0.02em;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .event-description {
+            font-size: var(--event-desc-size);
+            line-height: 1.6;
+            color: var(--text-color);
+            letter-spacing: 0.02em;
+        }
+        
+        /* 別の出来事を表示するボタン */
+        .refresh-event {
+            margin-top: calc(1.5vh + 0.5vw);
+            background-color: rgba(0, 101, 181, 0.15);
+            border: none;
+            color: var(--primary-color);
+            font-size: calc(0.8rem + 0.2vw);
+            font-weight: 500;
+            padding: calc(0.8vh + 0.4vw) calc(1.2vh + 0.6vw);
+            border-radius: calc(1vh + 0.5vw);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Noto Sans JP', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .refresh-event:hover, .refresh-event:focus {
+            background-color: rgba(0, 101, 181, 0.25);
+            transform: translateY(-2px);
+        }
+        
+        .refresh-event:active {
+            transform: translateY(0);
+        }
+        
+        .refresh-event svg {
+            width: calc(1.2vh + 0.6vw);
+            height: calc(1.2vh + 0.6vw);
+            margin-right: calc(0.4vh + 0.2vw);
+        }
+        
+        /* ナビゲーションコントロール */
+        .nav-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: calc(3vh + 1vw);
+            width: 100%;
+        }
+        
+        .nav-btn {
+            background: transparent;
+            border: none;
+            color: var(--primary-color);
+            font-size: var(--btn-font-size);
+            font-weight: 600;
+            padding: var(--button-padding);
+            border-radius: var(--button-radius);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: var(--transition);
+            outline: none;
+            background-color: rgba(0, 101, 181, 0.1); /* 青みベース */
+            font-family: 'Noto Sans JP', sans-serif;
+            position: absolute;
+            z-index: 10;
+        }
+        
+        .nav-btn:hover, .nav-btn:focus {
+            background-color: rgba(0, 101, 181, 0.2);
+            transform: scale(1.05);
+        }
+        
+        .nav-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .nav-btn svg {
+            width: calc(2vh + 1vw);
+            height: calc(2vh + 1vw);
+            margin: 0 calc(0.6vh + 0.3vw);
+        }
+        
+        #prev-day {
+            left: calc(-1vh - 0.5vw);
+        }
+        
+        #next-day {
+            right: calc(-1vh - 0.5vw);
+        }
+        
+        /* 今日ボタン */
+        .today-btn {
+            background-color: var(--today-button-color);
+            color: white;
+            border: none;
+            padding: var(--button-padding);
+            border-radius: var(--button-radius);
+            font-weight: 600;
+            font-size: var(--btn-font-size);
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 calc(0.4vh + 0.2vw) calc(1vh + 0.5vw) rgba(0, 135, 60, 0.2);
+            font-family: 'Noto Sans JP', sans-serif;
+            margin: 0 auto;
+            /* 色に頼らずボタンと認識できるよう、縁取りを追加 */
+            border: 2px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .today-btn:hover {
+            background-color: #006E2F; /* より濃い青みの緑 */
+            box-shadow: 0 calc(0.6vh + 0.3vw) calc(1.5vh + 0.75vw) rgba(0, 135, 60, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .today-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .today-btn.clicked {
+            animation: pulse 0.5s;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(0.9);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        
+        /* 日めくりアニメーション */
+        .calendar-page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--card-bg);
+            backface-visibility: hidden;
+            transform-origin: center right;
+        }
+        
+        .calendar-page.flipping {
+            animation: flipPage 1.2s forwards;
+        }
+        
+        .calendar-page.back {
+            transform: rotateY(180deg);
+        }
+        
+        @keyframes flipPage {
+            0% {
+                transform: rotateY(0deg);
+                z-index: 2;
+            }
+            49% {
+                z-index: 2;
+            }
+            50% {
+                transform: rotateY(90deg);
+                z-index: 1;
+            }
+            100% {
+                transform: rotateY(180deg);
+                z-index: 1;
+            }
+        }
+        
+        /* スワイプ操作のための領域 */
+        .swipe-area {
+            position: relative;
+            width: 100%;
+            height: auto;
+            z-index: 2;
+            padding-bottom: calc(2vh + 1vw);
+        }
+        
+        /* 日付切り替え時のインジケーター */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            display: none;
+        }
+        
+        .loading-circle {
+            width: calc(4vh + 2vw);
+            height: calc(4vh + 2vw);
+            border: calc(0.4vh + 0.2vw) solid rgba(0, 101, 181, 0.1);
+            border-left-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        /* 日付パネルが切り替わる際のフェードイン/アウト効果 */
+        .fade-out {
+            animation: fadeOut 0.6s forwards;
+        }
+        
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateY(calc(-1vh - 0.5vw));
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.6s forwards;
+        }
+        
+        /* クリッピングアニメーション */
+        .clip-animation {
+            animation: clipReveal 1.2s ease-in-out forwards;
+        }
+        
+        @keyframes clipReveal {
+            0% {
+                clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+            }
+            100% {
+                clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+            }
+        }
+        
+        /* 祝日表示のスタイル */
+        .is-holiday .date-number,
+        .is-holiday .date-day {
+            color: var(--holiday-color) !important;
+        }
+        
+        /* ダークモード対応 - コントラストに配慮 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-color: #f8f9fa;
+                --light-text: #c0c0c0;
+                --bg-gradient: linear-gradient(135deg, #1a1a1a, #2c2c2c);
+                --card-bg: #2e2e2e;
+                --shadow: 0 calc(1vh + 0.5vw) calc(3vh + 1.5vw) rgba(0,0,0,0.2);
+                --event-bg: rgba(0, 101, 181, 0.15); /* 青みベース */
+                --event-year-bg: rgba(225, 90, 101, 0.2); /* 赤橙ベース */
+                --event-shadow: 0 calc(0.4vh + 0.2vw) calc(1.2vh + 0.6vw) rgba(0,0,0,0.2);
+                --holiday-bg: rgba(225, 90, 101, 0.15); /* 祝日の背景色 - ダークモード */
+            }
+            
+            .nav-btn {
+                background-color: rgba(0, 101, 181, 0.2);
+            }
+            
+            .nav-btn:hover, .nav-btn:focus {
+                background-color: rgba(0, 101, 181, 0.3);
+            }
+            
+            /* ダークモードでの曜日の色 - コントラスト強化 */
+            .sunday {
+                color: #FF8A90 !important; /* より明るい赤橙 */
+            }
+            
+            .saturday {
+                color: #59AFFF !important; /* より明るい青 */
+            }
+            
+            .is-holiday .date-number,
+            .is-holiday .date-day {
+                color: #FF8A90 !important; /* 祝日も日曜日と同じ色に */
+            }
+        }
+        
+        /* モバイル体験最適化のための追加スタイル */
+        @media (hover: none) {
+            .calendar-card {
+                touch-action: manipulation;
+            }
+            
+            .swipe-guide {
+                display: flex;
+            }
+        }
+        
+        @media (hover: hover) {
+            .swipe-guide {
+                display: none;
+            }
+        }
+        .date-display {
+            visibility: visible;
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <div class="calendar-container">
+            <div class="calendar-card" id="calendar-card">
+                <div class="date-display" id="date-display">
+                    <div class="current-year" id="current-year"></div>
+                    <div class="current-month" id="current-month"></div>
+                    <div class="date-number" id="date-number"></div>
+                    <div class="date-day" id="date-day"></div>                    
+                    <div class="holiday-name" id="holiday-name"></div>
+                </div>
+                
+                <div class="swipe-area" id="swipe-area">
+                    <div class="historical-event" id="historical-event">
+                        <div class="event-year" id="event-year">1879年（明治12年）</div>
+                        <div class="event-description" id="event-description">アルバート・アインシュタイン誕生</div>
+                        
+                        <button class="refresh-event" id="refresh-event">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M1 20v-6h6"></path>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+                                <path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            他の出来事を表示
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="nav-controls">
+                    <button class="nav-btn" id="prev-day" aria-label="前日">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <button class="today-btn" id="today-btn">今日</button>
+                    <button class="nav-btn" id="next-day" aria-label="翌日">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="loading-circle"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+// 曜日リスト（グローバルに定義）
+const weekdays = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
+
+// updateDateDisplay() をグローバルスコープに定義
+function updateDateDisplay(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const weekday = date.getDay();
+
+    document.getElementById("current-year").textContent = `${year}年（令和${year - 2018}年）`;
+    document.getElementById("current-month").textContent = `${month}月`;
+    document.getElementById("date-number").textContent = day;
+    document.getElementById("date-day").textContent = weekdays[weekday]; // weekdays を参照
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const todayBtn = document.getElementById("today-btn");
+
+    todayBtn.addEventListener("click", function () {
+        updateDateDisplay(new Date());
+        this.classList.add("clicked");
+    });
+
+    todayBtn.addEventListener("animationend", function () {
+        this.classList.remove("clicked");
+    });
+
+    updateDateDisplay(new Date());
+});
+
+        // 現在の日付とその表示用の変数
+        let currentDate = new Date();
+        let displayDate = new Date();
+        
+        // DOM要素
+        const calendarCard = document.getElementById('calendar-card');
+        const dateDisplay = document.getElementById('date-display');
+        const currentYearElement = document.getElementById('current-year');
+        const currentMonthElement = document.getElementById('current-month');
+        const dateNumberElement = document.getElementById('date-number');
+        const dateDayElement = document.getElementById('date-day');
+        const holidayNameElement = document.getElementById('holiday-name');
+        const historicalEventElement = document.getElementById('historical-event');
+        const eventYearElement = document.getElementById('event-year');
+        const eventDescriptionElement = document.getElementById('event-description');
+        const refreshEventButton = document.getElementById('refresh-event');
+        const prevDayButton = document.getElementById('prev-day');
+        const nextDayButton = document.getElementById('next-day');
+        const todayButton = document.getElementById('today-btn');
+        const swipeArea = document.getElementById('swipe-area');
+        const loadingElement = document.getElementById('loading');
+        
+        // 現在の日付に対応した、選択された歴史的出来事のインデックス
+        let currentEventIndex = {};
+let holidayCache = {};
+
+// 日付から祝日名を取得する関数（計算ロジックを使用）
+function getHolidayName(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    
+    return calculateJapaneseHoliday(year, month, day);
+}
+
+
+// 祝日キャッシュ関連の関数（不要になるためダミー実装）
+function initHolidayCache() {
+    const cache = localStorage.getItem("holidayCache");
+    holidayCache = cache ? JSON.parse(cache) : {};
+}
+
+function saveHolidayCache() {
+    localStorage.setItem("holidayCache", JSON.stringify(holidayCache));
+}
+
+
+// 日本の祝日を計算するロジック
+function calculateJapaneseHoliday(year, month, day) {
+    // 祝日の配列
+    const holidays = [];
+    
+    // 固定祝日
+    if (month === 1 && day === 1) return "元日";
+    if (month === 2 && day === 11) return "建国記念の日";
+    if (month === 2 && day === 23) return "天皇誕生日";
+    if (month === 4 && day === 29) return "昭和の日";
+    if (month === 5 && day === 3) return "憲法記念日";
+    if (month === 5 && day === 4) return "みどりの日";
+    if (month === 5 && day === 5) return "こどもの日";
+    if (month === 8 && day === 11) return "山の日";
+    if (month === 11 && day === 3) return "文化の日";
+    if (month === 11 && day === 23) return "勤労感謝の日";
+    
+    // 可変祝日
+    // 成人の日（1月の第2月曜日）
+    if (month === 1) {
+        const secondMonday = getSecondMonday(year, 1);
+        if (day === secondMonday) return "成人の日";
+    }
+    
+    // 海の日（7月の第3月曜日）
+    if (month === 7) {
+        const thirdMonday = getThirdMonday(year, 7);
+        if (day === thirdMonday) return "海の日";
+    }
+    
+    // 敬老の日（9月の第3月曜日）
+    if (month === 9) {
+        const thirdMonday = getThirdMonday(year, 9);
+        if (day === thirdMonday) return "敬老の日";
+        
+        // 秋分の日
+        const autumnalEquinox = getAutumnalEquinoxDay(year);
+        if (day === autumnalEquinox) return "秋分の日";
+        
+        // 敬老の日の翌日が秋分の日の場合、間の日は国民の休日
+        if (thirdMonday + 1 === day && day + 1 === autumnalEquinox) return "国民の休日";
+    }
+    
+    // スポーツの日（10月の第2月曜日）
+    if (year >= 2020 && month === 7) {
+        const thirdMonday = getThirdMonday(year, 7);
+        if (day === thirdMonday) return "スポーツの日";
+    } else if (year < 2020 && month === 10) {
+        const secondMonday = getSecondMonday(year, 10);
+        if (day === secondMonday) return "体育の日";
+    }
+    
+    // 春分の日
+    if (month === 3) {
+        const springEquinox = getSpringEquinoxDay(year);
+        if (day === springEquinox) return "春分の日";
+    }
+    
+    // 振替休日（祝日が日曜日の場合、翌日が祝日でなければ振替休日）
+    const yesterday = new Date(year, month - 1, day - 1);
+    if (yesterday.getDay() === 0) { // 前日が日曜日
+        const yesterdayHoliday = calculateJapaneseHoliday(year, yesterday.getMonth() + 1, yesterday.getDate());
+        if (yesterdayHoliday) return "振替休日";
+    }
+    
+    // 祝日でない場合はnullを返す
+    return "";
+}
+
+// 特定月の第2月曜日を取得
+function getSecondMonday(year, month) {
+    return getNthDayOfWeek(year, month, 1, 2); // 1=月曜日, 2=第2
+}
+
+// 特定月の第3月曜日を取得
+function getThirdMonday(year, month) {
+    return getNthDayOfWeek(year, month, 1, 3); // 1=月曜日, 3=第3
+}
+
+// 特定月のN番目の特定曜日の日付を取得
+function getNthDayOfWeek(year, month, dayOfWeek, nth) {
+    let count = 0;
+    for (let day = 1; day <= 31; day++) {
+        const date = new Date(year, month - 1, day);
+        if (date.getMonth() !== month - 1) break; // 月が変わったら終了
+        
+        if (date.getDay() === dayOfWeek) {
+            count++;
+            if (count === nth) return day;
+        }
+    }
+    return null;
+}
+
+// 春分の日を計算（3月）
+function getSpringEquinoxDay(year) {
+    if (year < 1900 || year > 2099) return null;
+    
+    if (year <= 1979) {
+        return Math.floor(20.8357 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+    } else if (year <= 2099) {
+        return Math.floor(20.8431 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+    }
+    return null;
+}
+
+// 秋分の日を計算（9月）
+function getAutumnalEquinoxDay(year) {
+    if (year < 1900 || year > 2099) return null;
+    
+    if (year <= 1979) {
+        return Math.floor(23.2588 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+    } else if (year <= 2099) {
+        return Math.floor(23.2488 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+    }
+    return null;
+}
+        
+        // 歴史的な出来事のデータベース（日付ごとに複数の出来事を配列で保持）
+        const historicalEvents = {
+            // 形式: "MM-DD": [{ year: 年, description: 説明 }, { year: 年, description: 説明 }, ...]
+            "01-01": [
+                { year: 1873, description: '明治政府が太陽暦（グレゴリオ暦）を公式に採用' },
+                { year: 1912, description: '中華民国成立' },
+                { year: 1958, description: '欧州経済共同体（EEC）発足' }
+            ],
+            "01-02": [
+                { year: 1868, description: '戊辰戦争が始まる' },
+                { year: 1905, description: '日露戦争：旅順要塞が陥落' },
+                { year: 1968, description: '三億円事件発生' }
+            ],
+            "01-03": [
+                { year: 1868, description: "王政復古の大号令が発せられる" },
+                { year: 2001, description: "落合博満が中日ドラゴンズの監督に就任" }
+            ],
+            "01-04": [
+                { year: 1959, description: "皇太子明仁親王と美智子妃が結婚" },
+                { year: 1965, description: "プロレスラー力道山が刺される" }
+            ],
+            "01-05": [
+                { year: 1933, description: "サンフランシスコ金門橋の建設が開始" },
+                { year: 2025, description: "女子エリートカテゴリーにおいて「1kmTT」と「4km個人パシュート」の初の世界新記録が誕生" }
+            ],
+            "01-06": [
+                { year: 1853, description: "ペリー提督が黒船を率いて日本に来航し、日米和親条約が締結される" },
+                { year: 1950, description: "二俣事件が発生" },
+                { year: 1994, description: "ナンシー・ケリガン襲撃事件" }
+            ],
+            "01-07": [
+                { year: 1610, description: "イタリアの天文学者ガリレオ・ガリレイが、木星の衛星ガニメデ、エウロパ、イオを発見" },
+                { year: 1927, description: "ニューヨークとロンドンを結ぶ史上初の大西洋横断電話通話が実現" },
+                { year: 1960, description: "日米安全保障条約が改定" },
+                { year: 1979, description: "ベトナム軍がプノンペンを制圧し、ポル・ポト政権を崩壊させる" }
+            ],
+            "01-08": [
+                { year: 1918, description: "第一次世界大戦：ウィルソン米大統領が十四ヵ条の平和原則を発表" },
+                { year: 1989, description: "日本の元号が昭和から平成に改元" },
+                { year: 1996, description: "読売テレビ系列でテレビアニメ『名探偵コナン』の放送が開始" }
+            ],
+            "01-09": [
+                { year: 2007, description: "Appleが初代iPhoneを発表。CEOスティーブ・ジョブズは「電話を再発明する」と宣言" }
+            ],
+            "01-10": [
+                { year: 1723, description: "小石川養生所の開設" },
+                { year: 1863, description: "ロンドンの地下鉄、メトロポリタン鉄道が開業" }
+            ],
+            "01-11": [
+                { year: 1922, description: "インスリンが糖尿病治療に初めて使用される" },
+                { year: 1923, description: "関東大震災後の帝都復興計画が閣議決定" }
+            ],
+            "01-12": [
+                { year: 1950, description: "自衛隊の前身である警察予備隊が創設" },
+                { year: 2010, description: "ハイチ地震が発生" }
+            ],
+            "01-13": [
+                { year: 1869, description: "東京府が設置される" },
+                { year: 1910, description: "世界初の公開ラジオ放送がニューヨークのメトロポリタン歌劇場で行われる" }
+            ],
+            "01-14": [
+                { year: 1968, description: "札幌冬季オリンピック開催が決定" },
+                { year: 2005, description: "木星の衛星タイタンにホイヘンス・プローブが着陸" }
+            ],
+            "01-15": [
+                { year: 1559, description: 'エリザベス1世がイングランド女王に即位' },
+                { year: 1943, description: 'ペンタゴン（アメリカ国防総省本庁舎）が完成' },
+                { year: 2001, description: 'ウィキペディアの公開開始' }
+            ],
+            "01-16": [
+                { year: 1969, description: "チェコスロバキアの学生ヤン・パラフが抗議の焼身自殺" },
+                { year: 1989, description: "消費税法が施行（4月から3%の消費税導入）" }
+            ],
+            "01-17": [
+                { year: 1773, description: "ジェームズ・クックが南極圏に到達（人類初）" },
+                { year: 1995, description: "阪神・淡路大震災が発生" },
+                { year: 2002, description: "日本のアニメ映画『千と千尋の神隠し』がゴールデングローブ賞を受賞" }
+            ],
+            "01-18": [
+                { year: 1919, description: "パリ講和会議が開幕" },
+                { year: 1978, description: "伊豆大島近海で震度5の地震が発生" }
+            ],
+            "01-19": [
+                { year: 1960, description: "日米安全保障条約が調印される" },
+                { year: 1983, description: "Apple Lisaが発表される" }
+            ],
+            "01-20": [
+               { year: 1892, description: "陸軍大将・児玉源太郎が台湾総督に就任" },
+               { year: 2009, description: "バラク・オバマがアメリカ合衆国大統領に正式に就任（第44代）" }
+            ],
+            "01-21": [
+                { year: 1924, description: "ウラジーミル・レーニン死去" },
+                { year: 2025, description: "プロ野球選手イチローがアジア人初のアメリカ野球殿堂顕彰者となる" }
+            ],
+            "01-22": [
+                { year: 1905, description: '血の日曜日事件（ロシア第一次革命の発端）' },
+                { year: 1944, description: '第二次世界大戦：アンツィオの戦い開始' },
+                { year: 1973, description: 'アメリカ最高裁がロー対ウェイド判決を下し中絶を合法化' }
+            ],
+            "01-23": [
+                { year: 1556, description: "中国で陝西地震が発生" },
+                { year: 1855, description: "アメリカと日本が日米和親条約を締結" }
+            ],
+            "01-24": [
+               { year: 1972, description: "連合赤軍浅間山荘事件が発生" },
+               { year: 1984, description: "Apple Macintoshが発表される" }
+            ],
+            "01-25": [
+                { year: 1915, description: '第一次世界大戦：最初の無線電話による大西洋横断通信成功' },
+                { year: 1949, description: 'アカデミー賞の初のテレビ放送' },
+                { year: 1961, description: 'ジョン・F・ケネディがアメリカ合衆国第35代大統領に就任' }
+            ],
+            "01-26": [
+                { year: 1837, description: "大塩平八郎の乱が起こる" },
+                { year: 1788, description: "イギリスがオーストラリアに入植" }
+            ],
+            "01-27": [
+                { year: 1973, description: "ベトナム和平協定によりベトナム戦争が終結（日本も経済支援）" },
+                { year: 1967, description: "アポロ1号が訓練中に火災事故を起こし、乗組員が死亡" }
+            ],
+            "01-28": [
+                { year: 1573, description: "三方ヶ原の戦いで武田信玄が徳川家康を破る" },
+                { year: 1986, description: "チャレンジャー号爆発事故" }
+            ],
+            "01-29": [
+                { year: 1886, description: "大日本帝国憲法（明治憲法）の起草が始まる" },
+                { year: 1886, description: "カール・ベンツがガソリン自動車の特許を取得" }
+            ],
+            "01-30": [
+                { year: 1948, description: "マハトマ・ガンディーが暗殺され、日本でも追悼行事が行われる" },
+                { year: 1933, description: "アドルフ・ヒトラーがドイツ首相に就任" }
+            ],
+            "01-31": [
+               { year: 1953, description: "イギリス東海岸大洪水" },
+               { year: 2024, description: "髙木美帆が日本人として最多となるワールドカップ35勝を達成" }
+            ],
+            "02-01": [
+                { year: 1946, description: "昭和天皇が人間宣言を発表" },
+                { year: 1958, description: "エジプトとシリアが合併し、アラブ連合共和国となる" }
+            ],
+            "02-02": [
+                { year: 1989, description: "昭和天皇の大喪の礼が行われる" },
+                { year: 1971, description: "イディ・アミンがウガンダの大統領に就任" }
+            ],
+            "02-03": [
+                { year: 1959, description: '南極昭和基地で日本の研究隊が越冬開始' },
+                { year: 1966, description: '全日空機の爆破事故（全日空羽田沖墜落事故）' },
+                { year: 1998, description: '長野オリンピックの聖火リレーが開始' }
+            ],
+            "02-04": [
+                { year: 2004, description: "マーク・ザッカーバーグがFacebookを創設" }
+            ],
+            "02-05": [
+                { year: 1904, description: "日露戦争が始まる" },
+                { year: 1917, description: "メキシコで新憲法が制定" }
+            ],
+            "02-06": [
+                { year: 1952, description: "エリザベス2世がイギリス女王に即位" }
+            ],
+            "02-07": [
+                { year: 1965, description: "アメリカ軍による北ベトナム爆撃開始（日本の反戦運動激化）" },
+                { year: 1964, description: "ビートルズがアメリカで初めて公演" }
+            ],
+            "02-08": [
+                { year: 1910, description: "皇太子嘉仁親王（後の大正天皇）の第三皇男子誕生（後の昭和天皇）" },
+                { year: 1904, description: "日露戦争が開戦" }
+            ],
+            "02-09": [
+                { year: 1883, description: "福沢諭吉が「時事新報」を創刊" },
+                { year: 1969, description: "ボーイング747が初飛行" }
+            ],
+            "02-10": [
+                { year: 1910, description: "大逆事件で幸徳秋水らが処刑される" },
+                { year: 1920, description: "第一次世界大戦: ドイツが連合国に賠償金を支払う義務を負う" }
+            ],
+            "02-11": [
+                { year: 1929, description: 'バチカン市国誕生' },
+                { year: 1979, description: 'イラン革命が成功し、イスラム共和国樹立へ' },
+                { year: 1990, description: 'ネルソン・マンデラ、27年間の収監から解放される' }
+            ],
+            "02-12": [
+                { year: 1945, description: "第二次世界大戦中、連合軍による東京空襲" },
+                { year: 1818, description: "チリがスペインからの独立を宣言" }
+            ],
+            "02-13": [
+                { year: 1867, description: "徳川慶喜が大政奉還を行う" },
+                { year: 1945, description: "第二次世界大戦: ドレスデン爆撃" }
+            ],
+            "02-14": [
+                { year: 1876, description: 'アレクサンダー・グラハム・ベルが電話の特許を申請' },
+                { year: 1929, description: 'シカゴでバレンタインデーの虐殺が発生' },
+                { year: 2005, description: 'YouTubeが設立される' }
+            ],
+            "02-15": [
+                { year: 1965, description: "日本の国旗「日の丸」が正式に制定される" },
+                { year: 1564, description: "ガリレオ・ガリレイ誕生" }
+            ],
+            "02-16": [
+                { year: 1918, description: "富山県で米騒動が発生（全国に波及）" },
+                { year: 1959, description: "フィデル・カストロがキューバの首相に就任" }
+            ],
+            "02-17": [
+                { year: 1947, description: "日本国憲法が施行される" },
+                { year: 1864, description: "南北戦争: 南軍の潜水艦H.L. Hunleyが敵艦を撃沈" }
+            ],
+            "02-18": [
+                { year: 1954, description: "第五福竜丸がビキニ環礁で被曝事件" },
+                { year: 1930, description: "クライド・トンボーが冥王星を発見" }
+            ],
+            "02-19": [
+                { year: 1855, description: "安政江戸地震が発生" },
+                { year: 1942, description: "第二次世界大戦: ルーズベルト米大統領が日系アメリカ人の強制収容を認める大統領令9066号に署名" }
+            ],
+            "02-20": [
+                { year: 1928, description: "普通選挙による初の総選挙実施" },
+                { year: 1962, description: "ジョン・グレンがアメリカ人として初めて地球を周回" }
+            ],
+            "02-21": [
+                { year: 1972, description: "ニクソン米大統領が訪中（日本の対中政策転換点）" },
+                { year: 1848, description: "カール・マルクスとフリードリヒ・エンゲルスが共産党宣言を発表" }
+            ],
+            "02-22": [
+                { year: 1940, description: "二・二六事件（青年将校による軍事クーデター事件）" },
+                { year: 1974, description: "パキスタンがバングラデシュを承認" }
+            ],
+            "02-23": [
+                { year: 1904, description: "日露戦争で日本軍による旅順要塞の戦闘が始まる" },
+                { year: 1903, description: "キューバがアメリカにグアンタナモ湾を永久にリース" }
+            ],
+            "02-24": [
+                { year: 1895, description: "下関条約調印（日清戦争終結）" },
+                { year: 1989, description: "アヤトッラー・ホメイニがサルマン・ラシュディの小説「悪魔の詩」に対する死刑宣告" }
+            ],
+            "02-25": [
+                { year: 1986, description: "フィリピンのマルコス政権崩壊（日本も受け入れ）" },
+                { year: 1956, description: "ニキータ・フルシチョフがスターリン批判" }
+            ],
+            "02-26": [
+                { year: 1936, description: "二・二六事件発生" }
+            ],
+            "02-27": [
+                { year: 1933, description: "日本が国際連盟を脱退し、世界的な緊張が高まる" },
+                { year: 1933, description: "ドイツ国会議事堂放火事件" }
+            ],
+            "02-28": [
+                { year: 1935, description: 'デュポン社がナイロンの製造に成功' },
+                { year: 1947, description: '台湾で二・二八事件が発生' },
+                { year: 1986, description: 'スウェーデン首相オロフ・パルメ暗殺' }
+            ],
+            "03-01": [
+                { year: 1954, description: "第五福竜丸がビキニ環礁で被曝" },
+                { year: 1954, description: "ビキニ環礁で水爆実験" }
+            ],
+            "03-02": [
+                { year: 1995, description: "地下鉄サリン事件の予行として松本サリン事件発生" },
+                { year: 1969, description: "中ソ国境紛争" }
+            ],
+            "03-03": [
+                { year: 1887, description: 'ヘレン・ケラーの家庭教師、アン・サリバンが教育を開始' },
+                { year: 1918, description: 'ソビエト連邦がブレスト＝リトフスク条約を締結' },
+                { year: 1931, description: '「君が代」が正式に日本の国歌として採用される' }
+            ],
+            "03-04": [
+                { year: 1868, description: "明治天皇が五箇条の御誓文を発布" },
+                { year: 1789, description: "アメリカ合衆国憲法が発効" }
+            ],
+            "03-05": [
+                { year: 1953, description: "ヨシフ・スターリン死去" }
+            ],
+            "03-06": [
+                { year: 1988, description: "青函トンネルが開通" },
+                { year: 1957, description: "ガーナがイギリスから独立し、サハラ以南アフリカで最初の独立国となる" },
+                { year: 1869, description: "ドミトリ・メンデレーエフが周期律を発表" }
+            ],
+            "03-07": [
+                { year: 1876, description: "廃刀令が出される" },
+                { year: 1936, description: "ナチス・ドイツ軍がラインラントに進駐" }
+            ],
+            "03-08": [
+                { year: 1917, description: 'ロシア二月革命が始まる' },
+                { year: 1971, description: 'フィル・エスピオールが世界初のハードディスクドライブを発表' },
+                { year: 2014, description: 'マレーシア航空370便が行方不明になる' }
+            ],
+            "03-09": [
+                { year: 1945, description: "東京大空襲が発生" },
+                { year: 1959, description: "バービー人形がニューヨークのおもちゃフェアでデビュー" }
+            ],
+            "03-10": [
+                { year: 1956, description: '気象庁が設立' },
+                { year: 1945, description: '東京大空襲が発生' }
+            ],
+            "03-11": [
+                { year: 2011, "description": "東日本大震災が発生（M9.0、津波により甚大な被害）" },
+                { year: 2011, "description": "JAXAが「はやぶさ2」の開発計画を正式承認" },
+                { year: 1990, "description": "リトアニアがソビエト連邦から独立を宣言" },
+                { year: 1970, "description": "ビートルズが最後の公式アルバム『レット・イット・ビー』の録音を完了" }
+            ],
+            "03-12": [
+                { year: 1868, description: "明治天皇が江戸幕府の廃止を宣言" },
+                { year: 1938, description: "ナチス・ドイツがオーストリアを併合（アンシュルス）" }
+            ],
+            "03-13": [
+                { year: 1925, description: "普通選挙法が公布される" },
+                { year: 1954, description: "ディエンビエンフーの戦いが始まる" }
+            ],
+            "03-14": [
+                { year: 1879, description: 'アルバート・アインシュタイン誕生' },
+                { year: 1883, description: 'カール・マルクス死去' },
+                { year: 1885, description: "グローバー・クリーブランドがアメリカ合衆国大統領として初めてホワイトハウスに一人で住む" },
+                { year: 1939, description: "スロバキアがナチス・ドイツの支援を受けてチェコスロバキアから独立" },
+                { year: 1964, description: "ジャック・ルビーが、リー・ハーヴェイ・オズワルド殺害の罪で有罪判決を受ける" },
+                { year: 1968, description: 'プロ野球選手長嶋茂雄が初のMVPを獲得' },
+                { year: 2006, description: 'WBC（ワールド・ベースボール・クラシック）で日本が初代王者となる' },
+                { year: 2013, description: 'プロ野球選手イチローが日本プロ野球とMLBでの安打数の合計が4000本に到達"' }
+            ],
+            "03-15": [
+                { year: 44, description: '古代ローマの指導者ユリウス・カエサルが暗殺される' },
+                { year: 1917, description: 'ロシア皇帝ニコライ2世が退位' },
+                { year: 1972, description: 'ザ・ゴッドファーザー（映画）が初公開' }
+            ],
+            "03-16": [
+                { year: 1926, description: "陸軍大将田中義一が首相に就任" },
+                { year: 1968, description: "ベトナム戦争: ミライ虐殺事件" }
+            ],
+            "03-17": [
+                { year: 1995, description: "オウム真理教による地下鉄サリン事件発生" },
+                { year: 1905, description: "アインシュタインが光量子仮説を発表" }
+            ],
+            "03-18": [
+                { year: 1937, description: "広田弘毅内閣総辞職" },
+                { year: 1965, description: "ソ連の宇宙飛行士アレクセイ・レオーノフが人類初の宇宙遊泳" }
+            ],
+            "03-19": [
+                { year: 1943, description: "小磯国昭が朝鮮総督に就任" },
+                { year: 1918, description: "アメリカで夏時間が導入" }
+            ],
+            "03-20": [
+                { year: 1995, description: "地下鉄サリン事件" }
+            ],
+            "03-21": [
+                { year: 1963, description: "アルカトラズ刑務所が閉鎖" },
+                { year: 1999, description: "バートランド・ピカールとブライアン・ジョーンズが気球で世界一周を達成" }
+            ],
+            "03-22": [
+               { year: 1765, description: "イギリス議会が印紙法を可決（世界史の中の日本）" },
+               { year: 1960, description: "アーサー・ショーローとチャールズ・タウンズがレーザーの特許を取得" }
+            ],
+            "03-23": [
+                { year: 1882, description: "伊藤博文らが欧州憲法調査のために出発" },
+                { year: 1889, description: "任天堂が創設" }
+            ],
+            "03-24": [
+                { year: 1894, description: "福沢諭吉が「脱亜論」を発表" },
+                { year: 1989, description: "エクソンバルディーズ号原油流出事故" }
+            ],
+            "03-25": [
+                { year: 1807, description: 'イギリスが奴隷貿易廃止法を制定' },
+                { year: 1957, description: 'ローマ条約が締結され欧州経済共同体（EEC）発足' },
+                { year: 1965, description: 'NASAのジェミニ3号が有人宇宙飛行を成功' }
+            ],
+            "03-26": [
+                { year: 1896, description: "日清戦争後の下関条約調印" },
+                { year: 1979, description: "エジプトとイスラエルが平和条約に調印" }
+            ],
+            "03-27": [
+                { year: 1968, description: "ガガーリンが航空機事故で死去" },
+                { year: 1968, description: "東京・世田谷区で連続幼女誘拐殺人事件発生" }
+            ],
+            "03-28": [
+                { year: 1854, description: "日米和親条約（神奈川条約）が締結される" },
+                { year: 1979, description: "スリーマイル島原子力発電所事故" }
+            ],
+            "03-29": [
+                { year: 1974, description: "小野田寛郎元陸軍中尉がフィリピンのルバング島から帰国" },
+                { year: 1849, description: "イギリスがパンジャーブ地方を併合" }
+            ],
+            "03-30": [
+                { year: 1945, description: "沖縄戦が開始" },
+                { year: 1856, description: "クリミア戦争終結" }
+            ],
+            "03-31": [
+                { year: 1854, description: "ペリー提督と徳川幕府が日米和親条約を締結" },
+                { year: 1889, description: "エッフェル塔が完成" }
+            ],
+            "04-01": [
+                { year: 1889, description: 'エッフェル塔が一般公開される' },
+                { year: 1954, description: 'アメリカ、ビキニ環礁で水爆実験を実施' },
+                { year: 1976, description: 'アップルコンピュータ社の設立' }
+            ],
+            "04-02": [
+                { year: 1868, description: "江戸城が明け渡される" },
+                { year: 2002, description: "イスラエル軍がパレスチナ自治区に侵攻" }
+            ],
+            "04-03": [
+                { year: 1860, description: "桜田門外の変（井伊直弼暗殺事件）発生" },
+                { year: 1948, description: "済州島四・三事件" }
+            ],
+            "04-04": [
+                { year: 1955, description: "鳩山一郎内閣成立" },
+                { year: 1949, description: "北大西洋条約機構（NATO）が設立" }
+            ],
+            "04-05": [
+                { year: 1955, description: "鳩山一郎内閣成立" },
+                { year: 1722, description: "イースター島が発見される" }
+            ],
+            "04-06": [
+                { year: 1896, description: '近代オリンピック第1回大会がアテネで開催' },
+                { year: 1909, description: 'アメリカの探検家ロバート・ピアリーが北極点到達に成功' },
+                { year: 1930, description: 'ガンジーのインド塩の行進が終わりを迎える' }
+            ],
+            "04-07": [
+                { year: 1868, description: "明治天皇が五箇条の御誓文を発布" },
+                { year: 1948, description: "世界保健機関（WHO）設立" }
+            ],
+            "04-08": [
+                { year: 1974, description: "山陽新幹線（大阪～博多間）が開業" },
+                { year: 1975, description: "王映霞事件発生" }
+            ],
+            "04-09": [
+                { year: 1952, description: "白洲次郎がGHQとの講和条約交渉に当たる" },
+                { year: 2003, description: "イラク戦争: バグダッドが陥落" }
+            ],
+            "04-10": [
+                { year: 1959, description: "皇太子明仁親王と正田美智子さんが結婚" },
+                { year: 1912, description: "タイタニック号が出航" }
+            ],
+            "04-11": [
+                { year: 1945, description: "第二次世界大戦において、沖縄戦が始まる（アメリカ軍が沖縄本島に上陸）" },
+                { year: 1970, description: "アポロ13号が打ち上げられる" }
+            ],
+            "04-12": [
+                { year: 1861, description: 'アメリカ南北戦争が開戦' },
+                { year: 1961, description: 'ユーリ・ガガーリンが人類初の宇宙飛行' },
+                { year: 1981, description: 'スペースシャトル・コロンビアが初飛行' }
+            ],
+            "04-13": [
+                { year: 1975, description: "新幹線「ひかり」で初の女性運転士が乗務" },
+                { year: 1941, description: "日ソ中立条約が締結される" }
+            ],
+            "04-14": [
+                { year: 1910, description: "韓国併合に関する条約調印" },
+                { year: 1931, description: "スペインで王制が崩壊し、共和国が樹立される" }
+            ],
+            "04-15": [
+                { year: 1865, description: 'アメリカ第16代大統領エイブラハム・リンカーンが暗殺される' },
+                { year: 1912, description: '大型客船タイタニック号が北大西洋で沈没' },
+                { year: 1989, description: '中国の元共産党総書記胡耀邦の死去をきっかけに天安門事件が始まる' }
+            ],
+            "04-16": [
+                { year: 1947, description: "日本国憲法施行直後の総選挙" },
+                { year: 1947, description: "バーナード・バルークが「冷戦」という言葉を初めて使う" }
+            ],
+            "04-17": [
+                { year: 1895, description: "下関条約締結（日清戦争終結）" },
+                { year: 1961, description: "キューバのピッグス湾事件" }
+            ],
+            "04-18": [
+                { year: 1943, description: "連合軍によるドーリットル空襲（日本本土初空襲）" },
+                { year: 1955, description: "バンドン会議が開幕" },
+                { year: 1980, description: "ジンバブエがイギリスから独立" }
+            ],
+            "04-19": [
+                { year: 1952, description: "日本の警察予備隊が保安隊に改組" },
+                { year: 1995, description: "オクラホマシティ連邦政府ビル爆破事件" }
+            ],
+            "04-20": [
+                { year: 1925, description: "NHKラジオ放送開始" },
+                { year: 1999, description: "コロンバイン高校銃乱射事件" }
+            ],
+            "04-21": [
+                { year: 1989, description: "消費税（3%）導入開始" },
+                { year: 1967, description: "ギリシャで軍事クーデターが発生" }
+            ],
+            "04-22": [
+                { year: 1970, description: "第1回「アースデイ」（日本でも環境保護運動の契機に）" },
+                { year: 1500, description: "ポルトガルの航海士ペドロ・アルヴァレス・カブラルがブラジルを発見" }
+            ],
+            "04-23": [
+                { year: 1992, description: "皇太子徳仁親王（現在の天皇）が雅子さんとの婚約を発表" },
+                { year: 1616, description: "ウィリアム・シェイクスピア死去" }
+            ],
+            "04-24": [
+                { year: 1854, description: "日米和親条約批准書が交換される" },
+                { year: 1990, description: "ハッブル宇宙望遠鏡が打ち上げられる" }
+            ],
+            "04-25": [
+                { year: 1953, description: "ジェームズ・ワトソンとフランシス・クリックがDNAの構造を発表" }
+            ],
+            "04-26": [
+                { year: 1514, description: 'コペルニクスが地動説を発表' },
+                { year: 1937, description: 'スペイン内戦でゲルニカ爆撃が行われる' },
+                { year: 1954, description: "映画『七人の侍』が公開され、黒澤明監督の代表作として国際的に評価される" },
+                { year: 1986, description: 'チェルノブイリ原子力発電所事故が発生' }
+            ],
+            "04-27": [
+                { year: 1960, description: "新安保条約に反対するデモが全国で発生" },
+                { year: 1994, description: "南アフリカで初の全人種参加の総選挙が実施され、アパルトヘイト体制が正式に終了" },
+                { year: 1810, description: "ベートーヴェンが「エリーゼのために」を作曲" }
+            ],
+            "04-28": [
+                { year: 1952, description: "サンフランシスコ講和条約発効、日本の主権回復" },
+                { year: 1789, description: "バウンティ号の反乱" }
+            ],
+            "04-29": [
+                { year: 1927, description: "昭和天皇の誕生日（現在は「昭和の日」として祝日）" },
+                { year: 1901, description: '昭和天皇誕生' },
+                { year: 1948, description: '昭和の日として祝日制定' },
+                { year: 1951, description: '昭和天皇の誕生日がみどりの日となる' }
+            ],
+            "04-30": [
+                { year: 1946, description: "極東国際軍事裁判（東京裁判）開廷" },
+                { year: 1945, description: "アドルフ・ヒトラーがベルリンで自殺" }
+            ],
+            "05-01": [
+                { year: 1947, description: "日本国憲法が施行される" },
+                { year: 1707, description: "イングランドとスコットランドが合併し、グレートブリテン王国となる" }
+            ],
+            "05-02": [
+                { year: 1958, description: "東京タワーの建設が完了" },
+                { year: 1945, description: "ベルリンの戦いが終結" }
+            ],
+            "05-03": [
+                { year: 1968, description: '名神高速道路が全線開通' },
+                { year: 1946, description: '東京裁判が開廷' },
+                { year: 1947, description: '日本国憲法が施行' }
+            ],
+            "05-04": [
+                { year: 1932, description: "五・一五事件の首謀者らが決起の計画を立てる" },
+                { year: 1970, description: "ケント州立大学銃撃事件" }
+            ],
+            "05-05": [
+                { year: 1818, description: 'カール・マルクス誕生' },
+                { year: 1949, description: '欧州評議会の設立' },
+                { year: 1989, description: '中国・北京の天安門広場で学生デモが始まる' }
+            ],
+            "05-06": [
+                { year: 1856, description: "日米修好通商条約が調印" },
+                { year: 1937, description: "ヒンデンブルク号爆発事故" }
+            ],
+            "05-07": [
+                { year: 1946, description: "東久邇宮内閣が総辞職" },
+                { year: 1832, description: "ギリシャが独立を承認される" }
+            ],
+            "05-08": [
+                { year: 1945, description: "ドイツが降伏し、ヨーロッパでの第二次世界大戦終結" },
+                { year: 1945, description: "ヨーロッパ戦勝記念日（VE Day）" }
+            ],
+            "05-09": [
+                { year: 1949, description: "下山事件（国鉄総裁・下山定則の変死事件）発生" },
+                { year: 1945, description: "ナチス・ドイツの無条件降伏、第二次世界大戦終結" }
+            ],
+            "05-10": [
+                { year: 1940, description: "ドイツ軍が西ヨーロッパに侵攻開始（日独同盟への道）" },
+                { year: 1940, description: "第二次世界大戦: ドイツ軍がフランス、ベルギー、オランダに侵攻" }
+            ],
+            "05-11": [
+                { year: 1867, description: "江戸幕府最後の将軍・徳川慶喜が大政奉還" },
+                { year: 1949, description: "タイがシャムから国号を改称" }
+            ],
+            "05-12": [
+                { year: 1932, description: "五・一五事件の直前、海軍青年将校グループの会合" },
+                { year: 1937, description: "ジョージ6世がイギリス国王に即位" }
+            ],
+            "05-13": [
+                { year: 1869, description: "版籍奉還が行われる" },
+                { year: 1981, description: "ヨハネ・パウロ2世が銃撃される" }
+            ],
+            "05-14": [
+                { year: 1932, description: "犬養毅首相暗殺（五・一五事件の前日）" },
+                { year: 1948, description: "イスラエルが独立を宣言" }
+            ],
+            "05-15": [
+                { year: 1932, description: "五・一五事件（海軍青年将校らによるクーデター事件）発生" },
+                { year: 1972, description: "琉球諸島が日本に返還される" }
+            ],
+            "05-16": [
+                { year: 1939, description: "ノモンハン事件が発生" },
+                { year: 1966, description: "中国で文化大革命が始まる" }
+            ],
+            "05-17": [
+                { year: 1939, description: "日ソ国境紛争（ノモンハン事件）激化" },
+                { year: 1990, description: "世界保健機関（WHO）が同性愛を疾病リストから削除" }
+            ],
+            "05-18": [
+                { year: 1972, description: "沖縄返還（沖縄の施政権が日本に返還される）" },
+                { year: 1980, description: "セント・ヘレンズ山が噴火" }
+            ],
+            "05-19": [
+                { year: 1956, description: "日ソ国交回復交渉開始" },
+                { year: 1863, description: 'エイブラハム・リンカーンがゲティスバーグ演説を行う' },
+                { year: 1969, description: 'アポロ12号が月面に着陸' },
+                { year: 1536, description: "アン・ブーリンが処刑される" }
+            ],
+            "05-20": [
+                { year: 1947, description: "日本国憲法下で最初の通常国会開会" },
+                { year: 1498, description: 'ヴァスコ・ダ・ガマがインド航路を発見' },
+                { year: 1873, description: 'ジーンズの特許が取得される' },
+                { year: 1983, description: 'ルシオ・ガッリがエイズウイルス（HIV）を特定' }
+            ],
+            "05-21": [
+                { year: 1905, description: "日本海海戦で日本艦隊がロシアのバルチック艦隊と交戦" },
+                { year: 1871, description: "パリ・コミューン崩壊" }
+            ],
+            "05-22": [
+                { year: 1910, description: "韓国併合条約調印に向けた交渉開始" },
+                { year: 1990, description: "マイクロソフトがWindows 3.0を発表" }
+            ],
+            "05-23": [
+                { year: 1941, description: "大和型戦艦「武蔵」が進水" },
+                { year: 1949, description: "西ドイツが成立" }
+            ],
+            "05-24": [
+                { year: 1972, description: "浅間山荘事件の公判開始" },
+                { year: 2000, description: "イスラエルが南レバノンから撤退" }
+            ],
+            "05-25": [
+                { year: 1961, description: 'ジョン・F・ケネディがアメリカの月面着陸計画を発表' },
+                { year: 1977, description: '映画『スター・ウォーズ』がアメリカで公開' },
+                { year: 2008, description: 'NASAのフェニックス探査機が火星に着陸' }
+            ],
+            "05-26": [
+                { year: 1972, description: "浅間山荘事件の公判開始" },
+                { year: 1969, description: "アポロ10号が月を周回" }
+            ],
+            "05-27": [
+                { year: 1905, description: "日本海海戦" }
+            ],
+            "05-28": [
+                { year: 1905, description: "日露戦争の決戦「日本海海戦」が始まる" },
+                { year: 1937, description: "ゴールデンゲートブリッジが開通" }
+            ],
+            "05-29": [
+                { year: 1942, description: "ミッドウェー海戦の前日、連合艦隊出撃" },
+                { year: 1453, description: "コンスタンティノープル陥落" }
+            ],
+            "05-30": [
+                { year: 1878, description: "竹橋事件（旧幕府軍兵士の反乱）発生" },
+                { year: 1967, description: "ビアフラ共和国がナイジェリアからの独立を宣言" },
+                { year: 1972, description: "テルアビブ空港乱射事件" }
+            ],
+            "05-31": [
+                { year: 1902, description: "日英同盟が正式に発効" },
+                { year: 1961, description: "南アフリカが共和国となる" }
+            ],
+            "06-01": [
+                { year: 1946, description: "食糧メーデーが東京・皇居前広場で行われる" },
+                { year: 1967, description: "ビートルズのアルバム『サージェント・ペパーズ・ロンリー・ハーツ・クラブ・バンド』が発売" }
+            ],
+            "06-02": [
+                { year: 1953, description: "エリザベス2世の戴冠式" },
+                { year: 2011, description: "『遊☆戯☆王オフィシャルカードゲーム』が最も多く発行されたトレーディングカードゲームとなる" }
+            ],
+            "06-03": [
+                { year: 1942, description: "ミッドウェー海戦（日本海軍の転換点）が始まる" },
+                { year: 1965, description: "エドワード・ホワイトがアメリカ人初の宇宙遊泳" }
+            ],
+            "06-04": [
+                { year: 1879, description: "東京・九段にある「東京招魂社」が「靖國神社」に改称されました" },
+                { year: 1937, description: "パブロ・ピカソの代表作「ゲルニカ」が完成しました" },
+                { year: 1968, description: "全日本女子プロレスが発足しました" },
+                { year: 1989, description: "中国で六四天安門事件が発生しました" }
+            ],
+            "06-05": [
+                { year: 1967, description: "第三次中東戦争（六日間戦争）が始まる" }
+            ],
+            "06-06": [
+                { year: 1944, description: '連合国軍、ノルマンディー上陸作戦を実行' },
+                { year: 1982, description: 'イスラエルがレバノン侵攻（レバノン戦争）' },
+                { year: 1984, description: 'スウェーデンのカール16世グスタフ国王とシルヴィア王妃が来日' }
+            ],
+            "06-07": [
+                { year: 1893, description: "衆議院で初の内閣不信任案可決" },
+                { year: 1981, description: "イスラエルがイラクのオシラク原子炉を爆撃" }
+            ],
+            "06-08": [
+                { year: 1853, description: "ペリー提督率いる米艦隊が浦賀に来航" },
+                { year: 1949, description: "ジョージ・オーウェルの小説『1984年』が出版" }
+            ],
+            "06-09": [
+                { year: 1648, description: "日本初の木活字経典である『大蔵経』が完成する" },
+                { year: 1934, description: "国会で男子普通選挙法成立" },
+                { year: 1993, description: "皇太子徳仁親王と小和田雅子さんの結婚の儀が執り行われ、この日は国民の祝日となる" }
+            ],
+            "06-10": [
+                { year: 1940, description: "イタリアが第二次世界大戦に参戦" },
+                { year: 1940, description: "イタリアが第二次世界大戦に参戦（三国同盟への道）" }
+            ],
+            "06-11": [
+                { year: 1963, description: "ベトナム戦争に抗議し、ティック・クアン・ドックが焼身自殺を遂げる" }
+            ],
+            "06-12": [
+                { year: 1982, description: "長崎市長浅沼稲次郎が右翼に暗殺される" },
+                { year: 1964, description: "ネルソン・マンデラが終身刑を宣告される" }
+            ],
+            "06-13": [
+                { year: 1877, description: "西南戦争で西郷隆盛軍が熊本城包囲を解く" },
+                { year: 1983, description: "パイオニア10号が太陽系外へ" }
+            ],
+            "06-14": [
+                { year: 1853, description: "ペリー艦隊が相模湾に入る" },
+                { year: 1777, description: "アメリカ国旗が制定される" }
+            ],
+            "06-15": [
+                { year: 1896, description: "明治三陸地震が発生（津波により死者2万人以上）" },
+                { year: 1215, description: "イングランド王ジョンがマグナ・カルタに署名" },
+                { year: 2015, description: "尾田栄一郎の『ワンピース』が最も多く発行された単一作者によるコミックシリーズとなる" }
+            ],
+            "06-16": [
+                { year: 1904, description: "日露戦争で日本軍が旅順攻撃開始" },
+                { year: 1976, description: "南アフリカのソウェト蜂起" }
+            ],
+            "06-17": [
+                { year: 1945, description: "沖縄戦の終結時、日本軍司令官・牛島満が命を絶つ" },
+                { year: 1775, description: "バンカーヒルの戦い" }
+            ],
+            "06-18": [
+                { year: 1968, description: "小笠原諸島が日本に返還される" },
+                { year: 1815, description: "ワーテルローの戦い" }
+            ],
+            "06-19": [
+                { year: 1885, description: "初代内閣総理大臣に伊藤博文が就任" },
+                { year: 1961, description: "クウェートがイギリスから独立" }
+            ],
+            "06-20": [
+                { year: 1964, description: "新潟地震発生（死者26名）" },
+                { year: 1789, description: 'フランス革命：テニスコートの誓い' },
+                { year: 1840, description: 'サミュエル・モールスが電信送信を実験' },
+                { year: 1963, description: '米ソ間でホットライン協定が締結' }
+            ],
+            "06-21": [
+                { year: 1944, description: "マリアナ沖海戦で日本海軍大敗" },
+                { year: 1948, description: "コロンビアでボゴタ暴動が発生" }
+            ],
+            "06-22": [
+                { year: 1868, description: "戊辰戦争中に奥羽列藩同盟が成立しました" },
+                { year: 1941, description: "独ソ戦が開戦" },
+                { year: 1976, description: "週刊少年ジャンプにて『こちら葛飾区亀有公園前派出所』の連載が始まりました" }
+            ],
+            "06-23": [
+                { year: 1945, description: '沖縄戦で日本軍の組織的抵抗が終結、民間人を含む多大な犠牲者が出る' },
+                { year: 1982, description: '沖縄慰霊の日が制定' },
+                { year: 2000, description: '沖縄サミットが開催' }
+            ],
+            "06-24": [
+                { year: 1943, description: "学徒出陣が閣議決定される" },
+                { year: 1947, description: "未確認飛行物体（UFO）に関する最初の報告" }
+            ],
+            "06-25": [
+                { year: 1882, description: "日本初の馬車鉄道が新橋-日本橋間で開業しました" },
+                { year: 1950, description: "北朝鮮軍の南進により朝鮮戦争が勃発しました" },
+                { year: 1953, description: "昭和28年西日本水害が発生しました" },
+                { year: 1975, description: "モザンビークがポルトガルから独立" }
+            ],
+            "06-26": [
+                { year: 1945, description: "国連憲章に日本の敵国条項が入る" },
+                { year: 1948, description: "ベルリン封鎖が始まる" }
+            ],
+            "06-27": [
+                { year: 1869, description: "版籍奉還により藩主が知藩事に任命される" },
+                { year: 1976, description: "エンテベ空港奇襲作戦" }
+            ],
+            "06-28": [
+                { year: 1914, description: 'サラエボ事件（第一次世界大戦の発端）' },
+                { year: 1919, description: 'ヴェルサイユ条約が調印され第一次世界大戦終結' },
+                { year: 2001, description: 'スロボダン・ミロシェビッチが戦争犯罪で逮捕' }
+            ],
+            "06-29": [
+                { year: 1950, description: "レッドパージ開始（GHQによる左翼排除）" },
+                { year: 1995, description: "スペースシャトル・アトランティスがミール宇宙ステーションとドッキング" }
+            ],
+            "06-30": [
+                { year: 1934, description: "二・二六事件の首謀者たちが処刑される" },
+                { year: 1908, description: "ツングースカ大爆発" }
+            ],
+            "07-01": [
+                { year: 1948, description: "福井地震が発生（死者3,769人）" },
+                { year: 1997, description: "香港が中国に返還される" }
+            ],
+            "07-02": [
+                { year: 1903, description: "第一次日韓協約調印" },
+                { year: 1964, description: "公民権法がアメリカで成立" }
+            ],
+            "07-03": [
+                { year: 1950, description: "警察予備隊令公布（自衛隊の前身）" },
+                { year: 1890, description: "アイダホがアメリカ合衆国43番目の州となる" },
+                { year: 2024, description: "アニメ『ワンピース』が最も多くのDVDがリリースされた連続アニメ番組となる" }
+            ],
+            "07-04": [
+                { year: 1950, description: "マッカーサー元帥が警察予備隊の創設を指令" },
+                { year: 1776, description: 'アメリカ合衆国が独立宣言を発表' },
+                { year: 1826, description: 'アメリカ独立宣言起草者トーマス・ジェファーソンとジョン・アダムズが同日に死去' },
+                { year: 1863, description: '南北戦争：ゲティスバーグの戦いが終結' }
+            ],
+            "07-05": [
+                { year: 1988, description: "リクルート事件発覚" },
+                { year: 1687, description: "アイザック・ニュートンがプリンキピアを出版" }
+            ],
+            "07-06": [
+                { year: 1988, description: "パイパー・アルファ石油プラットフォーム事故" }
+            ],
+            "07-07": [
+                { year: 1937, description: "盧溝橋事件が発生し、日中間の全面的な軍事衝突が始まる" },
+                { year: 1954, description: '日本が防衛庁と自衛隊を発足' },
+                { year: 1995, description: '七夕豪雨が発生' }
+            ],
+            "07-08": [
+                { year: 1853, description: "ペリー提督が浦賀に来航" },
+                { year: 1497, description: "ヴァスコ・ダ・ガマがインドへ向けて出航" },
+                { year: 2022, description: "安倍晋三元首相の襲撃事件" }
+            ],
+            "07-09": [
+                { year: 1974, description: "田中角栄首相が日中国交正常化後初めて中国訪問" },
+                { year: 1816, description: "アルゼンチンがスペインからの独立を宣言" }
+            ],
+            "07-10": [
+                { year: 1871, description: "明治政府による廃藩置県が断行され、中央集権的な行政制度が確立" },
+                { year: 1973, description: "バハマがイギリスから独立" }
+            ],
+            "07-11": [
+                { year: 1966, description: "イギリスがワールドカップで優勝（日本でのサッカー人気に影響）" },
+                { year: 1979, description: "アメリカの宇宙ステーション「スカイラブ」が大気圏に再突入" }
+            ],
+            "07-12": [
+                { year: 1940, description: "第二次近衛内閣が発足、「新体制運動」開始" },
+                { year: 1988, description: "ゴルバチョフがペレストロイカを発表" }
+            ],
+            "07-13": [
+                { year: 1894, description: "朝鮮王宮占領事件（日清戦争の発端）" },
+                { year: 1985, description: "ライブエイドが開催" }
+            ],
+            "07-14": [
+                { year: 1853, description: "ペリー提督が久里浜に上陸" },
+                { year: 1789, description: "フランス革命: バスティーユ牢獄襲撃" }
+            ],
+            "07-15": [
+                { year: 1927, description: "金融恐慌発生" },
+                { year: 1975, description: "アポロ＝ソユーズ計画" }
+            ],
+            "07-16": [
+                { year: 1945, description: 'アメリカがトリニティ実験で初の核爆発事故を成功' },
+                { year: 1969, description: 'アポロ11号が月に向けて打ち上げられる' },
+                { year: 1790, description: 'ワシントンD.C.がアメリカの首都に指定' }
+            ],
+            "07-17": [
+                { year: 1918, description: "シベリア出兵閣議決定" },
+                { year: 1998, description: "ロシア皇帝ニコライ2世とその家族の遺体が公式に確認される" }
+            ],
+            "07-18": [
+                { year: 1966, description: "文化大革命開始（日中関係に大きな影響）" },
+                { year: 1968, description: "インテル設立" }
+            ],
+            "07-19": [
+                { year: 1952, description: "破壊活動防止法成立" },
+                { year: 1979, description: "ニカラグアでサンディニスタ民族解放戦線が勝利" }
+            ],
+            "07-20": [
+                { year: 1944, description: 'ヒトラー暗殺計画（七月二十日事件）' },
+                { year: 1969, description: 'アポロ11号が月面着陸。人類初の月面歩行' },
+                { year: 1976, description: 'NASAのバイキング1号が火星の表面写真の送信に成功' }
+            ],
+            "07-21": [
+                { year: 1945, description: "米軍が本土空襲を本格化" },
+                { year: 1969, description: "アポロ11号のニール・アームストロングが月面を歩く" }
+            ],
+            "07-22": [
+                { year: 1944, description: "東条英機内閣が総辞職" },
+                { year: 1946, description: "イルグンとレヒによるキング・デイヴィッド・ホテル爆破事件" }
+            ],
+            "07-23": [
+                { year: 1945, description: "ポツダム宣言が発表される" },
+                { year: 1952, description: "エジプト革命" }
+            ],
+            "07-24": [
+                { year: 1943, description: "学徒出陣を閣議決定" },
+                { year: 1911, description: "ハイラム・ビンガムがマチュピチュを発見" }
+            ],
+            "07-25": [
+                { year: 1894, description: "日清戦争が勃発" },
+                { year: 1978, description: "世界初の体外受精児ルイーズ・ブラウン誕生" }
+            ],
+            "07-26": [
+                { year: 1945, description: "ポツダム宣言が発表され、日本に降伏勧告がなされた" },
+                { year: 1953, description: "フィデル・カストロがモンカダ兵営を襲撃" }
+            ],
+            "07-27": [
+                { year: 1953, description: "朝鮮戦争休戦協定調印" },
+                { year: 1996, description: "アトランタオリンピック爆破事件" }
+            ],
+            "07-28": [
+                { year: 1914, description: "第一次世界大戦が開戦" },
+                { year: 1914, description: "オーストリアがセルビアに宣戦布告（第一次世界大戦開始）" }
+            ],
+            "07-29": [
+                { year: 1858, description: "日米修好通商条約調印" },
+                { year: 1957, description: "国際原子力機関（IAEA）設立" }
+            ],
+            "07-30": [
+                { year: 1912, description: "明治天皇が崩御" },
+                { year: 1966, description: "イングランドがFIFAワールドカップで優勝" }
+            ],
+            "07-31": [
+                { year: 1886, description: "伊藤博文が欧州から帰国（明治憲法起草のため）" },
+                { year: 1964, description: "アメリカの宇宙探査機レンジャー7号が月の鮮明な写真を送信" }
+            ],
+            "08-01": [
+                { year: 1894, description: "日清戦争宣戦布告" },
+                { year: 1944, description: "ワルシャワ蜂起" }
+            ],
+            "08-02": [
+                { year: 1945, description: "ポツダム宣言受諾を閣議で検討" },
+                { year: 1876, description: 'ワイルド・ビル・ヒコックが殺害される' },
+                { year: 1934, description: 'アドルフ・ヒトラーがドイツ総統に就任' },
+                { year: 1990, description: 'イラクがクウェートに侵攻し湾岸戦争が勃発' }
+            ],
+            "08-03": [
+                { year: 1960, description: "池田勇人内閣が発足し、「所得倍増計画」を発表" },
+                { year: 1492, description: "コロンブスがサンタマリア号で出航" }
+            ],
+            "08-04": [
+                { year: 1942, description: "ガダルカナル島に米軍が上陸（南太平洋の戦局転換点）" },
+                { year: 1964, description: "トンキン湾事件" }
+            ],
+            "08-05": [
+                { year: 1937, description: "近衛文麿内閣が「北支事変処理方針」を決定" },
+                { year: 1963, description: "ソ連、米、英が部分的核実験禁止条約に調印" }
+            ],
+            "08-06": [
+                { year: 1945, description: "アメリカ軍が広島に原子爆弾を投下、多数の民間人が犠牲となる" },
+                { year: 1965, description: "ビートルズのアルバム『Help!』がリリース" },
+                { year: 1991, description: 'ティム・バーナーズ＝リーが世界初のウェブサイトを公開' }
+            ],
+            "08-07": [
+                { year: 1942, description: "ガダルカナル島に米軍が上陸（南太平洋の戦局転換点）" },
+                { year: 1976, description: "マーズ探査機バイキング1号が火星に着陸" }
+            ],
+            "08-08": [
+                { year: 1945, description: "ソ連が対日参戦を宣言" },
+                { year: 1974, description: "ニクソン大統領がウォーターゲート事件に関連して辞任を発表" }
+            ],
+            "08-09": [
+                { year: 1945, description: "アメリカ軍が長崎に原子爆弾を投下、多数の民間人が犠牲となる" },
+                { year: 1965, description: 'シンガポールがマレーシア連邦から独立' },
+                { year: 1974, description: 'リチャード・ニクソン大統領がウォーターゲート事件の責任を取り辞任' }
+            ],
+            "08-10": [
+                { year: 1945, description: "日本政府がポツダム宣言受諾の意思を連合国に通告" },
+                { year: 1675, description: "グリニッジ天文台が設立" }
+            ],
+            "08-11": [
+                { year: 1945, description: "連合国がポツダム宣言受諾回答に対する返答を示す" },
+                { year: 1936, description: "ベルリンオリンピック開幕" }
+            ],
+            "08-12": [
+                { year: 1946, description: '第1回甲子園大会（戦後）が開催' },
+                { year: 1952, description: '東海道本線の電化が完成' },
+                { year: 1985, description: '日本航空123便墜落事故' }
+            ],
+            "08-13": [
+                { year: 1945, description: "ポツダム宣言受諾と終戦を巡り御前会議が開催される" },
+                { year: 1961, description: "東ドイツ政府がベルリンの壁の建設を開始" }
+            ],
+            "08-14": [
+                { year: 1945, description: "昭和天皇が終戦の詔書を録音" },
+                { year: 1947, description: "パキスタンがイギリスから独立" }
+            ],
+            "08-15": [
+                { year: 1945, description: "昭和天皇の玉音放送により日本がポツダム宣言受諾と降伏を発表（終戦記念日）" },
+                { year: 1947, description: 'インドがイギリスから独立' },
+                { year: 1971, description: 'アメリカがドルと金の兌換を一時停止（ニクソン・ショック）' }
+            ],
+            "08-16": [
+                { year: 1945, description: "東久邇宮内閣が成立（戦後初の内閣）" },
+                { year: 1960, description: "キプロスが独立" }
+            ],
+            "08-17": [
+                { year: 1945, description: "戦犯容疑者の逮捕が開始される" },
+                { year: 1999, description: "トルコ大地震" }
+            ],
+            "08-18": [
+                { year: 1549, description: "フランシスコ・ザビエルが鹿児島に到来" },
+                { year: 1958, description: "ウラジーミル・ナボコフの小説『ロリータ』がアメリカで出版" }
+            ],
+            "08-19": [
+                { year: 1960, description: "所得倍増計画が発表される" },
+                { year: 1991, description: "ソ連8月クーデター" }
+            ],
+            "08-20": [
+                { year: 1953, description: "NHKテレビ放送が開始" },
+                { year: 1940, description: "レフ・トロツキー暗殺" }
+            ],
+            "08-21": [
+                { year: 1945, description: "連合国軍が厚木飛行場に先遣隊を派遣" },
+                { year: 1911, description: "モナリザ盗難事件" }
+            ],
+            "08-22": [
+                { year: 1910, description: "日韓併合条約が調印（朝鮮半島が日本の統治下に置かれる）" },
+                { year: 1485, description: "バラ戦争終結（ボズワースの戦い）" }
+            ],
+            "08-23": [
+                { year: 1914, description: "日本がドイツに宣戦布告（第一次世界大戦に参戦）" },
+                { year: 1939, description: "独ソ不可侵条約締結" }
+            ],
+            "08-24": [
+                { year: 1923, description: "関東大震災の前日" },
+                { year: 79, description: "ヴェスヴィオ火山が噴火、ポンペイが埋没" }
+            ],
+            "08-25": [
+                { year: 1945, description: "GHQ設置命令が発令される" },
+                { year: 1825, description: "ウルグアイが独立を宣言" }
+            ],
+            "08-26": [
+                { year: 1876, description: "日朝修好条規（江華島条約）締結" },
+                { year: 1789, description: "フランス人権宣言" }
+            ],
+            "08-27": [
+                { year: 1928, description: "パリ不戦条約調印（日本も参加）" },
+                { year: 1883, description: "クラカタウ火山大噴火" }
+            ],
+            "08-28": [
+                { year: 1945, description: "連合国軍が日本への進駐を開始" },
+                { year: 1963, description: "キング牧師が「私には夢がある」演説" }
+            ],
+            "08-29": [
+                { year: 1949, description: "ソ連が初の原爆実験を成功させる（日本の核アレルギーに影響）" },
+                { year: 2005, description: "ハリケーン・カトリーナがアメリカ南部を襲う" }
+            ],
+            "08-30": [
+                { year: 1945, description: "マッカーサー元帥が厚木に到着" },
+                { year: 1970, description: "植村直己が五大陸最高峰登頂を達成" },
+                { year: 1991, description: "エストニアが独立を宣言" }
+            ],
+            "08-31": [
+                { year: 1945, description: "連合国軍最高司令官総司令部（GHQ）が設置される" },
+                { year: 1997, description: "ダイアナ妃がパリで交通事故により死去" }
+            ],
+            "09-01": [
+                { year: 1923, description: "関東大震災が発生" },
+                { year: 1964, description: '東海道新幹線が試験走行を実施' },
+                { year: 1983, description: '大韓航空機撃墜事件（日本海上空）' }
+            ],
+            "09-02": [
+                { year: 1945, description: '米艦ミズーリ号上で日本が降伏文書に調印、第二次世界大戦が正式に終結' },
+                { year: 1666, description: 'ロンドン大火が発生' },
+                { year: 1969, description: 'インターネットの前身ARPANETの最初の通信が成功' }
+            ],
+            "09-03": [
+                { year: 1894, description: "日清戦争で平壌の戦いが始まる" },
+                { year: 1783, description: "パリ条約調印、アメリカ独立戦争終結" }
+            ],
+            "09-04": [
+                { year: 1958, description: "皇太子明仁親王と正田美智子さんの婚約が発表される" },
+                { year: 1972, description: "マーク・スピッツがミュンヘンオリンピックで7つの金メダルを獲得" }
+            ],
+            "09-05": [
+                { year: 1905, description: "ポーツマス条約調印（日露戦争終結）" },
+                { year: 1972, description: "ミュンヘンオリンピック事件" }
+            ],
+            "09-06": [
+                { year: 1976, description: "自衛隊機操縦士がMiG-25で函館空港に亡命（冷戦期の事件）" },
+                { year: 1522, description: "マゼラン艦隊が世界一周を達成" }
+            ],
+            "09-07": [
+                { year: 1822, description: "ブラジルがポルトガルからの独立を宣言" },
+                { year: 1895, description: "下関条約批准書が交換される（日清戦争終結）" },
+                { year: 1812, description: "ボロジノの戦い" }
+            ],
+            "09-08": [
+                { year: 1951, description: "サンフランシスコ講和条約調印" },
+                { year: 1941, description: "レニングラード包囲戦開始" }
+            ],
+            "09-09": [
+                { year: 1945, description: "GHQ（連合国軍総司令部）が日本政府に対し初の覚書を発表" },
+                { year: 1948, description: "朝鮮民主主義人民共和国（北朝鮮）が建国される" }
+            ],
+            "09-10": [
+                { year: 1945, description: "朝鮮半島が北緯38度線で分割占領されることが決定" },
+                { year: 1939, description: "カナダが第二次世界大戦に参戦" }
+            ],
+            "09-11": [
+                { year: 1940, description: "桜井忠温らが五箇条の御誓文にならった「橿原建国誓詞」を発表" },
+                { year: 1609, description: 'ヘンリー・ハドソンがマンハッタン島を発見' },
+                { year: 1973, description: 'チリでクーデターが発生、アジェンデ政権が崩壊' },
+                { year: 2001, description: 'アメリカ同時多発テロ事件発生' }
+            ],
+            "09-12": [
+                { year: 1940, description: "桜井忠温らが五箇条の御誓文にならった「橿原建国誓詞」を発表" },
+                { year: 1953, description: "ニキータ・フルシチョフがソ連共産党第一書記に就任" }
+            ],
+            "09-13": [
+                { year: 1993, description: "細川護熙首相とクリントン大統領が日米首脳会談" },
+                { year: 1968, description: "アルバニアがワルシャワ条約機構から脱退" }
+            ],
+            "09-14": [
+                { year: 1992, description: "宮澤首相が歴代首相として初めて慰安婦問題について謝罪" },
+                { year: 1812, description: "ナポレオン軍がモスクワを占領" }
+            ],
+            "09-15": [
+                { year: 1945, description: "GHQによる五大改革指令（農地改革など）" },
+                { year: 1935, description: "ナチス・ドイツがニュルンベルク法を制定" }
+            ],
+            "09-16": [
+                { year: 1945, description: "戦後の財閥解体が始まる" },
+                { year: 1975, description: "パプアニューギニアが独立" }
+            ],
+            "09-17": [
+                { year: 1945, description: "GHQが民主化指令を発表（政治犯の釈放など）" },
+                { year: 1939, description: "ソ連がポーランドに侵攻" }
+            ],
+            "09-18": [
+                { year: 1931, description: "柳条湖事件（満州事変）が勃発し、日本軍が中国東北部への軍事行動を開始" }
+            ],
+            "09-19": [
+                { year: 1945, description: "GHQによる言論の自由に関する覚書" },
+                { year: 1985, description: "メキシコ地震" }
+            ],
+            "09-20": [
+                { year: 1945, description: "GHQによる言論の自由に関する覚書" },
+                { year: 1519, description: 'フェルディナンド・マゼランが世界一周航海を開始' },
+                { year: 1973, description: 'ビリー・ジーン・キングがバトル・オブ・ザ・セクシーズで勝利' },
+                { year: 2011, description: 'アメリカ軍が「ドント・アスク・ドント・テル」政策を廃止' },
+                { year: 2024, description: "プロ野球選手大谷翔平がMLB史上初めて同一シーズン50本塁打・50盗塁を達成" }
+            ],
+            "09-21": [
+                { year: 1945, description: "GHQの指令で政治犯の釈放が始まる" },
+                { year: 1964, description: "マルコムXがニューヨークで設立したアフリカ系アメリカ人組織OAAU（Organization of Afro-American Unity）初の公の集会を開催" }
+            ],
+            "09-22": [
+                { year: 1940, description: "日本軍が北部仏印に進駐" },
+                { year: 1980, description: "イラクとイランの間でイラン・イラク戦争が勃発" }
+            ],
+            "09-23": [
+                { year: 1889, description: "大日本帝国憲法発布後初の総選挙" },
+                { year: 1889, description: "任天堂が創設" }
+            ],
+            "09-24": [
+                { year: 1877, description: "西南戦争で西郷隆盛が死去" },
+                { year: 1991, description: "ニルヴァーナがアルバム『ネヴァーマインド』をリリース" }
+            ],
+            "09-25": [
+                { year: 1932, description: "満州国が建国される" },
+                { year: 1066, description: "スタンフォード・ブリッジの戦い、ハーラル3世が敗北" }
+            ],
+            "09-26": [
+                { year: 1945, description: "マッカーサー元帥と昭和天皇が会見" },
+                { year: 1984, description: "イギリスが香港を中国に返還することで合意" }
+            ],
+            "09-27": [
+                { year: 1940, description: "日独伊三国同盟が調印" },
+                { year: 1822, description: "ジャン＝フランソワ・シャンポリオンがロゼッタ・ストーンを解読" },
+                { year: 1905, description: "アインシュタインがE=mc²を発表" }
+            ],
+            "09-28": [
+                { year: 1972, description: "田中角栄首相が訪中し、日中国交正常化について協議" },
+                { year: 1928, description: "アレクサンダー・フレミングがペニシリンを発見" }
+            ],
+            "09-29": [
+                { year: 1972, description: "日中共同声明が調印され、日中国交正常化が実現" },
+                { year: 1938, description: "ナチス・ドイツがミュンヘン協定を締結" }
+            ],
+            "09-30": [
+                { year: 1946, description: "極東国際軍事裁判（東京裁判）が開始" },
+                { year: 1939, description: "ポーランドがドイツとソ連によって分割される" }
+            ],
+            "10-01": [
+                { year: 1949, description: '毛沢東が中華人民共和国の成立を宣言' },
+                { year: 1960, description: 'ナイジェリアがイギリスから独立' },
+                { year: 1971, description: '中国の国連加盟が認められる' }
+            ],
+            "10-02": [
+                { year: 1973, description: "第四次中東戦争（ヨム・キプール戦争）が勃発、第一次オイルショックのきっかけとなる" },
+                { year: 1958, description: "ギニアが独立" }
+            ],
+            "10-03": [
+                { year: 1952, description: 'イギリスが初の原子爆弾実験に成功' },
+                { year: 1952, description: "初の原子力平和利用調査団が訪米" },
+                { year: 1990, description: '東西ドイツが統一' },
+                { year: 1992, description: 'シンガポールで初めての大統領直接選挙実施' }
+            ],
+            "10-04": [
+                { year: 1957, description: "ソ連が世界初の人工衛星スプートニク1号を打ち上げ" }
+            ],
+            "10-05": [
+                { year: 1945, description: "GHQが民主化指令（婦人参政権付与など）を発令" },
+                { year: 1962, description: "ビートルズが初のシングル「ラヴ・ミー・ドゥ」をリリース" }
+            ],
+            "10-06": [
+                { year: 1952, description: "吉田茂首相が対米講和条約後初の訪米" },
+                { year: 1973, description: "第四次中東戦争（ヨム・キプール戦争）勃発" }
+            ],
+            "10-07": [
+                { year: 2001, description: "アメリカがアフガニスタン空爆を開始" }
+            ],
+            "10-08": [
+                { year: 1895, description: "朝鮮王朝の王妃閔妃（明成皇后）暗殺事件が発生" },
+                { year: 1856, description: "アロー号事件" }
+            ],
+            "10-09": [
+                { year: 1941, description: "近衛内閣が総辞職、東条英機内閣が成立" },
+                { year: 1967, description: "チェ・ゲバラがボリビアで処刑される" }
+            ],
+            "10-10": [
+                { year: 1962, description: "教科書検定問題で大規模なデモが発生" },
+                { year: 1950, description: "日本初のプロ野球日本シリーズが開催される" },
+                { year: 1964, description: "東京オリンピックが開幕" }
+            ],
+            "10-11": [
+                { year: 1960, description: "浅沼稲次郎社会党委員長が右翼少年に暗殺される" },
+                { year: 1975, description: "アメリカのテレビ番組「サタデー・ナイト・ライブ」が放送開始" }
+            ],
+            "10-12": [
+                { year: 1925, description: "治安維持法が公布" },
+                { year: 1492, description: "コロンブスがアメリカ大陸に到達" }
+            ],
+            "10-13": [
+                { year: 1964, description: "東京オリンピックの開会式" },
+                { year: 1792, description: "ホワイトハウスの礎石が置かれる" }
+            ],
+            "10-14": [
+                { year: 1964, description: 'マーティン・ルーサー・キング・ジュニアがノーベル平和賞を受賞' },
+                { year: 1926, description: '英国の児童文学作家A.A.ミルンの「クマのプーさん」が初めて出版される' },
+                { year: 1947, description: 'チャック・イェーガーが音速の壁を初めて突破' }
+            ],
+            "10-15": [
+                { year: 1970, description: "大阪万博（日本万国博覧会）が閉幕" },
+                { year: 1962, description: "キューバ危機" }
+            ],
+            "10-16": [
+                { year: 1964, description: "東海道新幹線が開業" },
+                { year: 1978, description: "カロル・ヴォイティワがローマ教皇ヨハネ・パウロ2世に選出" }
+            ],
+            "10-17": [
+                { year: 1956, description: "日ソ共同宣言が調印され、国交が回復" },
+                { year: 1931, description: 'アル・カポネが脱税で有罪判決を受ける' },
+                { year: 1956, description: 'マウマウ蜂起の指導者ジュモ・ケニヤッタが逮捕' },
+                { year: 1989, description: 'カリフォルニア州ロマプリエタ地震が発生' }
+            ],
+            "10-18": [
+                { year: 1941, description: "東条英機内閣が成立" },
+                { year: 1867, description: "アメリカがアラスカを買収" }
+            ],
+            "10-19": [
+                { year: 1989, description: "昭和天皇の大喪の礼が執り行われる" },
+                { year: 1977, description: "ルフトハンザ航空181便ハイジャック事件" }
+            ],
+            "10-20": [
+                { year: 1944, description: "レイテ沖海戦が開始" },
+                { year: 1973, description: "エリザベス2世がシドニー・オペラハウスを開場" }
+            ],
+            "10-21": [
+                { year: 1600, description: "関ヶ原の戦い" },
+                { year: 1805, description: "トラファルガー海戦" }
+            ],
+            "10-22": [
+                { year: 1958, description: "皇太子明仁親王と正田美智子さんの婚約が内定" },
+                { year: 1962, description: "ジョン・F・ケネディがキューバに対する海上封鎖を発表" }
+            ],
+            "10-23": [
+                { year: 1955, description: "日本の国際連合加盟が国連総会で可決" },
+                { year: 1956, description: '日ソ共同宣言が調印される' },
+                { year: 1964, description: '東京オリンピックの閉会式' },
+                { year: 2004, description: '新潟県中越地震が発生' }
+            ],
+            "10-24": [
+                { year: 1909, description: "伊藤博文がハルビン駅で安重根によって暗殺される" },
+                { year: 1857, description: 'シェッフィールド・フットボールクラブが設立（世界最古のサッカークラブ）' },
+                { year: 1929, description: 'ニューヨーク株式市場で株価が大暴落（ブラック・サーズデー）' },
+                { year: 1945, description: '国際連合（UN）が正式に発足' },
+                { year: 1964, description: "ザンビアがイギリスから独立" }
+            ],
+            "10-25": [
+                { year: 1955, description: "日本の国際連合加盟が国連総会で可決" },
+                { year: 1983, description: "グレナダ侵攻" }
+            ],
+            "10-26": [
+                { year: 1966, description: "佐藤栄作首相がベトナム和平調停のため東南アジア諸国を訪問" },
+                { year: 1955, description: "オーストリアが永世中立を宣言" }
+            ],
+            "10-27": [
+                { year: 1891, description: "濃尾地震が発生（死者7,273人）" },
+                { year: 1962, description: "キューバ危機の最中、U-2偵察機が撃墜される" }
+            ],
+            "10-28": [
+                { year: 1956, description: "日ソ共同宣言に調印（国交回復）" },
+                { year: 1886, description: "自由の女神像がニューヨークで除幕" }
+            ],
+            "10-29": [
+                { year: 1929, description: "ウォール街で株価が大暴落、世界恐慌の発端となる（暗黒の木曜日）" }
+            ],
+            "10-30": [
+                { year: 1930, description: "ロンドン海軍軍縮条約批准書が交換される" },
+                { year: 1938, description: "オーソン・ウェルズが「宇宙戦争」をラジオドラマ化" }
+            ],
+            "10-31": [
+                { year: 1922, description: "明治神宮外苑競技場（後の国立競技場）が完成" },
+                { year: 1984, description: "インディラ・ガンジーが暗殺される" }
+            ],
+            "11-01": [
+                { year: 1954, description: "アルジェリア戦争が勃発" }
+            ],
+            "11-02": [
+                { year: 1988, description: "インターネットを悪用したワームが初めて確認される" }
+            ],
+            "11-03": [
+                { year: 1852, description: '徳川慶喜誕生' },
+                { year: 1946, description: '日本国憲法が公布' },
+                { year: 1996, description: '在ペルー日本大使公邸占拠事件発生' }
+            ],
+            "11-04": [
+                { year: 1922, description: "ハワード・カーターがツタンカーメン王の墓を発見" }
+            ],
+            "11-05": [
+                { year: 1605, description: "火薬陰謀事件" }
+            ],
+            "11-06": [
+                { year: 1985, description: "コロンビア最高裁判所占拠事件" }
+            ],
+            "11-07": [
+                { year: 1917, description: "ロシア革命（十月革命）" }
+            ],
+            "11-08": [
+                { year: 1895, description: "ヴィルヘルム・レントゲンがX線を発見" }
+            ],
+            "11-09": [
+                { year: 1938, description: 'ナチス・ドイツによる「水晶の夜（クリスタルナハト）」事件発生' },
+                { year: 1967, description: 'アポロ計画の一環としてサターンVロケットの初飛行に成功' },
+                { year: 1989, description: 'ベルリンの壁崩壊' }
+            ],
+            "11-10": [
+                { year: 1975, description: "貨物船「霧島丸」が座礁" }
+            ],
+            "11-11": [
+                { year: 1918, description: "第一次世界大戦終結" }
+            ],
+            "11-12": [
+                { year: 1990, description: "明仁天皇の即位礼正殿の儀が執り行われる" }
+            ],
+            "11-13": [
+                { year: 2015, description: "パリ同時多発テロ事件" }
+            ],
+            "11-14": [
+                { year: 1971, description: "インテルが世界初のマイクロプロセッサ4004を開発" }
+            ],
+            "11-15": [
+                { year: 1988, description: "パレスチナ民族評議会がパレスチナ独立宣言" }
+            ],
+            "11-16": [
+                { year: 1945, description: "ユネスコが設立" }
+            ],
+            "11-17": [
+                { year: 1989, description: "ビロード革命" }
+            ],
+            "11-18": [
+                { year: 1978, description: "ジョーンズタウンで集団自殺事件が発生" }
+            ],
+            "11-19": [
+                { year: 1863, description: 'エイブラハム・リンカーンがゲティスバーグ演説を行う' },
+                { year: 1969, description: 'アポロ12号が月面に着陸' },
+                { year: 1998, description: 'アメリカ下院がビル・クリントン大統領の弾劾調査を承認' }
+            ],
+            "11-20": [
+                { year: 1890, description: "帝国ホテルが東京都千代田区で開業" },
+                { year: 1947, description: "任天堂株式会社が設立" },
+                { year: 1954, description: "国連が「世界子どもの日」を制定" },
+                { year: 1985, description: "マイクロソフトがWindows 1.0を発売" }
+            ],
+            "11-21": [
+                { year: 1694, description: "ヴォルテール誕生" },
+                { year: 1905, description: "アルベルト・アインシュタインの特殊相対性理論の第2論文（E=mc²）がドイツの学術誌に初めて掲載された" },
+                { year: 1976, description: "映画『ロッキー』が全米で公開" }
+            ],
+            "11-22": [
+                { year: 1963, description: 'ジョン・F・ケネディ米国大統領が暗殺される' },
+                { year: 1990, description: 'マーガレット・サッチャー英首相が辞任' },
+                { year: 1995, description: 'トヨタがハイブリッド車「プリウス」を発表' }
+            ],
+            "11-23": [
+                { year: 955, description: "ウェセックス家の王族エドウィがイングランド人の王に就任しました" },
+                { year: 1948, description: "「勤労感謝の日」が国民の祝日として制定されました" },
+                { year: 2005, description: "アンゲラ・メルケルがドイツ初の女性首相に就任" }
+            ],
+            "11-24": [
+                { year: 1919, description: "日本で新婦人協会の設立が発表されました" },
+                { year: 1944, description: "第二次世界大戦中、B-29爆撃機が東京を初めて爆撃しました" },
+                { year: 1969, description: "アメリカの有人月探査船「アポロ12号」が地球に帰還しました" },
+                { year: 1971, description: "D.B.クーパー事件が発生" }
+            ],
+            "11-25": [
+                { year: 1867, description: "アルフレッド・ノーベルがダイナマイトの特許を取得しました" },
+                { year: 1876, description: "福澤諭吉の『学問のすゝめ』最終刊・第17篇が刊行されました" },
+                { year: 1975, description: "スリナムが独立" }
+            ],
+            "11-27": [
+                { year: 1942, description: "ヴィシー・フランスの艦隊が自沈" }
+            ],
+            "11-28": [
+                { year: 1912, description: "アルバニアが独立を宣言" }
+            ],
+            "11-29": [
+                { year: 1947, description: "国連総会がパレスチナ分割決議を採択" }
+            ],
+            "11-30": [
+                { year: 1700, description: "大北方戦争が勃発" }
+            ],
+            "12-01": [
+                { year: 1955, description: "ローザ・パークスがバス内で人種分離に抵抗" }
+            ],
+            "12-02": [
+                { year: 1823, description: "モンロー宣言" }
+            ],
+            "12-03": [
+                { year: 1984, description: "ボパール化学工場事故" }
+            ],
+            "12-04": [
+                { year: 1991, description: "パンアメリカン航空103便爆破事件" }
+            ],
+            "12-05": [
+                { year: 2006, description: "フィジーで軍事クーデター" }
+            ],
+            "12-06": [
+                { year: 1917, description: "ハリファックス大爆発事故" }
+            ],
+            "12-07": [
+                { year: 1941, description: '日本軍がハワイの真珠湾の米軍基地を奇襲攻撃、太平洋戦争が開始"' },
+                { year: 1972, description: 'アポロ17号が最後の有人月面探査を開始' },
+                { year: 1988, description: 'アルメニアで大地震が発生' }
+            ],
+            "12-08": [
+                { year: 1941, description: "日本軍が真珠湾を攻撃、太平洋戦争が開戦" },
+                { year: 1980, description: "ジョン・レノンが暗殺される" }
+            ],
+            "12-09": [
+                { year: 1990, description: "ポーランドで初の自由選挙" }
+            ],
+            "12-10": [
+                { year: 1901, description: '第1回ノーベル賞授賞式が行われる' },
+                { year: 1948, description: '国連総会で世界人権宣言が採択される' },
+                { year: 1958, description: '日本で初の国産旅客機YS-11の設計が開始' }
+            ],
+            "12-11": [
+                { year: 1941, description: "ドイツとイタリアがアメリカに宣戦布告" }
+            ],
+            "12-12": [
+            { year: 1963, description: "ケニアがイギリスから独立" }
+            ],
+            "12-13": [
+                { year: 1937, description: "日中戦争の過程で南京事件が発生、多数の中国人犠牲者が出る" },
+                { year: 1874, description: "太政官指令により、双子の「兄・姉」を決める基準が全国的に統一されました" },
+                { year: 1962, description: "アメリカが能動型通信衛星「リレー1号」を打ち上げました" }
+            ],
+            "12-14": [
+                { year: 1702, description: '赤穂事件（忠臣蔵の討ち入り）' },
+                { year: 1995, description: '三井物産マニラ支店長誘拐事件が発生' },
+                { year: 2012, description: '衆議院選挙で自民党が政権を奪還' }
+            ],
+            "12-15": [
+                { year: 1935, description: "松下電器産業（現パナソニック）が設立されました" },
+                { year: 1961, description: "アドルフ・アイヒマンに死刑判決" },
+                { year: 1970, description: "ソビエト連邦の金星探査機ベネラ7号が、世界で初めて惑星表面への着陸に成功しました" }
+            ],
+            "12-16": [
+                { year: 1707, description: "富士山が宝永大噴火を起こし、宝永山（標高2,693m）が形成されました" },
+                { year: 1773, description: "ボストン茶会事件" },
+                { year: 1890, description: "日本で初めて東京-横浜間の電話交換業務が開始されました" },
+                { year: 1909, description: "東京で山手線の電車運転が開始されました" },
+                { year: 1936, description: "柴犬が国の天然記念物に指定されました" },
+                { year: 1997, description: "テレビアニメ『ポケットモンスター』の放送で「ポケモンショック」が発生しました" }
+            ],
+            "12-17": [
+                { year: 1903, description: "ライト兄弟が世界初の動力飛行に成功" },
+                { year: 1957, description: "上野動物園内に日本初のモノレールが開業しました" },
+                { year: 2015, description: "中国が暗黒物質粒子探査衛星「悟空」を打ち上げました" }
+            ],
+            "12-18": [
+                { year: 1865, description: "アメリカで奴隷制が廃止" }
+            ],
+            "12-19": [
+                { year: 1984, description: "中英共同声明が調印" }
+            ],
+            "12-20": [
+                { year: 1999, description: "マカオがポルトガルから中国に返還" }
+            ],
+            "12-21": [
+                { year: 1898, description: "キュリー夫妻がラジウムを発見" }
+            ],
+            "12-22": [
+                { year: 1885, description: "太政官制が廃止され、日本初の内閣が発足しました" },
+                { year: 1947, description: "高峰譲吉が化学者としてアドレナリンを発見しました" },
+                { year: 1989, description: "ルーマニアで革命が起こり、チャウシェスク独裁政権が崩壊しました" }
+            ],
+            "12-23": [
+                { year: 1948, description: "東条英機らに死刑判決が下される" },
+                { year: 1958, description: "東京タワーが完成し、完工式が行われました" },
+                { year: 1986, description: "アメリカの軽飛行機「ボイジャー」が無給油・無着陸での世界一周飛行を達成しました" }
+            ],
+            "12-24": [
+                { year: 1865, description: "アメリカ南部でクー・クラックス・クラン (KKK) が設立されました" },
+                { year: 1968, description: "NASAの「アポロ8号」が世界初の月周回飛行を達成" },
+                { year: 1979, description: "ソ連がアフガニスタンに侵攻" }
+            ],
+            "12-25": [
+                { year: 1642, description: 'アイザック・ニュートン誕生' },
+                { year: 1932, description: '昭和天皇が即位の礼を行う' },
+                { year: 1991, description: 'ゴルバチョフがソビエト連邦大統領を辞任、ソ連が崩壊' }
+            ],
+            "12-26": [
+                { year: 1926, description: "昭和天皇が即位し、「昭和」に改元されました" },
+                { year: 2004, description: "スマトラ島沖地震が発生" },
+                { year: 2023, description: "プロボクサーの井上尚弥選手が、2階級で4団体統一王者となりました" }
+            ],
+            "12-27": [
+                { year: 1831, description: "チャールズ・ダーウィンが「ビーグル号」で世界一周の航海に出発しました" },
+                { year: 1958, description: "国民健康保険法が公布されました" },
+                { year: 1959, description: "第1回日本レコード大賞が開催されました" },
+                { year: 2007, description: "ベナジル・ブット暗殺" }
+            ],
+            "12-28": [
+                { year: 1612, description: "ガリレオ・ガリレイが海王星を観測しました" },
+                { year: 1836, description: "スペインがメキシコの独立を承認" },
+                { year: 1895, description: "リュミエール兄弟がシネマトグラフをパリで初めて商業公開しました" }
+            ],
+            "12-29": [
+                { year: 1934, description: "日本がワシントン海軍軍縮条約の破棄を通告しました" },
+                { year: 1989, description: "日経平均株価が算出開始以来の最高値を記録しました" },
+                { year: 1989, description: "ヴァーツラフ・ハヴェルがチェコスロバキア大統領に就任" }
+            ],
+            "12-30": [
+                { year: 1922, description: "ソビエト連邦が成立" },
+                { year: 1927, description: "日本初の地下鉄が東京の上野―浅草間（現在の東京メトロ銀座線の一部）で営業を開始しました" },
+                { year: 1924, description: "天文学者エドウィン・ハッブル博士が系外銀河を発見しました" }
+            ],
+            "12-31": [
+                { year: 1600, description: 'イギリス東インド会社が設立' },
+                { year: 1879, description: 'エジソンが白熱電球を実用化' },
+                { year: 1999, description: 'パナマ運河がアメリカからパナマに返還' }
+            ]
+        };
+        
+        // 西暦と和暦の変換
+        function getJapaneseEra(year) {
+            if (year >= 2019) return { era: '令和', year: year - 2019 + 1 };
+            if (year >= 1989) return { era: '平成', year: year - 1989 + 1 };
+            if (year >= 1926) return { era: '昭和', year: year - 1926 + 1 };
+            if (year >= 1912) return { era: '大正', year: year - 1912 + 1 };
+            if (year >= 1868) return { era: '明治', year: year - 1868 + 1 };
+            return { era: '', year: year }; // 明治以前はそのまま西暦を返す
+        }
+        
+        // ランダムな整数を生成する関数（min以上、max未満）
+        function getRandomInt(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min)) + min;
+        }
+        
+        // 現在の日付のランダムな出来事を表示する関数
+        function showRandomEvent(date, forceNew = false) {
+            const dateKey = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const events = historicalEvents[dateKey];
+            
+            if (events && events.length > 0) {
+                let eventIndex;
+                
+                // 日付キーが現在のインデックスマップに存在しない場合、またはforceNewがtrueの場合、
+                // 新しいランダムインデックスを生成
+                if (forceNew || !(dateKey in currentEventIndex)) {
+                    eventIndex = getRandomInt(0, events.length);
+                    currentEventIndex[dateKey] = eventIndex;
+                } else {
+                    // 現在の日付に対して既に選択されたイベントのインデックスを使用
+                    eventIndex = currentEventIndex[dateKey];
+                }
+                
+                const event = events[eventIndex];
+                
+                // 歴史的出来事の年号も和暦で表示
+                const eventYearInfo = getJapaneseEra(event.year);
+                if (eventYearInfo.era) {
+                    eventYearElement.textContent = `${event.year}年（${eventYearInfo.era}${eventYearInfo.year}年）`;
+                } else {
+                    eventYearElement.textContent = `${event.year}年`;
+                }
+                
+                eventDescriptionElement.textContent = event.description;
+                
+                // 「他の出来事を表示」ボタンの表示/非表示を制御
+                refreshEventButton.style.display = events.length > 1 ? 'flex' : 'none';
+            } else {
+                eventYearElement.textContent = '';
+                eventDescriptionElement.textContent = 'この日の歴史的な出来事は登録されていません。';
+                refreshEventButton.style.display = 'none';
+            }
+        }
+        
+        // 日付を更新する関数
+        async function updateDate(date) {
+            // 日付表示要素を可視化
+            dateDisplay.style.visibility = 'visible';
+            // 日本語の曜日
+            const dayNames = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+            
+            // アニメーション前に要素をフェードアウト
+            dateDisplay.classList.add('fade-out');
+            holidayNameElement.style.opacity = '0';
+            historicalEventElement.style.opacity = '0';
+            
+            // クリッピングアニメーション適用
+            setTimeout(async () => {
+                // 西暦と和暦を表示
+                const yearInfo = getJapaneseEra(date.getFullYear());
+                if (yearInfo.era) {
+                    currentYearElement.textContent = `${date.getFullYear()}年（${yearInfo.era}${yearInfo.year}年）`;
+                } else {
+                    currentYearElement.textContent = `${date.getFullYear()}年`;
+                }
+                
+                // 月を表示
+                currentMonthElement.textContent = `${date.getMonth()+1}月`;
+                
+                // 日付を表示
+                dateNumberElement.textContent = date.getDate();
+                dateDayElement.textContent = dayNames[date.getDay()];
+                
+                // 祝日情報を取得して表示
+                const holidayName = await getHolidayName(date);
+                if (holidayName) {
+                    holidayNameElement.textContent = holidayName;
+                    holidayNameElement.style.display = 'inline-block';
+                    // 祝日用のクラスを追加
+                    dateDisplay.classList.add('is-holiday');
+                } else {
+                    holidayNameElement.textContent = '';
+                    holidayNameElement.style.display = 'none';
+                    // 祝日用のクラスを削除
+                    dateDisplay.classList.remove('is-holiday');
+                }
+                
+                // ランダムな歴史的出来事を表示
+                showRandomEvent(date);
+                
+                // アニメーション効果を再適用
+                dateDisplay.classList.remove('fade-out');
+                dateDisplay.classList.add('clip-animation');
+                
+                setTimeout(() => {
+                    holidayNameElement.style.opacity = '1';
+                    historicalEventElement.style.opacity = '1';
+                    dateDisplay.classList.remove('clip-animation');
+                }, 600);
+            }, 600);
+            
+            // 日付に応じた色の更新
+            updateDayColor();
+        }
+        
+        // 別の出来事を表示するボタンのクリックイベント
+        refreshEventButton.addEventListener('click', () => {
+            historicalEventElement.style.opacity = '0';
+            
+            setTimeout(() => {
+                // 同じ日付で別の出来事を表示（forceNew = true）
+                showRandomEvent(displayDate, true);
+                historicalEventElement.style.opacity = '1';
+            }, 300);
+        });
+        
+        // 日付ごとの色変化（週末は色を変える - カラーユニバーサルデザイン対応）
+        function updateDayColor() {
+            const day = displayDate.getDay();
+            // 祝日の場合は祝日クラスが適用されるので、ここでは曜日の色分けのみ行う
+            
+            // 日曜日のスタイル（色だけでなくクラスも追加）
+            if (day === 0) {
+                dateNumberElement.style.color = 'var(--sunday-color)';
+                dateNumberElement.className = 'date-number sunday';
+                dateDayElement.className = 'date-day sunday';
+            } 
+            // 土曜日のスタイル（色だけでなくクラスも追加）
+            else if (day === 6) {
+                dateNumberElement.style.color = 'var(--saturday-color)';
+                dateNumberElement.className = 'date-number saturday';
+                dateDayElement.className = 'date-day saturday';
+            } 
+            // 平日のスタイル
+            else {
+                dateNumberElement.style.color = 'var(--text-color)';
+                dateNumberElement.className = 'date-number';
+                dateDayElement.className = 'date-day';
+            }
+        }
+        
+        // 前日ボタンのクリックイベント
+        prevDayButton.addEventListener('click', () => {
+            calendarCard.classList.add('flipping');
+            
+            // 日付を前日に変更
+            displayDate.setDate(displayDate.getDate() - 1);
+            
+            // アニメーション完了後に日付を更新
+            setTimeout(() => {
+                updateDate(displayDate);
+                calendarCard.classList.remove('flipping');
+            }, 600);
+        });
+        
+        // 翌日ボタンのクリックイベント
+        nextDayButton.addEventListener('click', () => {
+            calendarCard.classList.add('flipping');
+            
+            // 日付を翌日に変更
+            displayDate.setDate(displayDate.getDate() + 1);
+            
+            // アニメーション完了後に日付を更新
+            setTimeout(() => {
+                updateDate(displayDate);
+                calendarCard.classList.remove('flipping');
+            }, 600);
+        });
+        
+        // 今日ボタンのクリックイベント
+        todayButton.addEventListener('click', () => {
+            // 今日ボタンのアニメーション
+            todayButton.classList.add('clicked');
+            setTimeout(() => {
+                todayButton.classList.remove('clicked');
+            }, 500);
+            
+            calendarCard.classList.add('flipping');
+            
+            // 現在の日付に戻す
+            displayDate = new Date();
+            
+            // アニメーション完了後に日付を更新
+            setTimeout(() => {
+                updateDate(displayDate);
+                calendarCard.classList.remove('flipping');
+            }, 600);
+        });
+        
+        // スワイプ操作
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        swipeArea.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        });
+        
+        swipeArea.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].clientX;
+            handleSwipe();
+        });
+        
+        function handleSwipe() {
+            const threshold = 100; // スワイプと認識する最小距離
+            
+            if (touchEndX < touchStartX - threshold) {
+                // 左にスワイプ: 翌日へ
+                nextDayButton.click();
+            }
+            
+            if (touchEndX > touchStartX + threshold) {
+                // 右にスワイプ: 前日へ
+                prevDayButton.click();
+            }
+        }
+        
+        // キーボードナビゲーション
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                // 左矢印キー: 前日へ
+                prevDayButton.click();
+            } else if (e.key === 'ArrowRight') {
+                // 右矢印キー: 翌日へ
+                nextDayButton.click();
+            } else if (e.key === 'Home') {
+                // Homeキー: 今日へ
+                todayButton.click();
+            } else if (e.key === 'r' || e.key === 'R') {
+                // R キー: 別の出来事を表示
+                if (refreshEventButton.style.display !== 'none') {
+                    refreshEventButton.click();
+                }
+            }
+        });
+        
+        // 初期表示
+        updateDate(displayDate);
+    </script>
+</body>
+</html>
