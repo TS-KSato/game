@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="description" content="モールス信号を学ぶためのインタラクティブなゲーム">
+  <title>モールス信号学習ゲーム</title>
+  <style>
+    :root {
+      --primary-color: #2c3e50;
+      --secondary-color: #f6aa00;
+      --accent-color: #e74c3c;
+      --success-color: #2ecc71;
+      --warning-color: #f39c12;
+      --text-color: #333;
+      --light-text: #f8f9fa;
+      --background-color: #f9f9f9;
+      --dot-color: #005aff;
+      --dash-color: #03af7a;
+      --button-color: #3498db;
+      --button-text-color: white;
+      --button-hover-color: #2980b9;
+      --button-active-color: #1c6ea4;
+      --button-size: clamp(3rem, 8vw, 4rem);
+      --spacing: clamp(1rem, 2vw, 2rem);
+      --border-radius: 0.5rem;
+      --animation-duration: 0.6s;
+    }
+    /* ハイコントラストモード対応 */
+    @media (prefers-contrast: high) {
+      :root {
+        --primary-color: #000;
+        --secondary-color: #004080;
+        --accent-color: #800000;
+        --success-color: #006400;
+        --warning-color: #804000;
+        --text-color: #000;
+        --light-text: #fff;
+        --background-color: #fff;
+        --dot-color: #000080;
+        --dash-color: #800000;
+        --button-color: #000080;
+        --button-text-color: #fff;
+        --button-hover-color: #000;
+        --button-active-color: #000;
+      }
+    }
+    /* ダークモード対応 */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary-color: #f1f1f1;
+        --secondary-color: #2c3e50;
+        --accent-color: #ff7675;
+        --success-color: #00b894;
+        --warning-color: #fdcb6e;
+        --text-color: #fff;
+        --light-text: #f8f9fa;
+        --background-color: #1a1a1a;
+        --dot-color: #3f89ff;
+        --dash-color: #ff5e57;
+        --button-color: #3f89ff;
+        --button-text-color: #fff;
+        --button-hover-color: #246bcc;
+        --button-active-color: #1853a1;
+      }
+      body {
+        background-color: var(--background-color);
+        color: var(--text-color);
+      }
+      .letter-box {
+        background-color: #2d3436;
+        border-color: var(--secondary-color);
+      }
+      .letter-box .letter,
+      .letter-box .morse {
+        color: var(--light-text);
+      }
+      .game-container, .game-info, .word-list {
+        background-color: #2d3436;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      }
+      .word-item {
+        border-color: var(--secondary-color);
+        color: var(--light-text);
+      }
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      touch-action: manipulation;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: var(--spacing);
+      overflow-x: hidden;
+    }
+    header {
+      text-align: center;
+      margin-bottom: var(--spacing);
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .game-container {
+      width: 100%;
+      max-width: 500px;
+      background-color: white;
+      border-radius: var(--border-radius);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+      margin-bottom: var(--spacing);
+    }
+    .word-display {
+      padding: var(--spacing);
+      text-align: center;
+      background-color: var(--primary-color);
+      color: var(--light-text);
+    }
+    .target-word {
+      font-size: 2rem;
+      letter-spacing: 4px;
+      font-weight: bold;
+      margin-bottom: 0.2rem;
+      min-height: 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* 意味表示用スタイル */
+    .word-meaning {
+      font-size: 1rem;
+      color: var(--secondary-color);
+      margin-top: 0.5rem;
+    }
+    .word-progress {
+      display: flex;
+      justify-content: center;
+      margin: var(--spacing) 0;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .letter-box {
+      position: relative;
+      width: fit-content;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--secondary-color);
+      border-radius: var(--border-radius);
+      margin: 0 4px;
+      background-color: white;
+      transition: all 0.3s ease;
+    }
+    .letter-box.current {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
+      transform: scale(1.1);
+    }
+    .letter-box.completed {
+      border-color: var(--success-color);
+      background-color: rgba(46, 204, 113, 0.1);
+    }
+    .letter-box .letter {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+    .letter-box .morse {
+      font-size: clamp(0.7rem, 2vw, 1rem);
+      color: var(--text-color);
+      margin-top: 4px;
+      font-family: monospace;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      text-align: center;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing);
+      margin: var(--spacing) 0;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+    .btn {
+      width: var(--button-size);
+      height: var(--button-size);
+      min-width: 10vw;
+      min-height: 44px;
+      border-radius: 50%;
+      background-color: var(--button-color);
+      color: var(--button-text-color);
+      border: none;
+      font-size: 1.2rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: background-color 0.2s, transform 0.1s;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      padding: 1.2rem;
+      touch-action: manipulation;
+    }
+    #dotBtn {
+      background-color: var(--dot-color);
+    }
+    #dashBtn {
+      background-color: var(--dash-color);
+    }
+    .btn:focus {
+      outline: 3px solid var(--accent-color);
+    }
+    .btn:hover {
+      filter: brightness(1.1);
+    }
+    .btn:active {
+      transform: scale(0.95);
+    }
+    .input-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: var(--spacing) 0;
+      min-height: 2rem;
+      font-size: 1.2rem;
+      font-family: monospace;
+      letter-spacing: 2px;
+    }
+    /* エラーフィードバック用スタイル */
+    .error-feedback {
+      color: var(--accent-color);
+      font-size: 1rem;
+      margin-top: 0.5rem;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .error-feedback.visible {
+      opacity: 1;
+    }
+    /* 正解フィードバック用スタイル */
+    .success-feedback {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: gold;
+      color: black;
+      padding: 20px 40px;
+      border-radius: var(--border-radius);
+      font-size: 1.5rem;
+      font-weight: bold;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      z-index: 100;
+    }
+    .feedback-visible {
+      opacity: 0.9;
+    }
+    .signal-animation {
+      width: 100%;
+      height: 60px;
+      position: relative;
+      margin: var(--spacing) 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .signal-dot, .signal-dash {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    .signal-dot {
+      width: 20px;
+      height: 20px;
+      background-color: var(--dot-color);
+    }
+    .signal-dash {
+      width: 60px;
+      height: 20px;
+      background-color: var(--dash-color);
+      border-radius: 10px;
+    }
+    .game-info {
+      width: 100%;
+      max-width: 500px;
+      padding: var(--spacing);
+      background-color: white;
+      border-radius: var(--border-radius);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: var(--spacing);
+    }
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: var(--spacing);
+    }
+    .stat-item {
+      text-align: center;
+      flex: 1;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--secondary-color);
+    }
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-color);
+    }
+    .word-list {
+      width: 100%;
+      max-width: 500px;
+      padding: var(--spacing);
+      background-color: white;
+      border-radius: var(--border-radius);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .word-list h2 {
+      font-size: 1.2rem;
+      margin-bottom: var(--spacing);
+      color: var(--primary-color);
+    }
+    .words-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+    }
+    .word-item {
+      padding: 8px;
+      text-align: center;
+      border: 1px solid var(--secondary-color);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .word-item:hover, .word-item:focus {
+      background-color: var(--secondary-color);
+      color: white;
+    }
+    .word-item.completed {
+      background-color: var(--success-color);
+      color: white;
+      border-color: var(--success-color);
+    }
+    /* 改善されたボタンデザインと配置 */
+    .controls-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .input-controls {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing);
+      margin-bottom: var(--spacing);
+    }
+    .game-controls {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing);
+      margin-bottom: var(--spacing);
+    }
+    /* 正円の信号ボタン */
+    #dotBtn, #dashBtn {
+      border-radius: 50%;
+      width: var(--button-size);
+      height: var(--button-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    /* 操作ボタン（両端が半円のデザイン） */
+    #resetBtn, #nextBtn {
+      border-radius: 999px;
+      width: 140px;
+      height: var(--button-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px;
+      font-size: 1rem;
+      font-weight: bold;
+    }
+    #resetBtn {
+      background-color: #6c757d;
+      color: #2c3e50;
+    }
+    #nextBtn {
+      background-color: #f6aa00;
+      color: white;
+    }
+    /* アイコンのサイズ統一 */
+    .btn-icon {
+      width: 24px;
+      height: 24px;
+    }
+    /* フィードバックの強化 */
+    .btn:hover {
+      filter: brightness(1.1);
+    }
+    .btn:active {
+      transform: scale(0.9);
+      box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.2);
+    }
+    /* レスポンシブ対応 */
+    @media (max-width: 480px) {
+      :root {
+        --button-size: 50px;
+        --spacing: 12px;
+      }
+      h1 {
+        font-size: 1.2rem;
+      }
+      .letter-box {
+        width: 40px;
+        height: 50px;
+      }
+      .letter-box .letter {
+        font-size: 1.5rem;
+      }
+      .letter-box .morse {
+        font-size: 0.7rem;
+      }
+      .target-word {
+        font-size: 1.5rem;
+      }
+      .btn {
+        min-width: 100px;
+        min-height: 80px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>モールス信号学習ゲーム</h1>
+    <p id="description">モールス信号を点（・）と線（−）で入力して単語を完成させよう</p>
+  </header>
+
+  <main>
+    <div class="game-container">
+      <div class="word-display">
+        <p>現在の単語:</p>
+        <div class="target-word" id="targetWord"></div>
+        <!-- 単語の意味表示用 -->
+        <p id="wordMeaning" class="word-meaning"></p>
+      </div>
+
+      <div class="word-progress" id="wordProgress">
+        <!-- 文字ボックスはJSで動的に生成 -->
+      </div>
+
+      <div class="signal-animation">
+        <div class="signal-dot" id="signalDot"></div>
+        <div class="signal-dash" id="signalDash"></div>
+      </div>
+
+      <div class="input-display" id="inputDisplay" aria-live="polite"></div>
+      <!-- エラーフィードバック表示用要素 -->
+      <div id="errorFeedback" class="error-feedback" aria-live="assertive"></div>
+
+      <div class="controls-wrapper">
+        <div class="input-controls">
+          <button id="dotBtn" class="btn">
+            <svg class="btn-icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="6" fill="white"/>
+            </svg>
+          </button>
+          <button id="dashBtn" class="btn">
+            <svg class="btn-icon" viewBox="0 0 24 24">
+              <rect x="4" y="10" width="16" height="4" fill="white"/>
+            </svg>
+          </button>
+        </div>
+    
+        <div class="game-controls">
+          <button id="resetBtn" class="btn secondary">
+            <svg class="btn-icon" viewBox="0 0 24 24">
+              <path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z" fill="black"/>
+            </svg>
+          </button>
+          <button id="nextBtn" class="btn secondary">
+            <svg class="btn-icon" viewBox="0 0 24 24">
+              <path d="M10 17l5-5-5-5v10z" fill="black"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+    </div>
+
+    <div class="game-info">
+      <div class="stats">
+        <div class="stat-item">
+          <div class="stat-value" id="wordsCompleted">0</div>
+          <div class="stat-label">完了単語</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="lettersCompleted">0</div>
+          <div class="stat-label">完了文字</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="accuracy">0%</div>
+          <div class="stat-label">正確さ</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="word-list">
+      <h2>練習単語リスト</h2>
+      <div class="words-grid" id="wordsList">
+        <!-- 単語リストはJSで動的に生成 -->
+      </div>
+    </div>
+
+    <div class="success-feedback" id="successFeedback">正解！</div>
+  </main>
+
+  <script>
+    // モールス信号の定義
+    const MORSE_CODE = {
+      'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.',
+      'F': '..-.', 'G': '--.', 'H': '....', 'I': '..', 'J': '.---',
+      'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---',
+      'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-',
+      'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--',
+      'Z': '--..', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
+      '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+      '0': '-----'
+    };
+
+    // 単語の意味を定義する辞書
+    const WORD_MEANINGS = {
+      "SOS": "国際救難信号",
+      "HELLO": "挨拶",
+      "HI": "こんにちは",
+      "MORSE": "モールス信号",
+      "CODE": "符号・暗号",
+      "SIGNAL": "信号",
+      "RADIO": "無線通信",
+      "SHIP": "船舶",
+      "HELP": "助け",
+      "MAYDAY": "遭難の合図",
+      "ROGER": "了解",
+      "OVER": "通信終了",
+      "CQ": "全局への呼びかけ",
+      "HAM": "アマチュア無線",
+      "QSL": "通信確認",
+      "QTH": "局の位置",
+      "QRZ": "誰が呼んでいるか？",
+      "QRM": "妨害信号",
+      "ANTENNA": "アンテナ",
+      "DX": "遠距離無線",
+      "CALL": "呼出し",
+      "SIGN": "標識",
+      "LOG": "記録"
+    };
+
+    // 練習用単語リスト
+    const PRACTICE_WORDS = [
+      'SOS', 'HELLO', 'HI', 'MORSE', 'CODE', 'SIGNAL',
+      'RADIO', 'SHIP', 'HELP', 'MAYDAY', 'ROGER', 'OVER',
+      'CQ', 'HAM', 'QSL', 'QTH', 'QRZ', 'QRM',
+      'ANTENNA', 'DX', 'CALL', 'SIGN', 'LOG'
+    ];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // ゲーム状態オブジェクト
+      let gameState = {
+        currentWord: '',
+        currentLetterIndex: 0,
+        currentInput: '',
+        completedWords: new Set(),
+        lettersCompleted: 0,
+        totalAttempts: 0,
+        correctAttempts: 0
+      };
+
+      // DOM要素の取得
+      const targetWordElement = document.getElementById('targetWord');
+      const wordMeaningElement = document.getElementById('wordMeaning');
+      const wordProgressElement = document.getElementById('wordProgress');
+      const inputDisplayElement = document.getElementById('inputDisplay');
+      const errorFeedbackElement = document.getElementById('errorFeedback');
+      const wordsCompletedElement = document.getElementById('wordsCompleted');
+      const lettersCompletedElement = document.getElementById('lettersCompleted');
+      const accuracyElement = document.getElementById('accuracy');
+      const wordsListElement = document.getElementById('wordsList');
+      const signalDot = document.getElementById('signalDot');
+      const signalDash = document.getElementById('signalDash');
+      const successFeedback = document.getElementById('successFeedback');
+
+      // ボタン要素の取得
+      const dotBtn = document.getElementById('dotBtn');
+      const dashBtn = document.getElementById('dashBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const nextBtn = document.getElementById('nextBtn');
+
+      // 単語リストの初期化
+      initializeWordsList();
+      // 初期単語はランダムに選択
+      setNewWord(PRACTICE_WORDS[Math.floor(Math.random() * PRACTICE_WORDS.length)]);
+
+      // イベントリスナー設定
+      dotBtn.addEventListener('click', () => addSignal('.'));
+      dashBtn.addEventListener('click', () => addSignal('-'));
+      resetBtn.addEventListener('click', () => {
+        resetBtn.classList.add('pulse');
+        resetCurrentInput();
+        setTimeout(() => resetBtn.classList.remove('pulse'), 300);
+      });
+      nextBtn.addEventListener('click', nextWord);
+
+      // キーボード操作対応
+      document.addEventListener('keydown', function(e) {
+        switch(e.key) {
+          case '.':
+          case 'e':
+            addSignal('.');
+            break;
+          case '-':
+          case 't':
+            addSignal('-');
+            break;
+          case 'r':
+          case 'Backspace':
+            resetCurrentInput();
+            break;
+          case 'Enter':
+          case 'n':
+            nextWord();
+            break;
+          case ' ':
+            checkCurrentInput();
+            break;
+        }
+      });
+
+      // 単語リストを生成・更新する関数
+      function initializeWordsList() {
+        wordsListElement.innerHTML = '';
+        PRACTICE_WORDS.forEach(word => {
+          const wordItem = document.createElement('div');
+          wordItem.className = 'word-item';
+          wordItem.textContent = word;
+          wordItem.setAttribute('tabindex', '0');
+          wordItem.setAttribute('role', 'button');
+          wordItem.setAttribute('aria-label', `単語 ${word} を選択`);
+          if (gameState.completedWords.has(word)) {
+            wordItem.classList.add('completed');
+          }
+          wordItem.addEventListener('click', () => {
+            setNewWord(word);
+          });
+          wordsListElement.appendChild(wordItem);
+        });
+      }
+
+      // 新しい単語を設定する関数
+      function setNewWord(word) {
+        gameState.currentWord = word;
+        gameState.currentLetterIndex = 0;
+        gameState.currentInput = '';
+        targetWordElement.textContent = word;
+        // 意味表示：辞書に存在すれば表示、なければ空文字を設定
+        wordMeaningElement.textContent = WORD_MEANINGS[word] || "";
+        inputDisplayElement.textContent = '';
+        updateWordProgress();
+      }
+
+      // 単語進捗の表示を更新する関数
+      function updateWordProgress() {
+        wordProgressElement.innerHTML = '';
+        for (let i = 0; i < gameState.currentWord.length; i++) {
+          const letter = gameState.currentWord[i];
+          const morse = MORSE_CODE[letter];
+          const letterBox = document.createElement('div');
+          letterBox.className = 'letter-box';
+          if (i === gameState.currentLetterIndex) {
+            letterBox.classList.add('current');
+          } else if (i < gameState.currentLetterIndex) {
+            letterBox.classList.add('completed');
+          }
+          const letterElement = document.createElement('div');
+          letterElement.className = 'letter';
+          letterElement.textContent = letter;
+          const morseElement = document.createElement('div');
+          morseElement.className = 'morse';
+          morseElement.textContent = morse.replace(/\./g, '・').replace(/\-/g, '−');
+          letterBox.appendChild(letterElement);
+          letterBox.appendChild(morseElement);
+          wordProgressElement.appendChild(letterBox);
+        }
+      }
+
+      // 信号入力を追加する関数
+      function addSignal(signal) {
+        if (gameState.currentLetterIndex >= gameState.currentWord.length) return;
+
+        animateSignal(signal);
+        gameState.currentInput += signal;
+        inputDisplayElement.textContent = gameState.currentInput.replace(/\./g, '・').replace(/\-/g, '−');
+
+        const btn = signal === '.' ? dotBtn : dashBtn;
+        btn.classList.add('pulse');
+        setTimeout(() => btn.classList.remove('pulse'), 300);
+
+        const currentLetter = gameState.currentWord[gameState.currentLetterIndex];
+        const correctCode = MORSE_CODE[currentLetter];
+
+        if (gameState.currentInput === correctCode) {
+          handleCorrectInput();
+        } else if (!correctCode.startsWith(gameState.currentInput)) {
+          showErrorFeedback("不正解です！");
+          resetCurrentInput();
+        }
+      }
+
+      // 正解入力時の処理
+      function handleCorrectInput() {
+        gameState.lettersCompleted++;
+        gameState.totalAttempts++;
+        gameState.correctAttempts++;
+        gameState.currentLetterIndex++;
+        gameState.currentInput = '';
+        inputDisplayElement.textContent = '';
+        updateWordProgress();
+        updateStats();
+
+        if (gameState.currentLetterIndex >= gameState.currentWord.length) {
+          gameState.completedWords.add(gameState.currentWord);
+          initializeWordsList();
+          successFeedback.classList.add('feedback-visible');
+          setTimeout(() => {
+            successFeedback.classList.remove('feedback-visible');
+          }, 2000);
+          updateStats();
+        }
+      }
+
+      // 現在の入力をチェック（スペースキー押下時）
+      function checkCurrentInput() {
+        if (gameState.currentLetterIndex >= gameState.currentWord.length) return;
+        const currentLetter = gameState.currentWord[gameState.currentLetterIndex];
+        const correctCode = MORSE_CODE[currentLetter];
+        gameState.totalAttempts++;
+        if (gameState.currentInput === correctCode) {
+          handleCorrectInput();
+        } else {
+          showErrorFeedback("不正解です！");
+          resetCurrentInput();
+        }
+      }
+
+      // 現在の文字入力のみをクリアする関数
+      function resetCurrentInput() {
+        gameState.currentInput = '';
+        inputDisplayElement.textContent = '';
+        updateWordProgress();
+      }
+
+      // 統計情報の表示を更新する関数
+      function updateStats() {
+        wordsCompletedElement.textContent = gameState.completedWords.size;
+        lettersCompletedElement.textContent = gameState.lettersCompleted;
+        let accuracy = 0;
+        if (gameState.totalAttempts > 0) {
+          accuracy = Math.round((gameState.correctAttempts / gameState.totalAttempts) * 100);
+        }
+        accuracyElement.textContent = `${accuracy}%`;
+      }
+
+      // 信号入力時のアニメーションを実行する関数
+      function animateSignal(signal) {
+        const element = signal === '.' ? signalDot : signalDash;
+        element.classList.remove('animate-dot', 'animate-dash');
+        void element.offsetWidth;
+        element.classList.add(signal === '.' ? 'animate-dot' : 'animate-dash');
+      }
+
+      // エラーフィードバックを表示する関数
+      function showErrorFeedback(message) {
+        errorFeedbackElement.textContent = message;
+        errorFeedbackElement.classList.add('visible');
+        setTimeout(() => {
+          errorFeedbackElement.classList.remove('visible');
+          errorFeedbackElement.textContent = '';
+        }, 1500);
+      }
+
+      // 次の単語へ進む処理（未完了単語を優先してランダム選択）
+      function nextWord() {
+        const uncompletedWords = PRACTICE_WORDS.filter(word => !gameState.completedWords.has(word));
+        if (uncompletedWords.length > 0) {
+          const randomIndex = Math.floor(Math.random() * uncompletedWords.length);
+          setNewWord(uncompletedWords[randomIndex]);
+        } else {
+          const randomIndex = Math.floor(Math.random() * PRACTICE_WORDS.length);
+          setNewWord(PRACTICE_WORDS[randomIndex]);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
