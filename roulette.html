@@ -4,15 +4,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!--
-        セキュリティに関する推奨事項:
-        1. クリックジャッキング対策: サーバーサイドで以下のいずれかのHTTPヘッダーを設定してください。
-           - X-Frame-Options: DENY (推奨: 他サイトからのiframe埋め込みを完全に禁止)
-           - X-Frame-Options: SAMEORIGIN (同一オリジンからの埋め込みのみ許可)
-           - Content-Security-Policy: frame-ancestors 'self'; (推奨: より柔軟な制御が可能)
-        2. HTTPSの強制: 本番環境では必ずHTTPSを使用し、HTTPからHTTPSへのリダイレクトを設定してください。
-           HSTS (HTTP Strict Transport Security) ヘッダーの利用も検討してください。
-    -->
     <title>ラッキールーレット - 運試しをしよう！</title>
     <style>
         /* ===== 基本スタイル ===== */
@@ -242,6 +233,8 @@
             align-items: center;
             transform: rotate(0deg);
             /* 初期角度 */
+            /* アニメーションのヒント (必要な場合のみ) */
+            /* will-change: transform; */
             transition: transform 0s linear;
             /* JSアニメーション用に初期transitionを無効化 */
         }
@@ -872,12 +865,9 @@
             cursor: pointer;
             transition: background-color 0.3s;
             margin-right: 1rem;
-            margin-bottom: 0.5rem;
-            /* ボタン間のスペース */
         }
 
-        .admin-panel .admin-button:hover:not(:disabled) {
-            /* :disabled を追加 */
+        .admin-panel .admin-button:hover {
             background-color: #ff5252;
         }
 
@@ -885,31 +875,8 @@
             background-color: var(--secondary-color);
         }
 
-        .admin-panel .admin-button#reset-weights:hover:not(:disabled) {
-            /* :disabled を追加 */
+        .admin-panel .admin-button#reset-weights:hover {
             background-color: #34495e;
-        }
-
-        .admin-panel .admin-button:disabled {
-            /* disabled スタイル追加 */
-            background-color: #ccc;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
-        .admin-panel .security-warning {
-            /* セキュリティ警告用のスタイル */
-            font-size: 0.9rem;
-            color: #777;
-            margin-top: 1rem;
-            padding: 0.8rem;
-            background-color: #fff;
-            border: 1px dashed #aaa;
-            border-radius: 4px;
-        }
-
-        .admin-panel .security-warning strong {
-            color: var(--primary-color);
         }
 
 
@@ -923,7 +890,35 @@
             .nav-links {
                 /* モバイルメニュー未実装のため非表示のまま (必要なら実装) */
                 display: none;
+                /* 例:
+                position: absolute;
+                top: var(--nav-height);
+                left: 0;
+                width: 100%;
+                background-color: var(--secondary-color);
+                flex-direction: column;
+                align-items: center;
+                padding: 1rem 0;
+                transform: translateY(-100%);
+                transition: transform 0.3s ease-out;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                */
             }
+
+            /*
+            .nav-links.open {
+                transform: translateY(0);
+            }
+            .mobile-menu-btn {
+                display: block; / * モバイルメニューボタン表示 * /
+                background: none;
+                border: none;
+                color: var(--text-light);
+                font-size: 1.8rem;
+                cursor: pointer;
+            }
+            */
+
 
             .hero h1 {
                 font-size: 2rem;
@@ -1111,18 +1106,6 @@
             color: var(--text-light);
             opacity: 0.8;
         }
-
-        .dark-mode .admin-panel .security-warning {
-            background-color: var(--background-medium-dark);
-            border-color: #666;
-            color: var(--text-light);
-        }
-
-        .dark-mode .admin-panel .security-warning strong {
-            color: #ff7675;
-            /* ダークモードでの強調色 */
-        }
-
 
         /* ダークモードのスクロールバー（オプション） */
         .dark-mode::-webkit-scrollbar {
@@ -1319,9 +1302,7 @@
                     <div class="accordion-content" id="faq-content-4" role="region" aria-labelledby="faq-header-4">
                         <div class="accordion-content-inner">
                             ルーレットが各絵柄で停止する確率は、管理パネルで設定された重みに基づいて決定されます。デフォルトでは各絵柄の当選確率は等しく 1/8 (12.5%)
-                            ですが、設定によって変更される可能性があります。あなたの選んだ絵柄で停止すれば当たりとなります。<br>
-                            <strong>(重要:
-                                このデモページでは、確率計算はブラウザ内で行われるため、技術的な知識があれば操作可能です。実際の抽選システムではサーバーサイドで確率計算を行うべきです。)</strong>
+                            ですが、設定によって変更される可能性があります。あなたの選んだ絵柄で停止すれば当たりとなります。
                         </div>
                     </div>
                 </li>
@@ -1343,14 +1324,7 @@
             </div>
             <button id="save-weights" class="admin-button">設定を保存</button>
             <button id="reset-weights" class="admin-button">リセット</button>
-            <!-- セキュリティ警告を追加 -->
-            <p class="security-warning">
-                <strong>セキュリティに関する注意:</strong>
-                この設定はブラウザのローカルストレージに保存され、抽選ロジックもブラウザ内で実行されます。
-                そのため、技術的な知識があれば、ユーザーはこれらの設定や抽選結果を<strong>操作可能</strong>です。
-                これはデモンストレーション目的の機能であり、実際の賞品が関わるような公正な抽選には適していません。
-                本番環境では、<strong>必ずサーバーサイドで抽選ロジックと確率設定を管理してください。</strong>
-            </p>
+            <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">※ 設定はブラウザのローカルストレージに保存されます。</p>
         </section>
     </main>
 
@@ -1381,6 +1355,7 @@
             const rouletteWheel = document.getElementById('roulette-wheel');
             const resultElement = document.getElementById('result');
             const imageOptionsContainer = document.getElementById('image-options');
+            // NodeListをArrayに変換しておくと便利な場合がある
             const imageOptionButtons = Array.from(imageOptionsContainer.querySelectorAll('.image-option'));
             const prevTestimonialBtn = document.getElementById('prev-testimonial');
             const nextTestimonialBtn = document.getElementById('next-testimonial');
@@ -1403,20 +1378,11 @@
             const options = ['🍒', '🍋', '🍊', '🍇', '🍎', '🍉', '💎', '🌟'];
 
             // --- 確率重みシステム ---
-            // !! セキュリティ警告: この重みと抽選ロジックはクライアントサイドにあります。 !!
-            // !! ユーザーによる操作が可能です。公正な抽選にはサーバーサイド実装が必須です。 !!
             let optionWeights = options.map(() => DEFAULT_WEIGHT); // 各オプションの重み配列
             let totalWeight = optionWeights.reduce((sum, weight) => sum + weight, 0); // 重みの合計
 
             // --- 初期化処理 ---
             function initialize() {
-                // クライアントサイドロジックのリスクをコンソールに警告
-                console.warn(
-                    "セキュリティ警告: ルーレットの抽選ロジックはクライアントサイドで実行されています。" +
-                    "これはデモ目的であり、ユーザーによる操作が可能です。" +
-                    "実際のアプリケーションでは、必ずサーバーサイドで抽選を行ってください。"
-                );
-
                 loadWeightsFromStorage(); // 保存された重みを読み込み (Adminパネル初期化より先に)
                 setupEventListeners();
                 setupRouletteLabels();
@@ -1426,40 +1392,32 @@
                 initializeAdminPanel(); // Adminパネルの初期化
                 spinButton.disabled = true; // 初期状態ではスピンボタンを無効化
                 updateAriaChecked(null); // 初期状態のaria-checkedを設定
+                // 初期角度をCSSから取得して保持（より正確な開始のため）
                 currentRotation = getCurrentRotation(rouletteWheel);
                 rouletteWheel.style.transform = `rotate(${currentRotation}deg)`; // JSで管理
             }
 
             // --- セキュアな乱数生成 ---
             function getSecureRandomNumber(min, max) {
-                const range = max - min;
-                if (range <= 0) {
-                    console.error("Invalid range for random number generation.");
-                    return min;
-                }
-
                 if (window.crypto && window.crypto.getRandomValues) {
                     try {
                         const randomBuffer = new Uint32Array(1);
-                        let randomNumber;
-                        do {
-                            window.crypto.getRandomValues(randomBuffer);
-                            const maxAllowed = Math.floor((0xFFFFFFFF + 1) / range) * range;
-                            if (randomBuffer[0] < maxAllowed) {
-                                randomNumber = min + (randomBuffer[0] % range);
-                                break;
-                            }
-                        } while (true);
-                        return randomNumber;
+                        window.crypto.getRandomValues(randomBuffer);
+                        const randomNumber = min + (randomBuffer[0] / (0xFFFFFFFF + 1)) * (max - min);
+                        return Math.floor(randomNumber);
                     } catch (error) {
                         console.error("Crypto API random number generation failed:", error);
-                        throw new Error("Secure random number generation failed. Cannot proceed.");
-                        // return fallbackRandom(min, max); // 以前のフォールバック
+                        return fallbackRandom(min, max);
                     }
                 } else {
-                    console.error("Crypto API not available. Cannot generate secure random numbers.");
-                    throw new Error("Crypto API not available. Cannot proceed.");
+                    console.warn("Crypto API not available, falling back to Math.random (less secure).");
+                    return fallbackRandom(min, max);
                 }
+            }
+            function fallbackRandom(min, max) {
+                return Math.floor(Math.random() * (max - min)) + min;
+            }
+
 
             // --- 重み付き確率計算 ---
             function updateOptionWeight(index, weight) {
@@ -1472,52 +1430,31 @@
             }
 
             function getWeightedRandomIndex() {
-                // !! 再度警告: この関数はクライアントサイドで実行され、操作可能です !!
                 if (totalWeight <= 0) {
-                    console.warn("Total weight is zero or negative. Using unweighted random index (INSECURE if crypto fails).");
-                    // 重みがない場合も getSecureRandomNumber を使う
-                    try {
-                        return getSecureRandomNumber(0, NUM_OPTIONS);
-                    } catch (error) {
-                        console.error("Cannot get weighted index due to error in secure random number generation:", error);
-                        // エラー発生時の代替処理 (例: 最初の要素を返す、ゲームを停止するなど)
-                        alert("エラーが発生したため、ルーレットを実行できません。");
-                        return -1; // エラーを示す値
-                    }
+                    console.warn("Total weight is zero or negative, returning unweighted random index.");
+                    return getSecureRandomNumber(0, NUM_OPTIONS); // 重みがない場合は均等確率
                 }
 
-                try {
-                    // スケーリングして精度を多少向上させる (例: 0から totalWeight * 1000 まで)
-                    const scaledTotalWeight = Math.floor(totalWeight * 1000);
-                    if (scaledTotalWeight <= 0) { // スケーリング後も0なら均等確率
-                        return getSecureRandomNumber(0, NUM_OPTIONS);
-                    }
-                    const randomValueScaled = getSecureRandomNumber(0, scaledTotalWeight);
-                    const randomValue = randomValueScaled / 1000.0;
+                const randomValue = getSecureRandomNumber(0, Math.floor(totalWeight * 1000)) / 1000; // スケーリングして精度向上
+                let weightSum = 0;
 
-                    let weightSum = 0;
-                    for (let i = 0; i < optionWeights.length; i++) {
-                        weightSum += optionWeights[i];
-                        if (randomValue < weightSum) {
-                            return i;
-                        }
+                for (let i = 0; i < optionWeights.length; i++) {
+                    weightSum += optionWeights[i];
+                    if (randomValue < weightSum) {
+                        return i;
                     }
-                    // 浮動小数点誤差などへのフォールバック (最後の要素を返す)
-                    console.warn("Weighted random index calculation reached fallback (likely floating point issue).");
-                    return optionWeights.length - 1;
-
-                } catch (error) {
-                    console.error("Cannot get weighted index due to error in secure random number generation:", error);
-                    alert("エラーが発生したため、ルーレットを実行できません。");
-                    return -1; // エラーを示す値
                 }
+                // 通常は到達しないが、浮動小数点誤差などへのフォールバック
+                console.warn("Weighted random index calculation fallback triggered.");
+                return optionWeights.length - 1;
             }
 
             // --- イベントリスナー設定 (イベント委任を活用) ---
             function setupEventListeners() {
                 document.addEventListener('click', handleDocumentClick);
+                // Adminパネル内の入力イベントは委任で処理
                 weightControlsContainer.addEventListener('input', handleWeightInputChange);
-                // ウィンドウリサイズ時の処理 (必要なら追加)
+                // ウィンドウリサイズ時の処理 (オプション)
                 // window.addEventListener('resize', handleResize);
             }
 
@@ -1572,13 +1509,7 @@
                 if (adminPanel.contains(target)) {
                     if (target === saveWeightsBtn) {
                         saveWeightsToStorage();
-                        // より目立たない通知方法 (例: ボタンテキスト一時変更)
-                        target.textContent = '保存しました!';
-                        target.disabled = true;
-                        setTimeout(() => {
-                            target.textContent = '設定を保存';
-                            target.disabled = false;
-                        }, 1500);
+                        alert('確率設定が保存されました。'); // TODO: より良い通知方法
                         return;
                     }
                     if (target === resetWeightsBtn) {
@@ -1591,19 +1522,29 @@
             // --- ルーレット関連 ---
             function setupRouletteLabels() {
                 const fragment = document.createDocumentFragment();
+                // getComputedStyleよりoffsetWidthの方がリフローが少ない場合がある
                 const wheelSize = rouletteWheel.offsetWidth;
-                const radius = wheelSize * 0.35;
+                // 中心からの距離を調整してラベルが重ならないように
+                const radius = wheelSize * 0.35; // 少し内側に調整
                 const degToRad = Math.PI / 180;
 
                 for (let i = 0; i < options.length; i++) {
+                    // 各セグメントの中央角度
                     const angle = (SEGMENT_ANGLE * i) + (SEGMENT_ANGLE / 2);
-                    const angleRad = (angle - 90) * degToRad;
+                    const angleRad = (angle - 90) * degToRad; // CSSのrotateは0度が上だが、三角関数は右が0度のため調整
+
                     const label = document.createElement('div');
                     label.classList.add('segment-label');
                     label.textContent = options[i];
+
+                    // 位置計算: translateで中心から移動し、rotateでセグメントに合わせる
                     const x = radius * Math.cos(angleRad);
                     const y = radius * Math.sin(angleRad);
+
+                    // transform: translateで中心からずらし、rotateで文字の向きを調整
+                    // translate(-50%, -50%) で要素自体の中心を基準点にする
                     label.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${angle + 90}deg)`;
+
                     fragment.appendChild(label);
                 }
                 rouletteWheel.appendChild(fragment);
@@ -1625,22 +1566,15 @@
                     console.error('Invalid option index:', clickedButton.dataset.value);
                     return;
                 }
-                // 選択解除を許可しない場合 (常にどれか選択されている状態)
-                // if (selectedOptionIndex === clickedIndex) return;
 
-                // 同じボタンクリックで選択解除する場合
-                if (selectedOptionIndex === clickedIndex) {
-                    selectedOptionIndex = null;
-                    updateAriaChecked(null);
-                    spinButton.disabled = true;
-                } else {
-                    selectedOptionIndex = clickedIndex;
-                    updateAriaChecked(selectedOptionIndex);
-                    spinButton.disabled = false;
-                }
-                resultElement.classList.remove('show'); 
+                // 既に選択されているボタンをクリックしても何もしない
+                if (selectedOptionIndex === clickedIndex) return;
+
+                selectedOptionIndex = clickedIndex;
+                updateAriaChecked(selectedOptionIndex);
+                spinButton.disabled = false;
+                resultElement.classList.remove('show'); // 前回の結果を隠す
             }
-
 
             function spinRoulette() {
                 if (isSpinning || selectedOptionIndex === null) {
@@ -1652,46 +1586,51 @@
                 resultElement.classList.remove('show');
                 imageOptionButtons.forEach(btn => btn.disabled = true); // 選択肢も無効化
 
-                let winningIndex;
-                try {
-                    // 抽選実行 (クライアントサイド)
-                    winningIndex = getWeightedRandomIndex();
-                    if (winningIndex === -1) { // getWeightedRandomIndex でエラーが発生した場合
-                        throw new Error("Failed to determine winning index.");
-                    }
-                } catch (error) {
-                    console.error("Spin roulette failed:", error);
-                    alert(`ルーレットの実行に失敗しました: ${error.message}`);
-                    // 状態をリセット
-                    isSpinning = false;
-                    spinButton.disabled = selectedOptionIndex === null; // 選択されていれば有効に戻す
-                    imageOptionButtons.forEach(btn => btn.disabled = false);
-                    return; // 処理中断
-                }
+                const winningIndex = getWeightedRandomIndex();
+
+                // 目標角度: ポインター(上部)に当選セグメントの中心が来る角度
+                // winningIndex=0 -> 22.5度, winningIndex=1 -> 67.5度 ...
+                // 回転方向は時計回り(プラス方向)なので、 360 - (目標角度) + (補正)
+                // ポインター位置(0度)にセグメントの中心(SEGMENT_ANGLE / 2)が来るように調整
                 const targetSegmentCenter = winningIndex * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
                 let targetAngle = 360 - targetSegmentCenter;
-                const randomOffsetRange = SEGMENT_ANGLE * 0.45; // ±45%
-                try {
-                    // オフセット計算にも安全な乱数を使用
-                    const randomOffset = (getSecureRandomNumber(0, Math.floor(randomOffsetRange * 2 * 1000)) / 1000) - randomOffsetRange;
-                    targetAngle += randomOffset;
-                } catch (error) {
-                    // オフセット計算失敗時はオフセットなしで続行
-                    console.warn("Failed to get random offset, continuing without it.", error);
-                }
 
+                // 自然に見えるように少しランダムなオフセットを追加
+                // セグメント幅の±45%程度の範囲でずらす
+                const randomOffset = (getSecureRandomNumber(0, SEGMENT_ANGLE * 900) / 1000) - (SEGMENT_ANGLE * 0.45);
+                targetAngle += randomOffset;
 
+                // 現在の角度からの差分を計算し、最低回転数を加える
+                // currentRotationからの差分 + BASE_ROTATION_DEGREES + targetAngleが最終角度
+                // normalizeAngleで現在の角度を0-360に正規化
                 const normalizedCurrentRotation = normalizeAngle(currentRotation);
                 const finalAngle = BASE_ROTATION_DEGREES + targetAngle;
+
+                // CSS Transitionを使う方法 (よりシンプル、イージングはCSSで定義)
+                // rouletteWheel.style.transition = `transform ${SPIN_DURATION_SECONDS}s cubic-bezier(0.33, 1, 0.68, 1)`; // easeOutCubic相当
+                // rouletteWheel.style.transform = `rotate(${finalAngle}deg)`;
+                // currentRotation = finalAngle; // 最終角度を保持
+
+                // // transitionendイベントで完了を検出
+                // rouletteWheel.addEventListener('transitionend', onSpinComplete, { once: true });
+
+                // function onSpinComplete() {
+                //     displayResult(winningIndex);
+                //     isSpinning = false;
+                //     imageOptionButtons.forEach(btn => btn.disabled = false);
+                //     rouletteWheel.style.transition = 'none'; // アニメーション後はtransitionを解除
+                // }
+
+                // requestAnimationFrame を使う方法 (より細かい制御が可能)
                 const startTime = performance.now();
                 const duration = SPIN_DURATION_SECONDS * 1000;
-                const startAngle = currentRotation;
-                const angleChange = finalAngle - startAngle;
+                const startAngle = currentRotation; // 前回の最終角度を開始角度とする
+                const angleChange = finalAngle - startAngle; // トータルの回転量
 
                 function animate(currentTime) {
                     const elapsed = currentTime - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    const easedProgress = easeOutQuart(progress);
+                    const progress = Math.min(elapsed / duration, 1); // 0から1の進行度
+                    const easedProgress = easeOutCubic(progress); // イージング適用
                     const currentAngle = startAngle + (angleChange * easedProgress);
 
                     rouletteWheel.style.transform = `rotate(${currentAngle}deg)`;
@@ -1700,115 +1639,82 @@
                         requestAnimationFrame(animate);
                     } else {
                         // アニメーション完了
-                        rouletteWheel.style.transform = `rotate(${finalAngle}deg)`;
-                        currentRotation = finalAngle;
+                        rouletteWheel.style.transform = `rotate(${finalAngle}deg)`; // 最終角度を正確に設定
+                        currentRotation = finalAngle; // 最終角度を保持
                         displayResult(winningIndex);
                         isSpinning = false;
                         imageOptionButtons.forEach(btn => btn.disabled = false);
-                        // スピンボタンは選択状態に応じて再設定
-                        spinButton.disabled = selectedOptionIndex === null;
                     }
                 }
                 requestAnimationFrame(animate);
             }
 
+
             // Helper functions for spinRoulette
             function getCurrentRotation(element) {
+                // transform スタイルから現在の回転角度を取得
                 const style = window.getComputedStyle(element);
                 const transform = style.transform;
                 if (transform && transform !== 'none') {
+                    // 'matrix(a, b, c, d, e, f)' または 'rotate(deg)'
                     const matrixMatch = transform.match(/^matrix\((.+)\)$/);
                     if (matrixMatch) {
                         const values = matrixMatch[1].split(', ').map(parseFloat);
+                        // atan2(b, a) で角度（ラジアン）を取得し、度に変換
                         let angle = Math.round(Math.atan2(values[1], values[0]) * (180 / Math.PI));
-                        return angle < 0 ? angle + 360 : angle;
+                        return angle < 0 ? angle + 360 : angle; // 0-359度の範囲に正規化
                     }
                     const rotateMatch = transform.match(/^rotate\((.+)deg\)$/);
                     if (rotateMatch) {
                         return parseFloat(rotateMatch[1]);
                     }
                 }
-                return 0;
+                return 0; // transformが設定されていない場合は0度
             }
 
+            // 角度を 0 <= angle < 360 の範囲に正規化
             function normalizeAngle(angle) {
                 return ((angle % 360) + 360) % 360;
             }
 
-            function easeOutQuart(t) { // easeOutCubic から Quart に変更 (よりスムーズ)
-                t--;
-                return -(t * t * t * t - 1);
+            function easeOutCubic(t) {
+                return 1 - Math.pow(1 - t, 4); // easeOutQuart (よりスムーズかも)
+                // return (--t)*t*t+1; // easeOutCubic
             }
 
             function displayResult(winningIndex) {
                 const winningSymbol = options[winningIndex];
-                const selectedSymbol = selectedOptionIndex !== null ? options[selectedOptionIndex] : 'なし'; // 未選択の場合
+                const selectedSymbol = options[selectedOptionIndex];
                 const win = winningIndex === selectedOptionIndex;
 
-                // 結果表示要素をクリア (innerHTMLの代わりにtextContentを使用)
-                resultElement.textContent = ''; // 子要素を全て削除
-
-                // h3 要素を作成して追加
-                const heading = document.createElement('h3');
-                heading.textContent = `結果: ${winningSymbol}`;
-                resultElement.appendChild(heading);
-
-                // p 要素 (結果メッセージ) を作成して追加
-                const resultMessage = document.createElement('p');
-                resultMessage.classList.add(win ? 'win' : 'lose');
-                if (selectedOptionIndex !== null) {
-                    resultMessage.textContent = win
-                        ? `🎉 おめでとうございます！「${selectedSymbol}」が当たりました！`
-                        : `残念、「${selectedSymbol}」ははずれです。結果は「${winningSymbol}」でした。`;
-                } else {
-                    resultMessage.textContent = `結果は「${winningSymbol}」でした。`; // 絵柄未選択の場合
-                }
-                resultElement.appendChild(resultMessage);
-
-                // p 要素 (次のアクション) を作成して追加
-                const nextActionMessage = document.createElement('p');
-                if (selectedOptionIndex !== null) {
-                    nextActionMessage.textContent = win
-                        ? '素晴らしい運ですね！もう一度挑戦しますか？'
-                        : 'もう一度好きな絵柄を選んで挑戦してみましょう！';
-                } else {
-                    nextActionMessage.textContent = '好きな絵柄を選んで挑戦してみましょう！';
-                }
-                resultElement.appendChild(nextActionMessage);
-
-                // 結果を表示 (アニメーション)
+                resultElement.innerHTML = `
+                    <h3>結果: ${winningSymbol}</h3>
+                    <p class="${win ? 'win' : 'lose'}">
+                        ${win ? `🎉 おめでとうございます！「${selectedSymbol}」が当たりました！` : `残念、「${selectedSymbol}」ははずれです。結果は「${winningSymbol}」でした。`}
+                    </p>
+                    ${!win ? '<p>もう一度好きな絵柄を選んで挑戦してみましょう！</p>' : '<p>素晴らしい運ですね！もう一度挑戦しますか？</p>'}
+                `;
                 resultElement.classList.add('show');
 
-                // 次のスピンに備える (状態リセット)
+                // 次のスピンに備える
                 selectedOptionIndex = null;
                 updateAriaChecked(null); // 選択状態をリセット
-                // スピンボタンは選択されていないので無効のまま
-                spinButton.disabled = true;
+                spinButton.disabled = true; // スピンボタンを無効化
             }
-
 
             // --- テーマ切り替え ---
             function toggleTheme() {
                 const isDarkMode = document.body.classList.toggle('dark-mode');
                 themeToggle.textContent = isDarkMode ? '☀️' : '🌙';
                 themeToggle.setAttribute('aria-label', isDarkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え');
-                try {
-                    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-                } catch (error) {
-                    console.warn("Failed to save theme to localStorage:", error);
-                }
+                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
             }
 
             function checkInitialTheme() {
-                let initialTheme = 'light'; // デフォルト
-                try {
-                    const savedTheme = localStorage.getItem('theme');
-                    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
-                } catch (error) {
-                    console.warn("Failed to access localStorage or matchMedia:", error);
-                    // localStorageアクセス不可でも動作継続
-                }
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                // 保存された設定 > OS設定 > デフォルト(light) の優先順位
+                const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
 
                 if (initialTheme === 'dark') {
                     document.body.classList.add('dark-mode');
@@ -1842,10 +1748,15 @@
             }
 
             function updateTestimonialSlider(isInitial = false) {
-                const containerWidth = testimonialContainer.offsetWidth;
+                const containerWidth = testimonialContainer.offsetWidth; // 都度取得でリサイズに対応
                 const offset = -currentTestimonial * containerWidth;
+
+                // トランジションを適用 (初回以外)
                 testimonialContainer.style.transition = isInitial ? 'none' : `transform ${TESTIMONIAL_SLIDE_DURATION}ms ease`;
+                // ハードウェアアクセラレーションを期待して transform3d を使用
                 testimonialContainer.style.transform = `translate3d(${offset}px, 0, 0)`;
+
+                // ボタンの状態更新 (最初/最後で無効化)
                 prevTestimonialBtn.disabled = currentTestimonial === 0;
                 nextTestimonialBtn.disabled = currentTestimonial === testimonialCount - 1;
             }
@@ -1854,14 +1765,25 @@
             // --- FAQアコーディオン ---
             function handleFaqClick(header) {
                 const item = header.parentElement;
-                const content = header.nextElementSibling;
+                const content = header.nextElementSibling; // アコーディオンのコンテンツ部分
                 const icon = header.querySelector('.accordion-icon');
                 const isOpening = !item.classList.contains('active');
 
+                // 他の開いている項目を閉じる (オプション)
+                // if (isOpening) {
+                //     faqAccordion.querySelectorAll('.accordion-item.active').forEach(openItem => {
+                //         if (openItem !== item) {
+                //             closeAccordionItem(openItem);
+                //         }
+                //     });
+                // }
+
+                // クラスとARIA属性をトグル
                 item.classList.toggle('active');
                 header.setAttribute('aria-expanded', String(isOpening));
-                icon.textContent = isOpening ? '−' : '+';
+                icon.textContent = isOpening ? '−' : '+'; // アイコン変更
 
+                // アニメーション
                 if (isOpening) {
                     openAccordionContent(content);
                 } else {
@@ -1870,21 +1792,30 @@
             }
 
             function openAccordionContent(content) {
-                // 既存の実装は問題ないため変更なし
                 const contentInner = content.querySelector('.accordion-content-inner');
-                content.style.visibility = 'hidden';
-                content.style.maxHeight = 'none';
-                content.style.padding = '0 1.5rem';
+                // アニメーション開始前に高さを計算できるように準備
+                content.style.visibility = 'hidden'; // 一瞬隠す
+                content.style.maxHeight = 'none'; // 高さを一旦解除
+                content.style.padding = '0 1.5rem'; // 横パディング設定
+
+                // 実際の高さを取得
                 const height = contentInner.offsetHeight +
                     parseFloat(getComputedStyle(contentInner).paddingTop) +
                     parseFloat(getComputedStyle(contentInner).paddingBottom);
+
+                // アニメーション開始状態に戻す
                 content.style.maxHeight = '0px';
-                content.style.visibility = 'visible';
+                content.style.visibility = 'visible'; // 再表示
+
+                // requestAnimationFrameで次の描画フレームで高さを設定
                 requestAnimationFrame(() => {
                     content.style.maxHeight = `${height}px`;
-                    contentInner.style.padding = '1.5rem 0';
+                    contentInner.style.padding = '1.5rem 0'; // 内側のパディングを適用
                 });
+
+                // トランジション完了後に高さ固定を解除 (任意)
                 setTimeout(() => {
+                    // 開いたままならmaxHeightを解除してコンテンツ変更に対応
                     if (content.parentElement.classList.contains('active')) {
                         content.style.maxHeight = 'none';
                     }
@@ -1893,17 +1824,22 @@
 
             function closeAccordionContent(content) {
                 const contentInner = content.querySelector('.accordion-content-inner');
-                const height = content.scrollHeight;
-                content.style.maxHeight = `${height}px`;
-                contentInner.style.padding = '1.5rem 0';
+                const height = content.scrollHeight; // 現在の高さを取得
+
+                // 現在の高さから0にアニメーションさせる
+                content.style.maxHeight = `${height}px`; // 現在の高さを明示的に設定
+                contentInner.style.padding = '1.5rem 0'; // paddingも元に戻す
+
                 requestAnimationFrame(() => {
                     content.style.maxHeight = '0px';
-                    contentInner.style.padding = '0';
+                    contentInner.style.padding = '0'; // paddingを0に
                 });
+
+                // アニメーション完了後に非表示にする (アクセシビリティのため visibility も使う)
                 setTimeout(() => {
                     if (!content.parentElement.classList.contains('active')) {
                         content.style.visibility = 'hidden';
-                        content.style.padding = '0 1.5rem';
+                        content.style.padding = '0 1.5rem'; // 横パディングは保持
                     }
                 }, ACCORDION_ANIMATION_DURATION);
             }
@@ -1911,7 +1847,9 @@
             // --- Admin Panel ---
             function toggleAdminPanel() {
                 const isHidden = adminPanel.classList.toggle('hidden');
+                // ARIA属性を更新
                 adminPanelToggleLink.setAttribute('aria-expanded', String(!isHidden));
+                // フォーカス管理 (パネル表示時に最初の入力要素にフォーカス)
                 if (!isHidden) {
                     const firstInput = adminPanel.querySelector('input[type="number"], button');
                     firstInput?.focus();
@@ -1919,58 +1857,67 @@
             }
 
             function initializeAdminPanel() {
-                weightControlsContainer.textContent = '';
+                weightControlsContainer.innerHTML = ''; // コンテナをクリア
                 const fragment = document.createDocumentFragment();
+
                 options.forEach((option, index) => {
                     const controlDiv = document.createElement('div');
                     controlDiv.classList.add('weight-control');
+
                     const label = document.createElement('label');
+                    // inputにIDを付与し、labelのfor属性と関連付ける
                     const inputId = `weight-${index}`;
                     label.htmlFor = inputId;
-                    label.textContent = `${option} の確率重み: `;
+                    // labelのテキストを構築
+                    const labelText = document.createTextNode(`${option} の確率重み: `);
+                    label.appendChild(labelText);
+
                     const input = document.createElement('input');
                     input.type = 'number';
                     input.id = inputId;
                     input.min = '0';
-                    input.step = '0.1';
-                    input.value = optionWeights[index].toFixed(1);
-                    input.dataset.index = index;
+                    input.step = '0.1'; // 0.1刻み
+                    input.value = optionWeights[index].toFixed(1); // 小数点一桁まで表示
+                    input.dataset.index = index; // インデックスを保持
+
                     const probabilitySpan = document.createElement('span');
                     probabilitySpan.classList.add('probability');
-                    label.appendChild(input);
+                    probabilitySpan.textContent = `約 ${calculateProbability(index)}%`; // 初期確率
+
+                    label.appendChild(input); // inputをlabel内に入れるとクリック範囲が広がる
                     controlDiv.appendChild(label);
-                    controlDiv.appendChild(probabilitySpan);
+                    controlDiv.appendChild(probabilitySpan); // 確率表示はlabelの外
                     fragment.appendChild(controlDiv);
                 });
                 weightControlsContainer.appendChild(fragment);
+                // 初期確率表示を更新
                 updateProbabilityDisplays();
             }
 
+
             function handleWeightInputChange(event) {
                 const input = event.target;
-                if (input.type === 'number' && input.dataset.index != null) {
+                if (input.type === 'number' && input.dataset.index != null) { // nullチェック追加
                     const index = parseInt(input.dataset.index, 10);
-                    let newWeight = parseFloat(input.value);
-
-                    // 入力が空かチェックし、空なら0として扱う
-                    if (input.value === '') {
-                        newWeight = 0;
-                    }
+                    const newWeight = parseFloat(input.value);
 
                     if (!isNaN(newWeight) && newWeight >= 0) {
                         updateOptionWeight(index, newWeight);
+                        updateProbabilityDisplays(); // 全ての確率表示を更新
+                    } else if (input.value === '') {
+                        // 空の場合は 0 として扱う (またはエラー表示)
+                        updateOptionWeight(index, 0);
                         updateProbabilityDisplays();
-                    } else if (isNaN(newWeight)) {
-                        // 不正な数値入力 (例: "abc") の場合は元の値に戻す
+                    } else {
+                        // 不正な値の場合は元の値に戻す or エラー表示
                         console.warn(`Invalid weight input: ${input.value}`);
-                        input.value = optionWeights[index].toFixed(1);
+                        input.value = optionWeights[index].toFixed(1); // 元の値に戻す
                     }
-                    // newWeight < 0 は input[min=0] でブラウザが防ぐが、念のため else if を追加しても良い
                 }
             }
 
             function updateProbabilityDisplays() {
-                totalWeight = optionWeights.reduce((sum, weight) => sum + weight, 0);
+                totalWeight = optionWeights.reduce((sum, weight) => sum + weight, 0); // 合計を再計算
                 options.forEach((_, index) => {
                     const probabilitySpan = weightControlsContainer.querySelector(`#weight-${index}`)?.closest('.weight-control')?.querySelector('.probability');
                     if (probabilitySpan) {
@@ -1980,12 +1927,14 @@
             }
 
             function calculateProbability(index) {
+                // totalWeightが0または負の場合のエッジケースを処理
                 if (totalWeight <= 0 || optionWeights[index] <= 0) return '0.0';
                 return ((optionWeights[index] / totalWeight) * 100).toFixed(1);
             }
 
             function saveWeightsToStorage() {
                 try {
+                    // 保存前に重みが数値であることを確認 (念のため)
                     const validWeights = optionWeights.map(w => (typeof w === 'number' && w >= 0) ? w : DEFAULT_WEIGHT);
                     localStorage.setItem(ADMIN_PANEL_STORAGE_KEY, JSON.stringify(validWeights));
                 } catch (error) {
@@ -1999,29 +1948,23 @@
                     const savedWeights = localStorage.getItem(ADMIN_PANEL_STORAGE_KEY);
                     if (savedWeights) {
                         const parsedWeights = JSON.parse(savedWeights);
+                        // 配列であり、要素数が一致し、全ての要素が0以上の数値か検証
                         if (Array.isArray(parsedWeights) &&
                             parsedWeights.length === options.length &&
                             parsedWeights.every(w => typeof w === 'number' && w >= 0)) {
                             optionWeights = parsedWeights;
                         } else {
-                            console.warn("Invalid weight data in localStorage. Using defaults.");
-                            resetWeightsInternal();
-                            localStorage.removeItem(ADMIN_PANEL_STORAGE_KEY);
+                            console.warn("Invalid or corrupted weight data found in localStorage. Using default weights.");
+                            resetWeightsInternal(); // 不正ならリセット
+                            localStorage.removeItem(ADMIN_PANEL_STORAGE_KEY); // 不正なデータは削除
                         }
-                    } else {
-                        // 保存データがない場合はデフォルト値を使う（何もしない or resetWeightsInternal() を呼んでも良い）
-                        // resetWeightsInternal(); // 初回アクセス時にデフォルト値を確実に使う場合
                     }
                 } catch (error) {
-                    console.error("Failed to load or parse weights from localStorage:", error);
-                    resetWeightsInternal();
-                    // 不正なデータが原因かもしれないので削除を試みる
-                    try {
-                        localStorage.removeItem(ADMIN_PANEL_STORAGE_KEY);
-                    } catch (removeError) {
-                        console.error("Failed to remove corrupted data from localStorage:", removeError);
-                    }
+                    console.error("Failed to parse weights from localStorage:", error);
+                    resetWeightsInternal(); // パース失敗時もリセット
+                    localStorage.removeItem(ADMIN_PANEL_STORAGE_KEY);
                 }
+                // 最後に合計を計算
                 totalWeight = optionWeights.reduce((sum, weight) => sum + weight, 0);
             }
 
@@ -2034,40 +1977,45 @@
             function resetWeights() {
                 if (confirm('確率設定をデフォルト値（全て均等）に戻しますか？保存されている設定は削除されます。')) {
                     resetWeightsInternal();
+                    // Adminパネルの入力フィールドの値もリセット
                     options.forEach((_, index) => {
                         const input = document.getElementById(`weight-${index}`);
                         if (input) input.value = DEFAULT_WEIGHT.toFixed(1);
                     });
                     updateProbabilityDisplays();
-                    try {
-                        localStorage.removeItem(ADMIN_PANEL_STORAGE_KEY);
-                        alert('設定がデフォルトにリセットされました。');
-                    } catch (error) {
-                        console.error("Failed to remove weights from localStorage during reset:", error);
-                        alert('設定のリセット中にローカルストレージからの削除に失敗しました。');
-                    }
+                    localStorage.removeItem(ADMIN_PANEL_STORAGE_KEY); // 保存データを削除
+                    alert('設定がデフォルトにリセットされました。');
                 }
             }
 
             // --- Intersection Observer ---
             function setupIntersectionObserver() {
+                // コールバック関数: 要素が交差したときに実行される
                 const observerCallback = (entries, observer) => {
                     entries.forEach(entry => {
                         if (entry.isIntersecting) {
+                            // ビューポートに入ったら visible クラスを追加
                             entry.target.classList.add('visible');
+                            // 一度表示したら監視を解除 (アニメーションを繰り返さない場合)
                             observer.unobserve(entry.target);
                         }
                     });
                 };
+
+                // オブザーバーのインスタンスを作成
                 const observer = new IntersectionObserver(observerCallback, INTERSECTION_OBSERVER_OPTIONS);
+
+                // .target クラスを持つすべての要素を監視対象に追加
                 const targets = document.querySelectorAll('.target');
                 targets.forEach(target => observer.observe(target));
             }
 
             // --- 初期化実行 ---
+            // DOMContentLoaded を待って初期化を実行
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initialize);
             } else {
+                // すでに DOM が読み込まれている場合は即時実行
                 initialize();
             }
 
