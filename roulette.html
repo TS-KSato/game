@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--
+        セキュリティに関する推奨事項:
+        1. クリックジャッキング対策: サーバーサイドで以下のいずれかのHTTPヘッダーを設定してください。
+           - X-Frame-Options: DENY (推奨: 他サイトからのiframe埋め込みを完全に禁止)
+           - X-Frame-Options: SAMEORIGIN (同一オリジンからの埋め込みのみ許可)
+           - Content-Security-Policy: frame-ancestors 'self'; (推奨: より柔軟な制御が可能)
+        2. HTTPSの強制: 本番環境では必ずHTTPSを使用し、HTTPからHTTPSへのリダイレクトを設定してください。
+           HSTS (HTTP Strict Transport Security) ヘッダーの利用も検討してください。
+    -->
+    <title>ラッキールーレット - 運試しをしよう！</title>
+    <style>
+        /* ===== 基本スタイル ===== */
+        :root {
+            --primary-color: #ff3e3e;
+            --secondary-color: #2c3e50;
+            --accent-color: #f1c40f;
+            --text-light: #ecf0f1;
+            --text-dark: #2c3e50;
+            --background-light: #ffffff;
+            --background-dark: #1a1a1a;
+            --success-color: #2ecc71;
+            --nav-height: 60px;
+            /* ナビゲーション高さを変数化 */
+            --transition-default: 0.3s ease;
+            /* 共通トランジション */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        html {
+            /* スムーススクロールをCSSで実現 */
+            scroll-padding-top: var(--nav-height);
+            /* スクロール先の位置調整 */
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--background-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+            /* テーマ切り替え時のトランジション */
+        }
+
+        /* --- ユーティリティクラス --- */
+        .hidden {
+            display: none;
+            /* JSで表示/非表示を切り替えるためのクラス */
+        }
+
+        /* ===== ヘッダー ===== */
+        header {
+            background: linear-gradient(135deg, var(--primary-color), #ff7675);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        /* ===== ナビゲーション ===== */
+        nav {
+            background-color: var(--secondary-color);
+            padding: 0 1rem;
+            /* 左右のpadding */
+            height: var(--nav-height);
+            /* 高さを変数で指定 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            /* スクロール時に追従 */
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+            line-height: var(--nav-height);
+            /* リンクを垂直中央揃え */
+            padding: 0 0.5rem;
+            /* ホバーエリア調整 */
+        }
+
+        .nav-links a:hover,
+        .nav-links a:focus {
+            /* フォーカススタイル追加 */
+            color: var(--accent-color);
+            outline: none;
+            /* デフォルトのアウトラインを消す場合 */
+            text-decoration: underline;
+            /* 代わりのフォーカス表示 */
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            font-size: 1.5rem;
+            /* サイズ調整 */
+            padding: 0.5rem;
+            /* クリックエリア確保 */
+            border-radius: 50%;
+            /* 丸くする */
+            transition: background-color 0.2s;
+        }
+
+        .theme-toggle:hover,
+        .theme-toggle:focus {
+            background-color: rgba(255, 255, 255, 0.1);
+            /* ホバー/フォーカス時の背景 */
+            outline: 2px solid var(--accent-color);
+            /* フォーカスリング */
+        }
+
+
+        /* ===== メインコンテンツ ===== */
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-top: 1rem;
+            /* ナビゲーション分のスペース */
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: transform var(--transition-default), background-color var(--transition-default), box-shadow var(--transition-default);
+            box-shadow: 0 4px 8px rgba(255, 62, 62, 0.3);
+            border: 2px solid transparent;
+            /* フォーカススタイル用 */
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            background-color: #ff5252;
+            box-shadow: 0 6px 12px rgba(255, 62, 62, 0.4);
+        }
+
+        .cta-button:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            /* フォーカスリング */
+            box-shadow: 0 0 0 3px rgba(241, 196, 15, 0.5);
+            /* 外側の影 */
+        }
+
+        /* ===== ルーレットセクション ===== */
+        .roulette-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 3rem;
+            padding-top: 1rem;
+            /* ナビゲーション分のスペース */
+        }
+
+        .roulette-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 2rem auto;
+        }
+
+        .roulette-wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 5px solid var(--secondary-color);
+            /* 境界線を追加 */
+            background: conic-gradient(from 0deg,
+                    var(--primary-color) 0deg 45deg,
+                    var(--accent-color) 45deg 90deg,
+                    var(--success-color) 90deg 135deg,
+                    #3498db 135deg 180deg,
+                    #9b59b6 180deg 225deg,
+                    #1abc9c 225deg 270deg,
+                    #e67e22 270deg 315deg,
+                    #e74c3c 315deg 360deg);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform: rotate(0deg);
+            /* 初期角度 */
+            transition: transform 0s linear;
+            /* JSアニメーション用に初期transitionを無効化 */
+        }
+
+        /* ハードウェアアクセラレーション (必要な場合のみ) */
+        .roulette-wheel,
+        .testimonial-container {
+            transform: translateZ(0);
+            /* will-change: transform; */
+            /* 過剰なwill-changeは避ける */
+        }
+
+
+        /* 絵柄を配置するためのスタイル（JavaScriptで動的に追加） */
+        .segment-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            font-size: 1.6rem;
+            color: white;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 3px 6px;
+            border-radius: 5px;
+            user-select: none;
+        }
+
+        .roulette-center {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background-color: var(--background-light);
+            border: 3px solid var(--secondary-color);
+            border-radius: 50%;
+            z-index: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .roulette-pointer {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 50px;
+            background-color: var(--secondary-color);
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            z-index: 2;
+            filter: drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.4));
+        }
+
+        .controls {
+            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .image-options {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        /* divからbuttonに変更 */
+        .image-option {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: transform 0.2s, border-color 0.2s, background-color 0.2s;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem;
+            /* 少し大きく */
+            color: var(--text-dark);
+            /* テキスト色指定 */
+            padding: 0;
+            /* buttonデフォルトpadding削除 */
+            font-family: inherit;
+            /* フォント継承 */
+            -webkit-tap-highlight-color: transparent;
+            /* スマホでのタップ時のハイライトを消す */
+        }
+
+        .image-option:hover,
+        .image-option:focus {
+            /* フォーカススタイル追加 */
+            transform: scale(1.05);
+            outline: 2px solid var(--accent-color);
+            /* フォーカスインジケータ */
+            outline-offset: 2px;
+        }
+
+        .image-option.selected {
+            border-color: var(--primary-color);
+            background-color: #ffeaea;
+            /* 選択時の背景色 */
+            transform: scale(1.05);
+            outline: none;
+            /* 選択時はデフォルトのアウトライン不要 */
+        }
+
+        /* 選択されているボタンの aria-checked 属性を考慮 */
+        .image-option[aria-checked="true"] {
+            /* radioなのでaria-pressedではなくaria-checked */
+            border-color: var(--primary-color);
+            background-color: #ffeaea;
+        }
+
+        .spin-button {
+            background-color: var(--primary-color);
+            color: white;
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s, opacity 0.3s;
+        }
+
+        .spin-button:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #ff5252;
+        }
+
+        .spin-button:focus:not(:disabled) {
+            outline: 2px solid var(--accent-color);
+            outline-offset: 2px;
+        }
+
+        .spin-button:disabled {
+            background-color: #ccc;
+            color: #666;
+            /* Disabled時の文字色 */
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.7;
+        }
+
+        .result {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            /* 少し広めに */
+            border-radius: 8px;
+            background-color: #f0f0f0;
+            text-align: center;
+            min-height: 80px;
+            /* 少し高く */
+            width: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            /* アニメーション追加 */
+            transition: opacity 0.5s ease-out, visibility 0s linear 0.5s, transform 0.5s ease-out;
+            /* visibilityのtransition変更 */
+            border: 1px solid #ddd;
+        }
+
+        .result.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            transition-delay: 0s;
+            /* 表示時は遅延なし */
+        }
+
+        .result h3 {
+            margin-bottom: 0.5rem;
+            color: var(--secondary-color);
+            font-size: 1.4rem;
+            /* 結果を大きく */
+        }
+
+        .result p {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            /* 段落間のスペース */
+        }
+
+        .result .win {
+            color: var(--success-color);
+            font-weight: bold;
+            font-size: 1.2rem;
+            /* 当選メッセージを強調 */
+        }
+
+        .result .lose {
+            color: var(--primary-color);
+        }
+
+        /* ===== 特徴セクション ===== */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            /* minmax調整 */
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .feature-card {
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease-out, box-shadow 0.3s ease-out, opacity 0.6s ease-out;
+            opacity: 0;
+            /* Intersection Observer用 初期状態 */
+            transform: translateY(20px);
+            /* Intersection Observer用 初期状態 */
+        }
+
+        .feature-card.visible {
+            /* Intersection Observer用 表示状態 */
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            /* Y方向とスケールを追加 */
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .feature-card h3 {
+            margin-bottom: 1rem;
+            color: var(--secondary-color);
+        }
+
+        /* ===== テスティモニアルセクション ===== */
+        .testimonials {
+            margin-bottom: 3rem;
+            padding-top: 1rem;
+            /* ナビゲーション分のスペース */
+        }
+
+        .testimonials h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--secondary-color);
+        }
+
+        .testimonial-slider {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+            overflow: hidden;
+            border-radius: 10px;
+            /* Slider全体に角丸 */
+            background-color: #f9f9f9;
+            /* 背景色統一 */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .testimonial-container {
+            display: flex;
+            /* JSでtransitionを設定するためCSSからは削除 */
+            /* transition: transform 0.5s ease; */
+        }
+
+        .testimonial {
+            min-width: 100%;
+            padding: 2.5rem;
+            /* Padding調整 */
+            flex-shrink: 0;
+            /* スライド時に縮まないように */
+            opacity: 0;
+            /* Intersection Observer用 */
+            transform: translateY(20px);
+            /* Intersection Observer用 */
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .testimonial.visible {
+            /* Intersection Observer用 */
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .testimonial-content {
+            margin-bottom: 1.5rem;
+            font-style: italic;
+            font-size: 1.1rem;
+            /* 少し大きく */
+            position: relative;
+        }
+
+        .testimonial-content::before {
+            /* 引用符 */
+            content: '“';
+            font-size: 3rem;
+            /* 大きく */
+            color: var(--primary-color);
+            opacity: 0.3;
+            /* 少し薄く */
+            position: absolute;
+            top: -0.5rem;
+            left: -1rem;
+        }
+
+        .testimonial-author {
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: right;
+            /* 右寄せ */
+        }
+
+        .testimonial-author::before {
+            content: '— ';
+        }
+
+        .slider-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 1.5rem;
+            padding-bottom: 1.5rem;
+            /* 下部にスペース */
+            gap: 1rem;
+        }
+
+        .slider-btn {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            width: 45px;
+            /* 少し大きく */
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            font-size: 1.2rem;
+            /* アイコンサイズ調整 */
+        }
+
+        .slider-btn:hover:not(:disabled) {
+            background-color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        .slider-btn:focus {
+            outline: 2px solid var(--accent-color);
+            /* フォーカススタイル */
+            outline-offset: 2px;
+        }
+
+        .slider-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ===== FAQ セクション ===== */
+        .faq {
+            margin-bottom: 3rem;
+            padding-top: 1rem;
+            /* ナビゲーション分のスペース */
+        }
+
+        .faq h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--secondary-color);
+        }
+
+        .accordion {
+            list-style: none;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .accordion-item {
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            background-color: #f9f9f9;
+            /* 背景色を追加 */
+            opacity: 0;
+            /* Intersection Observer用 */
+            transform: translateY(20px);
+            /* Intersection Observer用 */
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out, background-color 0.3s;
+        }
+
+        .accordion-item.visible {
+            /* Intersection Observer用 */
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ヘッダーをbuttonに変更 */
+        .accordion-header {
+            background-color: transparent;
+            /* Item側で指定するため透明に */
+            padding: 1.2rem 1.5rem;
+            /* Padding調整 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            border: none;
+            /* button要素のデフォルトborderを削除 */
+            width: 100%;
+            /* button要素の幅を100%に */
+            text-align: left;
+            /* button要素のテキストを左揃えに */
+            font-size: 1.1rem;
+            /* フォントサイズ調整 */
+            font-weight: 500;
+            /* フォントウェイト調整 */
+            color: var(--text-dark);
+            /* テキストカラー */
+        }
+
+        .accordion-header:hover,
+        .accordion-header:focus {
+            background-color: #ebebeb;
+            outline: none;
+            /* フォーカスは親要素で管理 */
+        }
+
+        /* フォーカス時のスタイルをitemに適用 */
+        .accordion-item:focus-within {
+            outline: 2px solid var(--accent-color);
+            outline-offset: 2px;
+        }
+
+
+        .accordion-content {
+            background-color: white;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out, padding 0.4s ease-out;
+            /* paddingもトランジション対象に */
+            padding: 0 1.5rem;
+            /* 開閉アニメーション中の横padding */
+            visibility: hidden;
+            /* 閉じた状態で非表示 */
+        }
+
+        .accordion-content-inner {
+            padding: 0;
+            /* 初期状態ではpaddingなし */
+            border-top: 1px solid #eee;
+            /* 区切り線 */
+            transition: padding 0.4s ease-out;
+            /* innerのpaddingもトランジション */
+        }
+
+        .accordion-item.active .accordion-header {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .accordion-item.active .accordion-header:hover {
+            background-color: var(--secondary-color);
+            /* アクティブ時はホバー色を変えない */
+        }
+
+        .accordion-item.active .accordion-header .accordion-icon {
+            transform: rotate(45deg);
+            /* アイコンを回転 */
+        }
+
+        .accordion-item.active .accordion-content {
+            max-height: 400px;
+            /* 十分な高さを確保 (必要ならJSで動的に調整) */
+            visibility: visible;
+            /* 開いた状態で表示 */
+            padding: 0 1.5rem;
+            /* 横paddingは維持 */
+        }
+
+        /* 開いた状態の内部パディング */
+        .accordion-item.active .accordion-content-inner {
+            padding: 1.5rem 0;
+            /* 上下のpaddingを設定 */
+        }
+
+        .accordion-icon {
+            font-size: 1.5rem;
+            font-weight: bold;
+            transition: transform 0.3s ease-out;
+            /* アイコンの回転アニメーション */
+            flex-shrink: 0;
+            /* アイコンが縮まないように */
+            margin-left: 1rem;
+            /* テキストとの間隔 */
+        }
+
+
+        /* ===== CTA セクション ===== */
+        .cta-section {
+            text-align: center;
+            padding: 3rem;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin-bottom: 3rem;
+            opacity: 0;
+            /* Intersection Observer用 */
+            transform: translateY(20px);
+            /* Intersection Observer用 */
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out, background-color 0.3s;
+        }
+
+        .cta-section.visible {
+            /* Intersection Observer用 */
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+
+        .cta-section h2 {
+            margin-bottom: 1.5rem;
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            /* 少し大きく */
+        }
+
+        .cta-section p {
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ===== Admin Panel ===== */
+        .admin-panel {
+            margin: 3rem auto;
+            padding: 2rem;
+            max-width: 800px;
+            background-color: #eee;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            /* 表示切り替えアニメーション用 */
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .admin-panel.hidden {
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            /* 非表示時は操作不可に */
+            /* display: none はアニメーションと競合するため、opacityとtransformで制御 */
+            /* 必要なら height: 0; overflow: hidden; も追加 */
+        }
+
+        .admin-panel h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--secondary-color);
+        }
+
+        .weight-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .weight-control {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            background: #fff;
+            padding: 1rem;
+            border-radius: 6px;
+        }
+
+        .weight-control label {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .weight-control input[type="number"] {
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 60px;
+            /* 幅を固定 */
+            text-align: right;
+        }
+
+        .probability {
+            font-size: 0.9rem;
+            color: #555;
+            margin-left: auto;
+            /* 右寄せ */
+            padding-left: 10px;
+            /* 左のスペース */
+        }
+
+        .admin-panel .admin-button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+            /* ボタン間のスペース */
+        }
+
+        .admin-panel .admin-button:hover:not(:disabled) {
+            /* :disabled を追加 */
+            background-color: #ff5252;
+        }
+
+        .admin-panel .admin-button#reset-weights {
+            background-color: var(--secondary-color);
+        }
+
+        .admin-panel .admin-button#reset-weights:hover:not(:disabled) {
+            /* :disabled を追加 */
+            background-color: #34495e;
+        }
+
+        .admin-panel .admin-button:disabled {
+            /* disabled スタイル追加 */
+            background-color: #ccc;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .admin-panel .security-warning {
+            /* セキュリティ警告用のスタイル */
+            font-size: 0.9rem;
+            color: #777;
+            margin-top: 1rem;
+            padding: 0.8rem;
+            background-color: #fff;
+            border: 1px dashed #aaa;
+            border-radius: 4px;
+        }
+
+        .admin-panel .security-warning strong {
+            color: var(--primary-color);
+        }
+
+
+        /* ===== レスポンシブデザイン ===== */
+        @media (max-width: 768px) {
+            :root {
+                --nav-height: 50px;
+                /* モバイルでのナビ高さを調整 */
+            }
+
+            .nav-links {
+                /* モバイルメニュー未実装のため非表示のまま (必要なら実装) */
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .roulette-container {
+                width: clamp(220px, 80vw, 280px);
+                /* サイズを画面幅に応じて調整 */
+                height: clamp(220px, 80vw, 280px);
+            }
+
+            .roulette-pointer {
+                top: -20px;
+                width: 25px;
+                height: 40px;
+            }
+
+            .segment-label {
+                font-size: 1.3rem;
+                /* モバイルでは少し小さく */
+                padding: 2px 4px;
+            }
+
+
+            .feature-card {
+                padding: 1.5rem;
+            }
+
+            .image-options {
+                grid-template-columns: repeat(4, 1fr);
+                /* 4列のまま */
+                gap: 8px;
+            }
+
+            .image-option {
+                font-size: 1.5rem;
+            }
+
+            .testimonial {
+                padding: 2rem 1.5rem;
+                /* 左右のpaddingを少し狭く */
+            }
+
+            .testimonial-content::before {
+                /* 引用符の位置調整 */
+                left: -0.5rem;
+            }
+
+            .accordion-header {
+                padding: 1rem 1.2rem;
+                font-size: 1rem;
+            }
+
+            .accordion-item.active .accordion-content-inner {
+                padding: 1rem 0;
+            }
+
+            .weight-controls {
+                grid-template-columns: 1fr;
+                /* モバイルでは1列 */
+            }
+        }
+
+        /* ダークモードのスタイル */
+        .dark-mode {
+            --background-light: var(--background-dark);
+            --text-dark: var(--text-light);
+            --secondary-color-dark: #34495e;
+            /* ダークモード用の中間色 */
+            --background-medium-dark: #2d3436;
+            /* カードなどの背景 */
+            --border-dark: #4b6177;
+            /* ボーダー色 */
+        }
+
+        .dark-mode body {
+            background-color: var(--background-dark);
+            color: var(--text-light);
+        }
+
+        /* ダークモードでの背景色調整 */
+        .dark-mode .feature-card,
+        .dark-mode .accordion-item,
+        .dark-mode .testimonial-slider,
+        .dark-mode .result,
+        .dark-mode .cta-section,
+        .dark-mode .image-option {
+            background-color: var(--background-medium-dark);
+            color: var(--text-light);
+            border-color: var(--border-dark);
+            /* ボーダー色調整 */
+        }
+
+        .dark-mode .image-option.selected,
+        .dark-mode .image-option[aria-checked="true"] {
+            background-color: #4a3030;
+            /* ダークモード選択時 */
+            border-color: var(--primary-color);
+        }
+
+        .dark-mode .accordion-header {
+            background-color: transparent;
+            /* item側で指定 */
+            color: var(--text-light);
+        }
+
+        .dark-mode .accordion-header:hover,
+        .dark-mode .accordion-header:focus {
+            background-color: #4a5a6a;
+        }
+
+        .dark-mode .accordion-item.active .accordion-header {
+            background-color: var(--primary-color);
+            /* アクティブ時の色を明るく */
+            color: white;
+        }
+
+        .dark-mode .accordion-item.active .accordion-header:hover {
+            background-color: var(--primary-color);
+        }
+
+        .dark-mode .accordion-content {
+            background-color: var(--secondary-color-dark);
+            /* コンテンツ背景を少し明るく */
+            color: var(--text-light);
+        }
+
+        .dark-mode .accordion-content-inner {
+            border-top-color: var(--border-dark);
+        }
+
+        .dark-mode .roulette-center {
+            background-color: var(--background-medium-dark);
+            border-color: #7f8c8d;
+        }
+
+        .dark-mode .roulette-wheel {
+            border-color: #7f8c8d;
+        }
+
+        /* ダークモードのグラデーションは現状維持 */
+
+        .dark-mode .result {
+            border-color: var(--border-dark);
+        }
+
+        .dark-mode .cta-section {
+            background-color: var(--background-medium-dark);
+        }
+
+        .dark-mode .nav-links a:hover,
+        .dark-mode .nav-links a:focus {
+            color: var(--accent-color);
+        }
+
+        .dark-mode .slider-btn {
+            background-color: #4a5a6a;
+        }
+
+        .dark-mode .slider-btn:hover:not(:disabled) {
+            background-color: var(--primary-color);
+        }
+
+        .dark-mode .admin-panel {
+            background-color: var(--secondary-color-dark);
+            border-color: var(--border-dark);
+        }
+
+        .dark-mode .weight-control {
+            background-color: var(--background-medium-dark);
+            border-color: var(--border-dark);
+        }
+
+        .dark-mode .weight-control input[type="number"] {
+            background-color: var(--background-dark);
+            color: var(--text-light);
+            border-color: var(--border-dark);
+        }
+
+        .dark-mode .probability {
+            color: var(--text-light);
+            opacity: 0.8;
+        }
+
+        .dark-mode .admin-panel .security-warning {
+            background-color: var(--background-medium-dark);
+            border-color: #666;
+            color: var(--text-light);
+        }
+
+        .dark-mode .admin-panel .security-warning strong {
+            color: #ff7675;
+            /* ダークモードでの強調色 */
+        }
+
+
+        /* ダークモードのスクロールバー（オプション） */
+        .dark-mode::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .dark-mode::-webkit-scrollbar-track {
+            background: var(--secondary-color);
+        }
+
+        .dark-mode::-webkit-scrollbar-thumb {
+            background: #566573;
+            border-radius: 5px;
+        }
+
+        .dark-mode::-webkit-scrollbar-thumb:hover {
+            background: #7f8c8d;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ヘッダー -->
+    <header>
+        <div class="logo">🎲 ラッキールーレット</div>
+        <div class="tagline">運命の輪を回して、幸運をつかみ取ろう！</div>
+    </header>
+
+    <!-- ナビゲーション -->
+    <nav>
+        <div class="nav-links">
+            <a href="#home">ホーム</a>
+            <a href="#play-now">プレイ</a>
+            <a href="#about">特徴</a>
+            <a href="#faq">FAQ</a>
+            <a href="#testimonials">お客様の声</a>
+            <!-- Admin Panel Toggle Link: roleとaria-expandedを追加 -->
+            <a href="#admin-panel-link" id="admin-panel-toggle-link" role="button" aria-expanded="false">管理</a>
+        </div>
+        <div><!-- 右寄せのためのコンテナ -->
+            <button class="theme-toggle" id="theme-toggle" aria-label="ダークモードに切り替え">🌙</button>
+            <!-- モバイルメニューボタン (未実装) -->
+            <!-- <button class="mobile-menu-btn" aria-label="メニューを開く" aria-expanded="false">☰</button> -->
+        </div>
+    </nav>
+
+    <!-- メインコンテンツ -->
+    <main>
+        <!-- ヒーローセクション -->
+        <section class="hero" id="home">
+            <h1>運命のルーレットであなたの運試し</h1>
+            <p>ラッキールーレットでは、あなたの運勢を試す機会を提供します。ホイールを回して、様々な賞品や特典をゲットしましょう！今すぐ参加して、あなたの幸運を確かめよう。</p>
+            <a href="#play-now" class="cta-button">今すぐプレイ</a>
+        </section>
+
+        <!-- ルーレットセクション -->
+        <section class="roulette-section" id="play-now">
+            <h2>ルーレットを回そう</h2>
+            <div class="roulette-container">
+                <div class="roulette-wheel" id="roulette-wheel">
+                    <!-- 絵柄ラベルはJSで動的に追加 -->
+                    <div class="roulette-center"></div>
+                </div>
+                <div class="roulette-pointer"></div>
+            </div>
+            <div class="controls">
+                <p id="select-prompt">好きな絵柄を選んでください (8種類)</p>
+                <div class="image-options" id="image-options" role="radiogroup" aria-labelledby="select-prompt">
+                    <!-- ボタンに変更し、role="radio", aria-checked, aria-labelを追加 -->
+                    <button class="image-option" role="radio" aria-checked="false" data-value="0"
+                        aria-label="チェリーを選択">🍒</button>
+                    <button class="image-option" role="radio" aria-checked="false" data-value="1"
+                        aria-label="レモンを選択">🍋</button>
+                    <button class="image-option" role="radio" aria-checked="false" data-value="2"
+                        aria-label="オレンジを選択">🍊</button>
+                    <button class="image-option" role="radio" aria-checked="false" data-value="3"
+                        aria-label="ぶどうを選択">🍇</button>
+                    <button class="image-option" role="radio" aria-checked="false" data-value="4"
+                        aria-label="リンゴを選択">🍎</button>
+                    <button class="image-option" role="radio" aria-checked="false" data-value="5"
+                        aria-label="スイカを選択">🍉</button>
+                    <button class="image-option" role="radio" aria-checked="false" data-value="6"
+                        aria-label="ダイヤモンドを選択">💎</button>
+                    <button class="image-option" role="radio" aria-checked="false" data-value="7"
+                        aria-label="星を選択">🌟</button>
+                </div>
+                <button id="spin-button" class="spin-button" disabled>スピン！</button>
+                <div class="result" id="result" aria-live="polite"></div> <!-- aria-live追加 -->
+            </div>
+        </section>
+
+        <!-- 特徴セクション -->
+        <section class="features" id="about">
+            <!-- Intersection Observerのために各要素に target クラスを追加 -->
+            <div class="feature-card target">
+                <div class="feature-icon">🎯</div>
+                <h3>シンプルな操作</h3>
+                <p>8種類の絵柄から好きなものを選び、スピンボタンを押すだけ。直感的な操作でどなたでも簡単に楽しめます。</p>
+            </div>
+            <div class="feature-card target">
+                <div class="feature-icon">🏆</div>
+                <h3>豪華賞品</h3>
+                <p>当選者には、豪華な賞品をご用意しています。運が良ければ、素晴らしい賞品をゲットできるチャンスがあります。（※当デモページでは実際の賞品提供はありません）</p>
+            </div>
+            <div class="feature-card target">
+                <div class="feature-icon">🔄</div>
+                <h3>何度でも挑戦可能</h3>
+                <p>一度の挑戦で運が悪くても大丈夫。何度でもルーレットを回して、あなたの運勢を試すことができます。</p>
+            </div>
+        </section>
+
+        <!-- テスティモニアルセクション -->
+        <section class="testimonials" id="testimonials">
+            <h2>プレイヤーの声</h2>
+            <div class="testimonial-slider">
+                <div class="testimonial-container" id="testimonial-container">
+                    <!-- Intersection Observerのために各要素に target クラスを追加 -->
+                    <div class="testimonial target">
+                        <div class="testimonial-content">
+                            「初めてプレイしたときは半信半疑でしたが、なんと大当たり！本当に素晴らしい体験でした。また挑戦したいと思います。」
+                        </div>
+                        <div class="testimonial-author">田中 健太</div>
+                    </div>
+                    <div class="testimonial target">
+                        <div class="testimonial-content">
+                            「このルーレットゲームの面白さにハマっています。シンプルなのに奥が深く、毎回ドキドキします。友達にも勧めました！」
+                        </div>
+                        <div class="testimonial-author">佐藤 美咲</div>
+                    </div>
+                    <div class="testimonial target">
+                        <div class="testimonial-content">
+                            「賞品の質が高く、当たった時の喜びは言葉では表せません。サイトのデザインも使いやすく、とても満足しています。」
+                        </div>
+                        <div class="testimonial-author">鈴木 大輔</div>
+                    </div>
+                </div>
+            </div>
+            <div class="slider-controls">
+                <!-- aria-label追加 -->
+                <button class="slider-btn prev-btn" id="prev-testimonial" aria-label="前の testimonials を表示">◀</button>
+                <button class="slider-btn next-btn" id="next-testimonial" aria-label="次の testimonials を表示">▶</button>
+            </div>
+        </section>
+
+        <!-- FAQセクション -->
+        <section class="faq" id="faq">
+            <h2>よくある質問</h2>
+            <ul class="accordion" id="faq-accordion">
+                <!-- Intersection Observerのために各要素に target クラスを追加 -->
+                <!-- 各アイテムにID、ヘッダーボタンに aria-controls, aria-expanded、コンテンツに role="region", aria-labelledby を追加 -->
+                <li class="accordion-item target">
+                    <button class="accordion-header" id="faq-header-1" aria-controls="faq-content-1"
+                        aria-expanded="false">
+                        <span>ルーレットの遊び方を教えてください。</span>
+                        <span class="accordion-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="accordion-content" id="faq-content-1" role="region" aria-labelledby="faq-header-1">
+                        <div class="accordion-content-inner">
+                            ルーレットの遊び方は簡単です。下にある8種類の絵柄から好きなものをクリックして選びます。次に「スピン！」ボタンをクリックして、ルーレットを回します。ルーレットが停止し、結果が表示されます。あなたの選んだ絵柄で停止すれば当たりです。
+                        </div>
+                    </div>
+                </li>
+                <li class="accordion-item target">
+                    <button class="accordion-header" id="faq-header-2" aria-controls="faq-content-2"
+                        aria-expanded="false">
+                        <span>賞品はどのように受け取れますか？</span>
+                        <span class="accordion-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="accordion-content" id="faq-content-2" role="region" aria-labelledby="faq-header-2">
+                        <div class="accordion-content-inner">
+                            賞品の受け取り方法は当選時にメールでご案内します。デジタル賞品の場合はメールで送付され、物理的な賞品の場合は配送先住所の確認後に発送されます。当選後7日以内に手続きを完了してください。
+                            (※当デモページでは実際の賞品提供はありません)
+                        </div>
+                    </div>
+                </li>
+                <li class="accordion-item target">
+                    <button class="accordion-header" id="faq-header-3" aria-controls="faq-content-3"
+                        aria-expanded="false">
+                        <span>何回プレイできますか？</span>
+                        <span class="accordion-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="accordion-content" id="faq-content-3" role="region" aria-labelledby="faq-header-3">
+                        <div class="accordion-content-inner">
+                            基本的には何回でもプレイいただけます。スピンが終わったら、また好きな絵柄を選んで挑戦してください。ただし、特定のキャンペーン期間中は1日の回数制限が設けられる場合があります。
+                        </div>
+                    </div>
+                </li>
+                <li class="accordion-item target">
+                    <button class="accordion-header" id="faq-header-4" aria-controls="faq-content-4"
+                        aria-expanded="false">
+                        <span>当選確率はどのくらいですか？</span>
+                        <span class="accordion-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="accordion-content" id="faq-content-4" role="region" aria-labelledby="faq-header-4">
+                        <div class="accordion-content-inner">
+                            ルーレットが各絵柄で停止する確率は、管理パネルで設定された重みに基づいて決定されます。デフォルトでは各絵柄の当選確率は等しく 1/8 (12.5%)
+                            ですが、設定によって変更される可能性があります。あなたの選んだ絵柄で停止すれば当たりとなります。<br>
+                            <strong>(重要:
+                                このデモページでは、確率計算はブラウザ内で行われるため、技術的な知識があれば操作可能です。実際の抽選システムではサーバーサイドで確率計算を行うべきです。)</strong>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
+        <!-- CTAセクション -->
+        <section class="cta-section target" id="cta">
+            <h2>今すぐ運命のルーレットに挑戦しよう！</h2>
+            <p>運が良ければ、素晴らしい賞品がゲットできるかもしれません。今すぐルーレットを回して、あなたの運勢を試してみましょう！</p>
+            <a href="#play-now" class="cta-button">ルーレットを回す</a>
+        </section>
+
+        <!-- Admin Panel (最初は非表示) -->
+        <section class="admin-panel hidden" id="admin-panel" aria-labelledby="admin-panel-heading">
+            <h2 id="admin-panel-heading">確率設定パネル</h2>
+            <div class="weight-controls" id="weight-controls">
+                <!-- Generated dynamically in JS -->
+            </div>
+            <button id="save-weights" class="admin-button">設定を保存</button>
+            <button id="reset-weights" class="admin-button">リセット</button>
+            <!-- セキュリティ警告を追加 -->
+            <p class="security-warning">
+                <strong>セキュリティに関する注意:</strong>
+                この設定はブラウザのローカルストレージに保存され、抽選ロジックもブラウザ内で実行されます。
+                そのため、技術的な知識があれば、ユーザーはこれらの設定や抽選結果を<strong>操作可能</strong>です。
+                これはデモンストレーション目的の機能であり、実際の賞品が関わるような公正な抽選には適していません。
+                本番環境では、<strong>必ずサーバーサイドで抽選ロジックと確率設定を管理してください。</strong>
+            </p>
+        </section>
+    </main>
+
+    <!-- JavaScript -->
+    <script>
+        "use strict"; // Strictモードを有効化
+
+        // 即時実行関数式 (IIFE) を使用してグローバルスコープの汚染を防ぐ
+        (() => {
+            // --- 定数定義 ---
+            const SPIN_DURATION_SECONDS = 4; // ルーレットの回転時間（秒）
+            const BASE_ROTATION_DEGREES = 360 * 5; // 最低回転数（度）
+            const NUM_OPTIONS = 8; // ルーレットの選択肢の数
+            const SEGMENT_ANGLE = 360 / NUM_OPTIONS; // 1セグメントあたりの角度
+            const TESTIMONIAL_SLIDE_DURATION = 500; // ms
+            const ACCORDION_ANIMATION_DURATION = 400; // ms
+            const DEFAULT_WEIGHT = 1; // オプションのデフォルトの重み
+            const ADMIN_PANEL_STORAGE_KEY = 'rouletteWeights'; // ローカルストレージのキー
+            const INTERSECTION_OBSERVER_OPTIONS = {
+                root: null, // ビューポートを基準にする
+                rootMargin: '0px',
+                threshold: 0.1 // 10%表示されたらトリガー
+            };
+
+            // --- DOM要素の取得 ---
+            const themeToggle = document.getElementById('theme-toggle');
+            const spinButton = document.getElementById('spin-button');
+            const rouletteWheel = document.getElementById('roulette-wheel');
+            const resultElement = document.getElementById('result');
+            const imageOptionsContainer = document.getElementById('image-options');
+            const imageOptionButtons = Array.from(imageOptionsContainer.querySelectorAll('.image-option'));
+            const prevTestimonialBtn = document.getElementById('prev-testimonial');
+            const nextTestimonialBtn = document.getElementById('next-testimonial');
+            const testimonialContainer = document.getElementById('testimonial-container');
+            const faqAccordion = document.getElementById('faq-accordion'); // イベント委任で使用
+            const adminPanelToggleLink = document.getElementById('admin-panel-toggle-link');
+            const adminPanel = document.getElementById('admin-panel');
+            const weightControlsContainer = document.getElementById('weight-controls');
+            const saveWeightsBtn = document.getElementById('save-weights'); // イベント委任で使用
+            const resetWeightsBtn = document.getElementById('reset-weights'); // イベント委任で使用
+
+            // --- 状態変数 ---
+            let selectedOptionIndex = null; // 選択された絵柄のインデックス (0-7)
+            let isSpinning = false; // ルーレットが回転中かどうかのフラグ
+            let currentTestimonial = 0; // 現在表示中のテスティモニアルのインデックス
+            let isSliding = false; // スライダーがアニメーション中か
+            let currentRotation = 0; // ルーレットの現在の角度を保持
+
+            // --- データ定義 ---
+            const options = ['🍒', '🍋', '🍊', '🍇', '🍎', '🍉', '💎', '🌟'];
+
+            // --- 確率重みシステム ---
+            // !! セキュリティ警告: この重みと抽選ロジックはクライアントサイドにあります。 !!
+            // !! ユーザーによる操作が可能です。公正な抽選にはサーバーサイド実装が必須です。 !!
+            let optionWeights = options.map(() => DEFAULT_WEIGHT); // 各オプションの重み配列
+            let totalWeight = optionWeights.reduce((sum, weight) => sum + weight, 0); // 重みの合計
+
+            // --- 初期化処理 ---
+            function initialize() {
+                // クライアントサイドロジックのリスクをコンソールに警告
+                console.warn(
+                    "セキュリティ警告: ルーレットの抽選ロジックはクライアントサイドで実行されています。" +
+                    "これはデモ目的であり、ユーザーによる操作が可能です。" +
+                    "実際のアプリケーションでは、必ずサーバーサイドで抽選を行ってください。"
+                );
+
+                loadWeightsFromStorage(); // 保存された重みを読み込み (Adminパネル初期化より先に)
+                setupEventListeners();
+                setupRouletteLabels();
+                updateTestimonialSlider(true); // 初期表示（アニメーションなし）
+                checkInitialTheme();
+                setupIntersectionObserver(); // Intersection Observerをセットアップ
+                initializeAdminPanel(); // Adminパネルの初期化
+                spinButton.disabled = true; // 初期状態ではスピンボタンを無効化
+                updateAriaChecked(null); // 初期状態のaria-checkedを設定
+                currentRotation = getCurrentRotation(rouletteWheel);
+                rouletteWheel.style.transform = `rotate(${currentRotation}deg)`; // JSで管理
+            }
+
+            // --- セキュアな乱数生成 ---
+            function getSecureRandomNumber(min, max) {
+                const range = max - min;
+                if (range <= 0) {
+                    console.error("Invalid range for random number generation.");
+                    return min;
+                }
+
+                if (window.crypto && window.crypto.getRandomValues) {
+                    try {
+                        const randomBuffer = new Uint32Array(1);
+                        let randomNumber;
+                        do {
+                            window.crypto.getRandomValues(randomBuffer);
+                            const maxAllowed = Math.floor((0xFFFFFFFF + 1) / range) * range;
+                            if (randomBuffer[0] < maxAllowed) {
+                                randomNumber = min + (randomBuffer[0] % range);
+                                break;
+                            }
+                        } while (true);
+                        return randomNumber;
+                    } catch (error) {
+                        console.error("Crypto API random number generation failed:", error);
+                        throw new Error("Secure random number generation failed. Cannot proceed.");
+                        // return fallbackRandom(min, max); // 以前のフォールバック
+                    }
+                } else {
+                    console.error("Crypto API not available. Cannot generate secure random numbers.");
+                    throw new Error("Crypto API not available. Cannot proceed.");
+                }
+
+            // --- 重み付き確率計算 ---
+            function updateOptionWeight(index, weight) {
+                if (index >= 0 && index < optionWeights.length && typeof weight === 'number' && weight >= 0) {
+                    optionWeights[index] = weight;
+                    totalWeight = optionWeights.reduce((sum, currentWeight) => sum + currentWeight, 0);
+                } else {
+                    console.error(`Invalid weight update: index=${index}, weight=${weight}`);
+                }
+            }
+
+            function getWeightedRandomIndex() {
+                // !! 再度警告: この関数はクライアントサイドで実行され、操作可能です !!
+                if (totalWeight <= 0) {
+                    console.warn("Total weight is zero or negative. Using unweighted random index (INSECURE if crypto fails).");
+                    // 重みがない場合も getSecureRandomNumber を使う
+                    try {
+                        return getSecureRandomNumber(0, NUM_OPTIONS);
+                    } catch (error) {
+                        console.error("Cannot get weighted index due to error in secure random number generation:", error);
+                        // エラー発生時の代替処理 (例: 最初の要素を返す、ゲームを停止するなど)
+                        alert("エラーが発生したため、ルーレットを実行できません。");
+                        return -1; // エラーを示す値
+                    }
+                }
+
+                try {
+                    // スケーリングして精度を多少向上させる (例: 0から totalWeight * 1000 まで)
+                    const scaledTotalWeight = Math.floor(totalWeight * 1000);
+                    if (scaledTotalWeight <= 0) { // スケーリング後も0なら均等確率
+                        return getSecureRandomNumber(0, NUM_OPTIONS);
+                    }
+                    const randomValueScaled = getSecureRandomNumber(0, scaledTotalWeight);
+                    const randomValue = randomValueScaled / 1000.0;
+
+                    let weightSum = 0;
+                    for (let i = 0; i < optionWeights.length; i++) {
+                        weightSum += optionWeights[i];
+                        if (randomValue < weightSum) {
+                            return i;
+                        }
+                    }
+                    // 浮動小数点誤差などへのフォールバック (最後の要素を返す)
+                    console.warn("Weighted random index calculation reached fallback (likely floating point issue).");
+                    return optionWeights.length - 1;
+
+                } catch (error) {
+                    console.error("Cannot get weighted index due to error in secure random number generation:", error);
+                    alert("エラーが発生したため、ルーレットを実行できません。");
+                    return -1; // エラーを示す値
+                }
+            }
+
+            // --- イベントリスナー設定 (イベント委任を活用) ---
+            function setupEventListeners() {
+                document.addEventListener('click', handleDocumentClick);
+                weightControlsContainer.addEventListener('input', handleWeightInputChange);
+                // ウィンドウリサイズ時の処理 (必要なら追加)
+                // window.addEventListener('resize', handleResize);
+            }
+
+            // Document全体のクリックイベントハンドラ
+            function handleDocumentClick(event) {
+                const target = event.target;
+
+                // テーマ切り替えボタン
+                if (target.closest('#theme-toggle')) {
+                    toggleTheme();
+                    return;
+                }
+
+                // 画像選択ボタン (imageOptionsContainer内で発生したクリックを処理)
+                const imageOptionBtn = target.closest('.image-option');
+                if (imageOptionsContainer.contains(imageOptionBtn)) {
+                    handleImageOptionClick(imageOptionBtn);
+                    return;
+                }
+
+                // スピンボタン
+                if (target === spinButton) {
+                    spinRoulette();
+                    return;
+                }
+
+                // テスティモニアル 前へ/次へ ボタン
+                if (target === prevTestimonialBtn) {
+                    showPrevTestimonial();
+                    return;
+                }
+                if (target === nextTestimonialBtn) {
+                    showNextTestimonial();
+                    return;
+                }
+
+                // FAQ アコーディオンヘッダー (faqAccordion内で発生したクリックを処理)
+                const faqHeader = target.closest('.accordion-header');
+                if (faqAccordion.contains(faqHeader)) {
+                    handleFaqClick(faqHeader);
+                    return;
+                }
+
+                // Adminパネル表示切り替えリンク
+                if (target === adminPanelToggleLink) {
+                    event.preventDefault(); // <a>タグのデフォルト動作キャンセル
+                    toggleAdminPanel();
+                    return;
+                }
+
+                // Adminパネル 保存/リセットボタン (adminPanel内で発生したクリックを処理)
+                if (adminPanel.contains(target)) {
+                    if (target === saveWeightsBtn) {
+                        saveWeightsToStorage();
+                        // より目立たない通知方法 (例: ボタンテキスト一時変更)
+                        target.textContent = '保存しました!';
+                        target.disabled = true;
+                        setTimeout(() => {
+                            target.textContent = '設定を保存';
+                            target.disabled = false;
+                        }, 1500);
+                        return;
+                    }
+                    if (target === resetWeightsBtn) {
+                        resetWeights();
+                        return;
+                    }
+                }
+            }
+
+            // --- ルーレット関連 ---
+            function setupRouletteLabels() {
+                const fragment = document.createDocumentFragment();
+                const wheelSize = rouletteWheel.offsetWidth;
+                const radius = wheelSize * 0.35;
+                const degToRad = Math.PI / 180;
+
+                for (let i = 0; i < options.length; i++) {
+                    const angle = (SEGMENT_ANGLE * i) + (SEGMENT_ANGLE / 2);
+                    const angleRad = (angle - 90) * degToRad;
+                    const label = document.createElement('div');
+                    label.classList.add('segment-label');
+                    label.textContent = options[i];
+                    const x = radius * Math.cos(angleRad);
+                    const y = radius * Math.sin(angleRad);
+                    label.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${angle + 90}deg)`;
+                    fragment.appendChild(label);
+                }
+                rouletteWheel.appendChild(fragment);
+            }
+
+            function updateAriaChecked(selectedIndex) {
+                imageOptionButtons.forEach((btn, index) => {
+                    const isSelected = index === selectedIndex;
+                    btn.setAttribute('aria-checked', String(isSelected)); // "true" or "false"
+                    btn.classList.toggle('selected', isSelected);
+                });
+            }
+
+            function handleImageOptionClick(clickedButton) {
+                if (isSpinning) return;
+
+                const clickedIndex = parseInt(clickedButton.dataset.value, 10);
+                if (isNaN(clickedIndex) || clickedIndex < 0 || clickedIndex >= NUM_OPTIONS) {
+                    console.error('Invalid option index:', clickedButton.dataset.value);
+                    return;
+                }
+                // 選択解除を許可しない場合 (常にどれか選択されている状態)
+                // if (selectedOptionIndex === clickedIndex) return;
+
+                // 同じボタンクリックで選択解除する場合
+                if (selectedOptionIndex === clickedIndex) {
+                    selectedOptionIndex = null;
+                    updateAriaChecked(null);
+                    spinButton.disabled = true;
+                } else {
+                    selectedOptionIndex = clickedIndex;
+                    updateAriaChecked(selectedOptionIndex);
+                    spinButton.disabled = false;
+                }
+                resultElement.classList.remove('show'); 
+            }
+
+
+            function spinRoulette() {
+                if (isSpinning || selectedOptionIndex === null) {
+                    return;
+                }
+
+                isSpinning = true;
+                spinButton.disabled = true;
+                resultElement.classList.remove('show');
+                imageOptionButtons.forEach(btn => btn.disabled = true); // 選択肢も無効化
+
+                let winningIndex;
+                try {
+                    // 抽選実行 (クライアントサイド)
+                    winningIndex = getWeightedRandomIndex();
+                    if (winningIndex === -1) { // getWeightedRandomIndex でエラーが発生した場合
+                        throw new Error("Failed to determine winning index.");
+                    }
+                } catch (error) {
+                    console.error("Spin roulette failed:", error);
+                    alert(`ルーレットの実行に失敗しました: ${error.message}`);
+                    // 状態をリセット
+                    isSpinning = false;
+                    spinButton.disabled = selectedOptionIndex === null; // 選択されていれば有効に戻す
+                    imageOptionButtons.forEach(btn => btn.disabled = false);
+                    return; // 処理中断
+                }
+                const targetSegmentCenter = winningIndex * SEGMENT_ANGLE + SEGMENT_ANGLE / 2;
+                let targetAngle = 360 - targetSegmentCenter;
+                const randomOffsetRange = SEGMENT_ANGLE * 0.45; // ±45%
+                try {
+                    // オフセット計算にも安全な乱数を使用
+                    const randomOffset = (getSecureRandomNumber(0, Math.floor(randomOffsetRange * 2 * 1000)) / 1000) - randomOffsetRange;
+                    targetAngle += randomOffset;
+                } catch (error) {
+                    // オフセット計算失敗時はオフセットなしで続行
+                    console.warn("Failed to get random offset, continuing without it.", error);
+                }
+
+
+                const normalizedCurrentRotation = normalizeAngle(currentRotation);
+                const finalAngle = BASE_ROTATION_DEGREES + targetAngle;
+                const startTime = performance.now();
+                const duration = SPIN_DURATION_SECONDS * 1000;
+                const startAngle = currentRotation;
+                const angleChange = finalAngle - startAngle;
+
+                function animate(currentTime) {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const easedProgress = easeOutQuart(progress);
+                    const currentAngle = startAngle + (angleChange * easedProgress);
+
+                    rouletteWheel.style.transform = `rotate(${currentAngle}deg)`;
+
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        // アニメーション完了
+                        rouletteWheel.style.transform = `rotate(${finalAngle}deg)`;
+                        currentRotation = finalAngle;
+                        displayResult(winningIndex);
+                        isSpinning = false;
+                        imageOptionButtons.forEach(btn => btn.disabled = false);
+                        // スピンボタンは選択状態に応じて再設定
+                        spinButton.disabled = selectedOptionIndex === null;
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+
+            // Helper functions for spinRoulette
+            function getCurrentRotation(element) {
+                const style = window.getComputedStyle(element);
+                const transform = style.transform;
+                if (transform && transform !== 'none') {
+                    const matrixMatch = transform.match(/^matrix\((.+)\)$/);
+                    if (matrixMatch) {
+                        const values = matrixMatch[1].split(', ').map(parseFloat);
+                        let angle = Math.round(Math.atan2(values[1], values[0]) * (180 / Math.PI));
+                        return angle < 0 ? angle + 360 : angle;
+                    }
+                    const rotateMatch = transform.match(/^rotate\((.+)deg\)$/);
+                    if (rotateMatch) {
+                        return parseFloat(rotateMatch[1]);
+                    }
+                }
+                return 0;
+            }
+
+            function normalizeAngle(angle) {
+                return ((angle % 360) + 360) % 360;
+            }
+
+            function easeOutQuart(t) { // easeOutCubic から Quart に変更 (よりスムーズ)
+                t--;
+                return -(t * t * t * t - 1);
+            }
+
+            function displayResult(winningIndex) {
+                const winningSymbol = options[winningIndex];
+                const selectedSymbol = selectedOptionIndex !== null ? options[selectedOptionIndex] : 'なし'; // 未選択の場合
+                const win = winningIndex === selectedOptionIndex;
+
+                // 結果表示要素をクリア (innerHTMLの代わりにtextContentを使用)
+                resultElement.textContent = ''; // 子要素を全て削除
+
+                // h3 要素を作成して追加
+                const heading = document.createElement('h3');
+                heading.textContent = `結果: ${winningSymbol}`;
+                resultElement.appendChild(heading);
+
+                // p 要素 (結果メッセージ) を作成して追加
+                const resultMessage = document.createElement('p');
+                resultMessage.classList.add(win ? 'win' : 'lose');
+                if (selectedOptionIndex !== null) {
+                    resultMessage.textContent = win
+                        ? `🎉 おめでとうございます！「${selectedSymbol}」が当たりました！`
+                        : `残念、「${selectedSymbol}」ははずれです。結果は「${winningSymbol}」でした。`;
+                } else {
+                    resultMessage.textContent = `結果は「${winningSymbol}」でした。`; // 絵柄未選択の場合
+                }
+                resultElement.appendChild(resultMessage);
+
+                // p 要素 (次のアクション) を作成して追加
+                const nextActionMessage = document.createElement('p');
+                if (selectedOptionIndex !== null) {
+                    nextActionMessage.textContent = win
+                        ? '素晴らしい運ですね！もう一度挑戦しますか？'
+                        : 'もう一度好きな絵柄を選んで挑戦してみましょう！';
+                } else {
+                    nextActionMessage.textContent = '好きな絵柄を選んで挑戦してみましょう！';
+                }
+                resultElement.appendChild(nextActionMessage);
+
+                // 結果を表示 (アニメーション)
+                resultElement.classList.add('show');
+
+                // 次のスピンに備える (状態リセット)
+                selectedOptionIndex = null;
+                updateAriaChecked(null); // 選択状態をリセット
+                // スピンボタンは選択されていないので無効のまま
+                spinButton.disabled = true;
+            }
+
+
+            // --- テーマ切り替え ---
+            function toggleTheme() {
+                const isDarkMode = document.body.classList.toggle('dark-mode');
+                themeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+                themeToggle.setAttribute('aria-label', isDarkMode ? 'ライトモードに切り替え' : 'ダークモードに切り替え');
+                try {
+                    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+                } catch (error) {
+                    console.warn("Failed to save theme to localStorage:", error);
+                }
+            }
+
+            function checkInitialTheme() {
+                let initialTheme = 'light'; // デフォルト
+                try {
+                    const savedTheme = localStorage.getItem('theme');
+                    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
+                } catch (error) {
+                    console.warn("Failed to access localStorage or matchMedia:", error);
+                    // localStorageアクセス不可でも動作継続
+                }
+
+                if (initialTheme === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    themeToggle.textContent = '☀️';
+                    themeToggle.setAttribute('aria-label', 'ライトモードに切り替え');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    themeToggle.textContent = '🌙';
+                    themeToggle.setAttribute('aria-label', 'ダークモードに切り替え');
+                }
+            }
+
+            // --- テスティモニアルスライダー ---
+            const testimonials = testimonialContainer.querySelectorAll('.testimonial');
+            const testimonialCount = testimonials.length;
+
+            function showNextTestimonial() {
+                if (isSliding || testimonialCount <= 1) return;
+                isSliding = true;
+                currentTestimonial = (currentTestimonial + 1) % testimonialCount;
+                updateTestimonialSlider();
+                setTimeout(() => { isSliding = false; }, TESTIMONIAL_SLIDE_DURATION);
+            }
+
+            function showPrevTestimonial() {
+                if (isSliding || testimonialCount <= 1) return;
+                isSliding = true;
+                currentTestimonial = (currentTestimonial - 1 + testimonialCount) % testimonialCount;
+                updateTestimonialSlider();
+                setTimeout(() => { isSliding = false; }, TESTIMONIAL_SLIDE_DURATION);
+            }
+
+            function updateTestimonialSlider(isInitial = false) {
+                const containerWidth = testimonialContainer.offsetWidth;
+                const offset = -currentTestimonial * containerWidth;
+                testimonialContainer.style.transition = isInitial ? 'none' : `transform ${TESTIMONIAL_SLIDE_DURATION}ms ease`;
+                testimonialContainer.style.transform = `translate3d(${offset}px, 0, 0)`;
+                prevTestimonialBtn.disabled = currentTestimonial === 0;
+                nextTestimonialBtn.disabled = currentTestimonial === testimonialCount - 1;
+            }
+
+
+            // --- FAQアコーディオン ---
+            function handleFaqClick(header) {
+                const item = header.parentElement;
+                const content = header.nextElementSibling;
+                const icon = header.querySelector('.accordion-icon');
+                const isOpening = !item.classList.contains('active');
+
+                item.classList.toggle('active');
+                header.setAttribute('aria-expanded', String(isOpening));
+                icon.textContent = isOpening ? '−' : '+';
+
+                if (isOpening) {
+                    openAccordionContent(content);
+                } else {
+                    closeAccordionContent(content);
+                }
+            }
+
+            function openAccordionContent(content) {
+                // 既存の実装は問題ないため変更なし
+                const contentInner = content.querySelector('.accordion-content-inner');
+                content.style.visibility = 'hidden';
+                content.style.maxHeight = 'none';
+                content.style.padding = '0 1.5rem';
+                const height = contentInner.offsetHeight +
+                    parseFloat(getComputedStyle(contentInner).paddingTop) +
+                    parseFloat(getComputedStyle(contentInner).paddingBottom);
+                content.style.maxHeight = '0px';
+                content.style.visibility = 'visible';
+                requestAnimationFrame(() => {
+                    content.style.maxHeight = `${height}px`;
+                    contentInner.style.padding = '1.5rem 0';
+                });
+                setTimeout(() => {
+                    if (content.parentElement.classList.contains('active')) {
+                        content.style.maxHeight = 'none';
+                    }
+                }, ACCORDION_ANIMATION_DURATION);
+            }
+
+            function closeAccordionContent(content) {
+                const contentInner = content.querySelector('.accordion-content-inner');
+                const height = content.scrollHeight;
+                content.style.maxHeight = `${height}px`;
+                contentInner.style.padding = '1.5rem 0';
+                requestAnimationFrame(() => {
+                    content.style.maxHeight = '0px';
+                    contentInner.style.padding = '0';
+                });
+                setTimeout(() => {
+                    if (!content.parentElement.classList.contains('active')) {
+                        content.style.visibility = 'hidden';
+                        content.style.padding = '0 1.5rem';
+                    }
+                }, ACCORDION_ANIMATION_DURATION);
+            }
+
+            // --- Admin Panel ---
+            function toggleAdminPanel() {
+                const isHidden = adminPanel.classList.toggle('hidden');
+                adminPanelToggleLink.setAttribute('aria-expanded', String(!isHidden));
+                if (!isHidden) {
+                    const firstInput = adminPanel.querySelector('input[type="number"], button');
+                    firstInput?.focus();
+                }
+            }
+
+            function initializeAdminPanel() {
+                weightControlsContainer.textContent = '';
+                const fragment = document.createDocumentFragment();
+                options.forEach((option, index) => {
+                    const controlDiv = document.createElement('div');
+                    controlDiv.classList.add('weight-control');
+                    const label = document.createElement('label');
+                    const inputId = `weight-${index}`;
+                    label.htmlFor = inputId;
+                    label.textContent = `${option} の確率重み: `;
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.id = inputId;
+                    input.min = '0';
+                    input.step = '0.1';
+                    input.value = optionWeights[index].toFixed(1);
+                    input.dataset.index = index;
+                    const probabilitySpan = document.createElement('span');
+                    probabilitySpan.classList.add('probability');
+                    label.appendChild(input);
+                    controlDiv.appendChild(label);
+                    controlDiv.appendChild(probabilitySpan);
+                    fragment.appendChild(controlDiv);
+                });
+                weightControlsContainer.appendChild(fragment);
+                updateProbabilityDisplays();
+            }
+
+            function handleWeightInputChange(event) {
+                const input = event.target;
+                if (input.type === 'number' && input.dataset.index != null) {
+                    const index = parseInt(input.dataset.index, 10);
+                    let newWeight = parseFloat(input.value);
+
+                    // 入力が空かチェックし、空なら0として扱う
+                    if (input.value === '') {
+                        newWeight = 0;
+                    }
+
+                    if (!isNaN(newWeight) && newWeight >= 0) {
+                        updateOptionWeight(index, newWeight);
+                        updateProbabilityDisplays();
+                    } else if (isNaN(newWeight)) {
+                        // 不正な数値入力 (例: "abc") の場合は元の値に戻す
+                        console.warn(`Invalid weight input: ${input.value}`);
+                        input.value = optionWeights[index].toFixed(1);
+                    }
+                    // newWeight < 0 は input[min=0] でブラウザが防ぐが、念のため else if を追加しても良い
+                }
+            }
+
+            function updateProbabilityDisplays() {
+                totalWeight = optionWeights.reduce((sum, weight) => sum + weight, 0);
+                options.forEach((_, index) => {
+                    const probabilitySpan = weightControlsContainer.querySelector(`#weight-${index}`)?.closest('.weight-control')?.querySelector('.probability');
+                    if (probabilitySpan) {
+                        probabilitySpan.textContent = `約 ${calculateProbability(index)}%`;
+                    }
+                });
+            }
+
+            function calculateProbability(index) {
+                if (totalWeight <= 0 || optionWeights[index] <= 0) return '0.0';
+                return ((optionWeights[index] / totalWeight) * 100).toFixed(1);
+            }
+
+            function saveWeightsToStorage() {
+                try {
+                    const validWeights = optionWeights.map(w => (typeof w === 'number' && w >= 0) ? w : DEFAULT_WEIGHT);
+                    localStorage.setItem(ADMIN_PANEL_STORAGE_KEY, JSON.stringify(validWeights));
+                } catch (error) {
+                    console.error("Failed to save weights to localStorage:", error);
+                    alert('設定の保存に失敗しました。localStorageが利用できないか、容量制限の可能性があります。');
+                }
+            }
+
+            function loadWeightsFromStorage() {
+                try {
+                    const savedWeights = localStorage.getItem(ADMIN_PANEL_STORAGE_KEY);
+                    if (savedWeights) {
+                        const parsedWeights = JSON.parse(savedWeights);
+                        if (Array.isArray(parsedWeights) &&
+                            parsedWeights.length === options.length &&
+                            parsedWeights.every(w => typeof w === 'number' && w >= 0)) {
+                            optionWeights = parsedWeights;
+                        } else {
+                            console.warn("Invalid weight data in localStorage. Using defaults.");
+                            resetWeightsInternal();
+                            localStorage.removeItem(ADMIN_PANEL_STORAGE_KEY);
+                        }
+                    } else {
+                        // 保存データがない場合はデフォルト値を使う（何もしない or resetWeightsInternal() を呼んでも良い）
+                        // resetWeightsInternal(); // 初回アクセス時にデフォルト値を確実に使う場合
+                    }
+                } catch (error) {
+                    console.error("Failed to load or parse weights from localStorage:", error);
+                    resetWeightsInternal();
+                    // 不正なデータが原因かもしれないので削除を試みる
+                    try {
+                        localStorage.removeItem(ADMIN_PANEL_STORAGE_KEY);
+                    } catch (removeError) {
+                        console.error("Failed to remove corrupted data from localStorage:", removeError);
+                    }
+                }
+                totalWeight = optionWeights.reduce((sum, weight) => sum + weight, 0);
+            }
+
+
+            function resetWeightsInternal() {
+                optionWeights = options.map(() => DEFAULT_WEIGHT);
+                totalWeight = optionWeights.reduce((sum, weight) => sum + weight, 0);
+            }
+
+            function resetWeights() {
+                if (confirm('確率設定をデフォルト値（全て均等）に戻しますか？保存されている設定は削除されます。')) {
+                    resetWeightsInternal();
+                    options.forEach((_, index) => {
+                        const input = document.getElementById(`weight-${index}`);
+                        if (input) input.value = DEFAULT_WEIGHT.toFixed(1);
+                    });
+                    updateProbabilityDisplays();
+                    try {
+                        localStorage.removeItem(ADMIN_PANEL_STORAGE_KEY);
+                        alert('設定がデフォルトにリセットされました。');
+                    } catch (error) {
+                        console.error("Failed to remove weights from localStorage during reset:", error);
+                        alert('設定のリセット中にローカルストレージからの削除に失敗しました。');
+                    }
+                }
+            }
+
+            // --- Intersection Observer ---
+            function setupIntersectionObserver() {
+                const observerCallback = (entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                };
+                const observer = new IntersectionObserver(observerCallback, INTERSECTION_OBSERVER_OPTIONS);
+                const targets = document.querySelectorAll('.target');
+                targets.forEach(target => observer.observe(target));
+            }
+
+            // --- 初期化実行 ---
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initialize);
+            } else {
+                initialize();
+            }
+
+        })(); // IIFE 終了
+    </script>
+</body>
+
+</html>
