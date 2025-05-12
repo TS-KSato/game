@@ -211,27 +211,31 @@ function onPointerMove(event){
 // 非同期初期化処理
 async function initializeGame() {
   // PixiJS v8 style initialization
-  app = new PIXI.Application();
+  app = new PIXI.Application(); // まずインスタンスを作成
 
   try {
-    await app.init({
-        width: 1, // 初期サイズはリサイズ時に調整
+    await app.init({ // 次に非同期で初期化
+        width: 1,
         height: 1,
-        backgroundAlpha: 0, // HTMLの背景を透過
+        backgroundAlpha: 0,
         antialias: true,
-        preference: 'webgl', // WebGLを優先
+        preference: 'webgl', // WebGLを優先、失敗時はCanvas 2Dフォールバックを試みる
         // autoStart: false, // Tickerを自分で管理する場合。デフォルトはtrue
     });
   } catch (e) {
-      STAGE_ELEMENT.textContent = 'Pixi Application の初期化に失敗しました (WebGL利用不可?): ' + e.message;
+      STAGE_ELEMENT.textContent = 'Pixi Application の初期化に失敗しました: ' + e.message;
       console.error('Error initializing PIXI.Application:', e);
+      // ここでエラーを再スローするか、フォールバック処理（例：CanvasRendererの使用を試みるなど）を行う
       throw e; // 初期化失敗時はここで処理を中断
   }
 
   // Renderer初期化チェック (app.initが成功すればrendererは存在するはず)
   if (!app.renderer) {
-    STAGE_ELEMENT.textContent = 'Pixi Renderer の初期化に失敗しました。';
-    console.error('Pixi Renderer initialization failed after app.init. PIXI object:', PIXI, 'App object:', app);
+    STAGE_ELEMENT.textContent = 'Pixi Renderer の初期化に失敗しました。WebGLが有効か、またはブラウザが対応しているか確認してください。';
+    console.error('Pixi Renderer initialization failed after app.init. App object:', app);
+    // PIXIオブジェクトとappオブジェクトのさらに詳細な情報をログに出力
+    console.log('PIXI details:', PIXI);
+    console.log('app.renderer details:', app.renderer); // これが undefined になっているはず
     throw new Error('Renderer init failed after app.init');
   }
 
