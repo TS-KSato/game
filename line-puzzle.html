@@ -6,6 +6,7 @@
 <title>Line Puzzle Pro WebGL</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet">
 <script src="pixi.min.js"></script>
+<script src="pixi.js"></script>
 <style>
 :root{
   --bg:#f4f7fb;
@@ -40,109 +41,254 @@ h1{margin:0;font-size:1rem;font-weight:700}
 </div>
 
 <script>
-const STAGE = document.getElementById('stage');
+// グローバル変数の宣言
+const STAGE_ELEMENT = document.getElementById('stage');
+let puzzles = [];
+let currentPuzzle = null;
+const tracedEdges = new Set();
+let currentPath = [];
+
+// PIXI Graphics Objects
+const gEdges = new PIXI.Graphics();
+const gNodes = new PIXI.Graphics();
+const gTestBounds = new PIXI.Graphics(); // 元の 'g' (テスト図形)
+
+// 定数
+const NODE_BASE_RADIUS = 20; // ノードの基本半径 (ピクセル単位)
+const NODE_HIT_RADIUS_SCALE_FACTOR = 1.2; // ノードの当たり判定半径のスケール係数
+const BASE_CANVAS_WIDTH_FOR_SCALING = 800; // ノードサイズスケーリングの基準となるキャンバス幅
+
+// CSSカラーのキャッシュ用オブジェクト
+let appColors = {
+    edge: 0x7b93ad,
+    edgeOn: 0x43a4ff,
+    node: 0x43a4ff,
+    accent: 0xffbf3c,
+};
+
+// Pixi Application 初期化
 const app = new PIXI.Application({
-  width: 1,
+  width: 1, // 初期サイズはリサイズ時に調整
   height: 1,
-  backgroundAlpha: 0,
+  backgroundAlpha: 0, // HTMLの背景を透過
   antialias: true,
-  preferEnvironment: 'auto'
+  // preferEnvironment: 'auto' // デフォルトでauto。明示も可
 });
+
+// Renderer初期化チェック
 if (!app.renderer) {
-  STAGE.textContent = 'Pixi Renderer 初期化失敗（WebGL 無効？）';
+  STAGE_ELEMENT.textContent = 'Pixi Renderer の初期化に失敗しました。お使いのブラウザがWebGLまたはCanvas 2Dをサポートしているか、またはPixiJSライブラリが正しく読み込まれているか確認してください。';
+  console.error('Pixi Renderer initialization failed. PIXI object:', PIXI);
   throw new Error('Renderer init failed');
 }
 
-// 3. view (= v8 の app.canvas) を DOM に追加
-STAGE.appendChild(app.canvas);
+// PixiJSのバージョンに応じて app.canvas または app.view を使用
+// v8以降は app.canvas, v7以前は app.view
+// ここでは、元のコードのコメントに基づき v8以降を想定し app.canvas を使用
+STAGE_ELEMENT.appendChild(app.canvas || app.view);
+
+
+// CSSから色を読み込んでキャッシュする関数
+function cacheCssColors() {
+  const styles = getComputedStyle(document.documentElement);
+  appColors.edge = PIXI.utils.string2hex(styles.getPropertyValue('--edge'));
+  appColors.edgeOn = PIXI.utils.string2hex(styles.getPropertyValue('--edge-on'));
+  appColors.node = PIXI.utils.string2hex(styles.getPropertyValue('--node'));
+  appColors.accent = PIXI.utils.string2hex(styles.getPropertyValue('--accent'));
+}
 
 /* ========== 正方形リサイズ ========== */
 function resizeSquare() {
-  const s = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
+  const s = Math.max(1, Math.min(STAGE_ELEMENT.clientWidth, STAGE_ELEMENT.clientHeight));
   app.renderer.resize(s, s);
-}
-window.addEventListener('resize', resizeSquare);
-resizeSquare();
-
-/* ========== テスト図形 (青枠) ========== */
-const g = new PIXI.Graphics();
-app.stage.addChild(g);
-g.lineStyle({ width: 6, color: 0x3498db, cap: 'round' })
- .drawPolygon([20,20 , 280,20 , 280,280 , 20,280 , 20,20]);
-/* ------------ JSON 読込 ------------ */
-fetch('contents.json')
-  .then(r=>r.json())
-  .then(d=>{puzzles=d.puzzles;load(1);layout();});
-
-/* ------------ ロード & リセット ------------ */
-function load(level){
-  cur = puzzles.find(p=>p.difficulty==level);
-  traced.clear(); path.length=0; draw();
+  // リサイズ後に再描画
+  if (currentPuzzle) {
+    draw();
+  }
 }
 
 /* ------------ 描画 ------------ */
 function draw(){
-  if(!cur) return;
-  const W = app.renderer.width, H = app.renderer.height;
-  const rNode = R_NODE_BASE * (W/800);   // 画面幅に比例してノード半径可変
+  if(!currentPuzzle) return;
+
+  const W = app.renderer.width;
+  const H = app.renderer.height; // 正方形なのでWと同じはず
+  const nodeRadius = NODE_BASE_RADIUS * (W / BASE_CANVAS_WIDTH_FOR_SCALING);
 
   gEdges.clear();
   gNodes.clear();
 
   /* edges */
-  gEdges.lineStyle({width:rNode*0.55, color:PIXI.utils.string2hex(getComputedStyle(document.documentElement).getPropertyValue('--edge')), cap:'round'});
-  cur.edges.forEach((e,i)=>{
-    const A=cur.nodes[e.from], B=cur.nodes[e.to];
-    gEdges.moveTo(A.x*W, A.y*H).lineTo(B.x*W, B.y*H);
+  gEdges.lineStyle({width: nodeRadius * 0.55, color: appColors.edge, cap: 'round'});
+  currentPuzzle.edges.forEach((edge) => {
+    const nodeA = currentPuzzle.nodes[edge.from];
+    const nodeB = currentPuzzle.nodes[edge.to];
+    gEdges.moveTo(nodeA.x * W, nodeA.y * H).lineTo(nodeB.x * W, nodeB.y * H);
   });
+
   /* traced highlight 上書き */
-  gEdges.lineStyle({width:rNode*0.7, color:PIXI.utils.string2hex(getComputedStyle(document.documentElement).getPropertyValue('--edge-on')), cap:'round'});
-  traced.forEach(i=>{
-    const e=cur.edges[i], A=cur.nodes[e.from], B=cur.nodes[e.to];
-    gEdges.moveTo(A.x*W, A.y*H).lineTo(B.x*W, B.y*H);
+  gEdges.lineStyle({width: nodeRadius * 0.7, color: appColors.edgeOn, cap: 'round'});
+  tracedEdges.forEach(edgeIndex => {
+    const edge = currentPuzzle.edges[edgeIndex];
+    const nodeA = currentPuzzle.nodes[edge.from];
+    const nodeB = currentPuzzle.nodes[edge.to];
+    gEdges.moveTo(nodeA.x * W, nodeA.y * H).lineTo(nodeB.x * W, nodeB.y * H);
   });
 
   /* nodes */
-  cur.nodes.forEach((n,idx)=>{
-    const c = (path[path.length-1]===idx) ? PIXI.utils.string2hex(getComputedStyle(document.documentElement).getPropertyValue('--accent')) :
-                                            PIXI.utils.string2hex(getComputedStyle(document.documentElement).getPropertyValue('--node'));
-    gNodes.beginFill(c).drawCircle(n.x*W, n.y*H, rNode).endFill();
+  currentPuzzle.nodes.forEach((n, idx) => {
+    const color = (currentPath.length > 0 && currentPath[currentPath.length - 1] === idx) ? appColors.accent : appColors.node;
+    gNodes.beginFill(color).drawCircle(n.x * W, n.y * H, nodeRadius).endFill();
   });
 }
 
-/* ------------ 入力 (pointer) ------------ */
-app.stage.eventMode='static';
-app.stage.on('pointerdown',onDown).on('pointermove',onMove);
-function toIdx(px,py){
-  const W=app.renderer.width,H=app.renderer.height;
-  return cur.nodes.findIndex(n=>Math.hypot(n.x*W-px,n.y*H-py)<=R_NODE_BASE*1.2*(W/800));
-}
-function edgeIdx(a,b){
-  return cur.edges.findIndex(e=> (e.from===a&&e.to===b)||(e.from===b&&e.to===a));
-}
-function connect(a,b){
-  const idx=edgeIdx(a,b);
-  if(idx===-1||traced.has(idx)) return false;
-  traced.add(idx); path.push(b);
-  draw(); return true;
-}
-function onDown(e){
-  const p=e.data.global, i=toIdx(p.x,p.y);
-  if(i!==-1){path=[i];draw();}
-}
-function onMove(e){
-  if(!path.length) return;
-  const p=e.data.global, i=toIdx(p.x,p.y);
-  if(i!==-1 && i!==path[path.length-1]) connect(path[path.length-1],i);
+/* ========== テスト図形 (青枠) ========== */
+function drawTestBounds() {
+  gTestBounds.clear();
+  gTestBounds.lineStyle({ width: 6, color: 0x3498db, cap: 'round' })
+   .drawPolygon([20,20 , app.renderer.width-20,20 , app.renderer.width-20,app.renderer.height-20 , 20,app.renderer.height-20 , 20,20]);
 }
 
-/* ------------ UI ボタン ------------ */
-document.getElementById('resetBtn').onclick=()=>load(cur.difficulty);
-document.getElementById('hintBtn').onclick=()=>{
-  const idx=cur.edges.findIndex((_,i)=>!traced.has(i));
-  if(idx===-1) return;
-  const {from}=cur.edges[idx]; path=[from]; draw();
-};
+
+/* ------------ ロード & リセット ------------ */
+function loadPuzzle(level){
+  const puzzleData = puzzles.find(p => p.difficulty == level);
+  if (!puzzleData) {
+    console.error(`Puzzle for level ${level} not found.`);
+    return;
+  }
+  currentPuzzle = puzzleData;
+  tracedEdges.clear();
+  currentPath.length = 0;
+  draw();
+}
+
+/* ------------ 入力 (pointer) イベントハンドラ ------------ */
+function getTouchedNodeIndex(pointerX, pointerY){
+  if (!currentPuzzle) return -1;
+  const W = app.renderer.width;
+  const H = app.renderer.height;
+  const nodeRadius = NODE_BASE_RADIUS * (W / BASE_CANVAS_WIDTH_FOR_SCALING);
+  const hitRadius = nodeRadius * NODE_HIT_RADIUS_SCALE_FACTOR;
+
+  return currentPuzzle.nodes.findIndex(node =>
+    Math.hypot(node.x * W - pointerX, node.y * H - pointerY) <= hitRadius
+  );
+}
+
+function getEdgeIndex(nodeAIndex, nodeBIndex){
+  if (!currentPuzzle) return -1;
+  return currentPuzzle.edges.findIndex(edge =>
+    (edge.from === nodeAIndex && edge.to === nodeBIndex) ||
+    (edge.from === nodeBIndex && edge.to === nodeAIndex)
+  );
+}
+
+function connectNodes(nodeAIndex, nodeBIndex){
+  const edgeIndex = getEdgeIndex(nodeAIndex, nodeBIndex);
+  if(edgeIndex === -1 || tracedEdges.has(edgeIndex)) return false;
+
+  tracedEdges.add(edgeIndex);
+  currentPath.push(nodeBIndex);
+  draw();
+  return true;
+}
+
+function onPointerDown(event){
+  if (!currentPuzzle) return;
+  const localPos = event.data.getLocalPosition(app.stage);
+  const touchedNodeIdx = getTouchedNodeIndex(localPos.x, localPos.y);
+
+  if(touchedNodeIdx !== -1){
+    currentPath = [touchedNodeIdx]; // パスをリセットして開始
+    tracedEdges.clear(); // 既存のトレースもリセット（ゲームの仕様による）
+    draw();
+  }
+}
+
+function onPointerMove(event){
+  if (!currentPuzzle || currentPath.length === 0) return; // パスが開始されていなければ何もしない
+
+  const localPos = event.data.getLocalPosition(app.stage);
+  const touchedNodeIdx = getTouchedNodeIndex(localPos.x, localPos.y);
+  const lastNodeInPath = currentPath[currentPath.length - 1];
+
+  if(touchedNodeIdx !== -1 && touchedNodeIdx !== lastNodeInPath) {
+    connectNodes(lastNodeInPath, touchedNodeIdx);
+  }
+}
+
+// 初期化処理
+function initializeGame() {
+  // PIXI Graphicsオブジェクトをステージに追加
+  app.stage.addChild(gEdges);
+  app.stage.addChild(gNodes);
+  app.stage.addChild(gTestBounds); // テスト図形も追加
+
+  cacheCssColors(); // CSS カラーをキャッシュ
+
+  window.addEventListener('resize', resizeSquare);
+  resizeSquare(); // 初期リサイズ実行
+
+  // 入力イベントリスナーを設定
+  app.stage.eventMode = 'static'; // PixiJS v7+
+  app.stage.interactive = true; // 古いバージョンや互換性のため
+  app.stage.on('pointerdown', onPointerDown);
+  app.stage.on('pointermove', onPointerMove);
+  // Pointerup でパスをクリアするなどのロジックが必要な場合、ここに追加
+  // app.stage.on('pointerup', onPointerUp);
+  // app.stage.on('pointerupoutside', onPointerUp);
+
+  // JSONデータ読み込み
+  fetch('contents.json')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      puzzles = data.puzzles;
+      if (puzzles && puzzles.length > 0) {
+        loadPuzzle(1); // 最初のレベルをロード
+        // drawTestBounds(); // テスト境界線を描画
+      } else {
+        console.error("No puzzles found in contents.json or data is malformed.");
+        STAGE_ELEMENT.textContent = 'パズルデータの読み込みに失敗しました。';
+      }
+    })
+    .catch(error => {
+      console.error('Failed to load contents.json:', error);
+      STAGE_ELEMENT.textContent = `エラー: ${error.message}`;
+    });
+
+  // UIボタンのイベントリスナー
+  document.getElementById('resetBtn').onclick = () => {
+    if (currentPuzzle) {
+      loadPuzzle(currentPuzzle.difficulty);
+    }
+  };
+
+  document.getElementById('hintBtn').onclick = () => {
+    if (!currentPuzzle) return;
+    // まだトレースされていないエッジを一つ見つける
+    const unsolvedEdgeIndex = currentPuzzle.edges.findIndex((edge, i) => !tracedEdges.has(i));
+
+    if(unsolvedEdgeIndex === -1) return; // 全て解決済み
+
+    const hintEdge = currentPuzzle.edges[unsolvedEdgeIndex];
+    // ヒントとして、そのエッジの始点をパスの開始点とする
+    // (より高度なヒントロジックも可能)
+    currentPath = [hintEdge.from];
+    tracedEdges.clear(); // ヒント開始時に既存トレースをクリアするかは仕様による
+    // tracedEdges.add(unsolvedEdgeIndex); // ヒントで示したエッジをトレース済みにする場合
+    draw();
+  };
+}
+
+// ゲーム初期化を実行
+initializeGame();
+
 </script>
 </body>
 </html>
