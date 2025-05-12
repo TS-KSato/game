@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Line Puzzle Pro WebGL</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet">
-<script src="pixi.js"></script>
+<script src="pixi.min.js"></script>
 <style>
 :root{
   --bg:#f4f7fb;
@@ -16,17 +16,17 @@
   --radius:14px;
   font-family:"Inter",system-ui,sans-serif;
 }
-html,body{height:100%;margin:0;background:var(--bg);color:#1e293b}
+html,body{margin:0;height:100%;display:flex;flex-direction:column;font-family:sans-serif}
+#stage{flex:1;display:flex;justify-content:center;align-items:center;overflow:hidden;background:#f4f7fb}
+canvas{touch-action:none}
 #wrap{display:flex;flex-direction:column;height:100%}
 header{display:flex;justify-content:center;align-items:center;height:56px;
   backdrop-filter:blur(8px);background:rgba(255,255,255,.8);box-shadow:0 4px 12px rgba(0,0,0,.1)}
 h1{margin:0;font-size:1rem;font-weight:700}
-#stage{flex:1;display:flex;justify-content:center;align-items:center;overflow:hidden}
 #ui{display:flex;gap:.6rem;padding:10px;background:rgba(255,255,255,.8);backdrop-filter:blur(8px)}
 #ui button{flex:1;border:none;padding:12px 0;border-radius:var(--radius);font-weight:700;
   background:#fff;box-shadow:0 4px 8px rgba(0,0,0,.1);cursor:pointer}
 #ui button:active{transform:scale(.96)}
-canvas{touch-action:none}
 </style>
 </head>
 <body>
@@ -40,59 +40,35 @@ canvas{touch-action:none}
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const STAGE = document.getElementById('stage');        // 正方形枠の親要素
-
-  /* 2) 非同期で Application を生成  */
-  let app;
-  try {
-    app = await PIXI.Application.create({
-      backgroundAlpha: 0,
-      antialias: true,
-      // WebGL → Canvas2D 自動フォールバック
-      preferEnvironment: 'auto'
-    });
-  } catch (e) {
-    STAGE.textContent = 'Pixi Renderer の初期化に失敗しました';
-    console.error(e);
-    return;
-  }
-
-  /* 3) view を DOM に追加してからリサイズ */
-  STAGE.appendChild(app.canvas);                 // v8 は .canvas です
-  resizeSquare();
-  window.addEventListener('resize', resizeSquare);
-
-  function resizeSquare() {
-    const s = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
-    app.renderer.resize(s, s);
-  }
-
-  /* ---------------- 以下、ゲーム描画 ---------------- */
-  const edges = new PIXI.Graphics();
-  const nodes = new PIXI.Graphics();
-  app.stage.addChild(edges, nodes);
-
-  /* …puzzles.json を fetch → draw() など… */
+const STAGE = document.getElementById('stage');
+const app = new PIXI.Application({
+  width: 1,
+  height: 1,
+  backgroundAlpha: 0,
+  antialias: true,
+  preferEnvironment: 'auto'
 });
-/* ------------ レンダリング用コンテナ ------------ */
-const gEdges = new PIXI.Graphics();
-const gNodes = new PIXI.Graphics();
-app.stage.addChild(gEdges, gNodes);
+if (!app.renderer) {
+  STAGE.textContent = 'Pixi Renderer 初期化失敗（WebGL 無効？）';
+  throw new Error('Renderer init failed');
+}
 
-/* ------------ 状態変数 ------------ */
-let puzzles=[], cur=null, traced=new Set(), path=[];
-const R_NODE_BASE = 22;          // 基準ノード半径 (px)
+// 3. view (= v8 の app.canvas) を DOM に追加
+STAGE.appendChild(app.canvas);
 
-/* ------------ 正方形フィッティング ------------ */
-function layout(){
-   const S = Math.min(STAGE.clientWidth, STAGE.clientHeight) || 1; /* ← 0 を回避 */
-   app.renderer.resize(S, S);
-   draw();
- }
+/* ========== 正方形リサイズ ========== */
+function resizeSquare() {
+  const s = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
+  app.renderer.resize(s, s);
+}
+window.addEventListener('resize', resizeSquare);
+resizeSquare();
 
-window.addEventListener('resize',layout);
-
+/* ========== テスト図形 (青枠) ========== */
+const g = new PIXI.Graphics();
+app.stage.addChild(g);
+g.lineStyle({ width: 6, color: 0x3498db, cap: 'round' })
+ .drawPolygon([20,20 , 280,20 , 280,280 , 20,280 , 20,20]);
 /* ------------ JSON 読込 ------------ */
 fetch('contents.json')
   .then(r=>r.json())
