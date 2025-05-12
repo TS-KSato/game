@@ -49,6 +49,14 @@ main{display:flex; flex-direction:column; height:calc(100% - 3.5rem);}/* header+
 .node{fill:var(--node);}
 .edge{stroke:var(--edge-untraced);stroke-width:10;stroke-linecap:round;}
 .edge.traced{stroke:var(--edge-traced);stroke-width:15;}
+  #startOverlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.7);
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  color:#fff; text-align:center; z-index:1000;
+}
+#startOverlay .inner{ animation:fadeIn 0.8s ease-out; }
+@keyframes fadeIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
 </style>
 </head>
 
@@ -69,7 +77,12 @@ main{display:flex; flex-direction:column; height:calc(100% - 3.5rem);}/* header+
     <button id="toggleTimerBtn" aria-pressed="true" aria-label="タイマーをオフにする">Timer On</button>
   </div>
 </main>
-
+<div id="startOverlay" role="dialog" aria-modal="true">
+    <div class="inner">
+      <h2>Line Puzzle Game</h2>
+      <p>タップしてスタート</p>
+    </div>
+  </div>
 <!-- ===== JavaScript (ES6+) ===== -->
 <script>
 /* ---------- グローバル ---------- */
@@ -238,6 +251,33 @@ function createLiveRegion(){
   return el;
 }
 const announce=msg=>announcer.textContent=msg;
+let gameStarted = false;
+
+/* ▼ pointer + 予備で touch/click */
+['pointerdown','touchstart','click'].forEach(evt=>{
+  canvas.addEventListener(evt, e=>{
+    if(!gameStarted) return;              // スタート前は無視
+    const x = (e.touches?.[0]?.clientX) ?? e.clientX;
+    const y = (e.touches?.[0]?.clientY) ?? e.clientY;
+    handleTap(x,y);
+  }, {passive:true});
+});
+
+/* ▼ スタートオーバーレイをタップしたらゲーム開始 */
+document.getElementById('startOverlay').addEventListener('pointerdown', ()=>{
+  document.getElementById('startOverlay').style.display='none';
+  gameStarted = true;
+  resetState();          // ここで初めてタイマーが動き出す
+});
+
+/* ▼ 初期ロード時は resetState() を呼ばないように変更 */
+function loadPuzzleByDifficulty(level){
+  const list = puzzles.filter(p=>p.difficulty==level);
+  if(!list.length){alert('その難易度は未登録です');return;}
+  currentPuzzle = list[0];
+  render();              // まず描画だけ
+  if(gameStarted) resetState();   // 既にゲーム中ならリセット
+}
 </script>
 </body>
 </html>
