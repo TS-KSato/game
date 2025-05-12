@@ -42,8 +42,15 @@ canvas{touch-action:none}
 <script>
 /* ------------ Pixi アプリ初期化 ------------ */
 const STAGE = document.getElementById('stage');
-const app = new PIXI.Application({resizeTo: STAGE, antialias:true, backgroundAlpha:0});
+const app = new PIXI.Application({
+width: 1, height: 1,
+antialias: true,
+backgroundAlpha: 0,
+powerPreference: 'high-performance',
+preferEnvironment: 'pixi' // WebGL 不可なら自動で Canvas2D にフォールバック
+});
 STAGE.appendChild(app.view);
+layout();
 
 /* ------------ レンダリング用コンテナ ------------ */
 const gEdges = new PIXI.Graphics();
@@ -56,10 +63,11 @@ const R_NODE_BASE = 22;          // 基準ノード半径 (px)
 
 /* ------------ 正方形フィッティング ------------ */
 function layout(){
-  const S = Math.min(STAGE.clientWidth, STAGE.clientHeight);
-  app.renderer.resize(S, S);
-  draw();
-}
+   const S = Math.min(STAGE.clientWidth, STAGE.clientHeight) || 1; /* ← 0 を回避 */
+   app.renderer.resize(S, S);
+   draw();
+ }
+
 window.addEventListener('resize',layout);
 
 /* ------------ JSON 読込 ------------ */
