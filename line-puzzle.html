@@ -40,36 +40,37 @@ canvas{touch-action:none}
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', init);
+const STAGE = document.getElementById('stage');
 
-function init() {
-  const STAGE = document.getElementById('stage');
-  const app = new PIXI.Application({
+  /* グローバル window.app に保存 → どこからでも参照可 */
+  window.app = new PIXI.Application({
     width: 1,
     height: 1,
     backgroundAlpha: 0,
     antialias: true,
-    preferEnvironment: 'auto'
+    preferEnvironment: 'auto'   // WebGL が無効でも自動で Canvas2D へ
   });
-if (!app.renderer) {
+
+  /* renderer が失敗したらエラー表示して return */
+  if (!app.renderer) {
     STAGE.textContent = 'Pixi Renderer の初期化に失敗しました（WebGL 無効？）';
-    return;
+    throw new Error('Renderer init failed');
   }
 
   STAGE.appendChild(app.view);
+
+  /* 正方形フィット */
   function layout() {
-    const size = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
-    app.renderer.resize(size, size);
-    draw();
+    const s = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
+    app.renderer.resize(s, s);
   }
   window.addEventListener('resize', layout);
-  layout(); 
-const gEdges = new PIXI.Graphics();
-  const gNodes = new PIXI.Graphics();
-  app.stage.addChild(gEdges, gNodes);
+  layout();
 
-  function draw() { /* …図形描画ロジック… */ }
-}
+  /* ====== ここから line-puzzle の描画ロジック ====== */
+  const g = new PIXI.Graphics();
+  app.stage.addChild(g);
+  g.lineStyle({width:8,color:0x43a4ff}).drawPolygon([50,50,350,50,350,350,50,350,50,50]);
 /* ------------ レンダリング用コンテナ ------------ */
 const gEdges = new PIXI.Graphics();
 const gNodes = new PIXI.Graphics();
