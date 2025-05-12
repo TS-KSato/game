@@ -1,141 +1,178 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Line Puzzle</title>
-<script src="pixi.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Line Puzzle Pro – Stable</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.9.2/pixi.min.js"
+        onerror="this.onerror=null;this.src='pixi.js'"></script>
+
 <style>
+:root{--node:#43a4ff;--edge:#7b93ad;--edge-on:#43a4ff;--accent:#ffbf3c}
 html,body{margin:0;height:100%;display:flex;flex-direction:column;background:#f4f7fb;font-family:sans-serif}
 header{height:56px;display:flex;justify-content:center;align-items:center;
-       background:rgba(255,255,255,.8);backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,.12)}
-h1{margin:0;font-size:1rem;font-weight:700}
-#stage{flex:1;display:flex;justify-content:center;align-items:center;overflow:hidden}
-#ui{display:flex;gap:.6rem;padding:10px;background:rgba(255,255,255,.8);backdrop-filter:blur(8px)}
-#ui button{flex:1;border:none;padding:12px 0;border-radius:14px;background:#fff;font-weight:700;box-shadow:0 4px 8px rgba(0,0,0,.1);cursor:pointer}
+       background:rgba(255,255,255,.85);backdrop-filter:blur(8px);box-shadow:0 4px 10px #0002}
+h1{margin:0;font-size:16px;font-weight:700}
+#stage{flex:1;display:flex;justify-content:center;align-items:center;overflow:hidden;position:relative}
+#ui{display:flex;gap:.6rem;padding:10px;background:rgba(255,255,255,.85);backdrop-filter:blur(8px)}
+#ui button{flex:1;border:none;padding:12px 0;border-radius:14px;background:#fff;font-weight:700;box-shadow:0 3px 6px #0002;cursor:pointer}
 #ui button:active{transform:scale(.96)}
-canvas{touch-action:none}
+#loader,#error{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;
+               font-size:18px;background:#fff8}
 </style>
 </head>
 <body>
-
 <header><h1>Line Puzzle Pro</h1></header>
-<div id="stage"></div>
+
+<div id="stage">
+  <div id="loader">Loading…</div>
+  <div id="error" style="display:none;color:#c00"></div>
+</div>
+
 <div id="ui">
   <button id="resetBtn">Reset</button>
   <button id="hintBtn">Hint</button>
 </div>
 
 <script>
-/* ===== DOM が組み上がってから実行 ===== */
-document.addEventListener('DOMContentLoaded', async () => {
+(async () => {
   const STAGE = document.getElementById('stage');
+  const loaderEl = document.getElementById('loader');
+  const errorEl  = document.getElementById('error');
 
-  /* --- 1. Pixi Application を同期生成し、ここで init() を await --- */
-  const app = new PIXI.Application();
-  await app.init({
-    width: 1,
-    height: 1,
-    backgroundAlpha: 0,
-    antialias: true,
-    preferEnvironment: 'auto'   // WebGL ⇒ Canvas2D 自動フォールバック
-  });
-
-  /* --- 2. renderer が確実に存在するので view(canvas) を DOM へ --- */
-  STAGE.appendChild(app.canvas);
-
-  /* --- 3. 正方形フィット --- */
-  function resizeSquare(){
-    const size = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
-    app.renderer.resize(size, size);
-    redraw();
+  /* ---------- 安全に Pixi Application を初期化 ---------- */
+  let app;
+  try {
+    app = new PIXI.Application();
+    await app.init({
+      width: 1, height: 1,
+      backgroundAlpha: 0,
+      antialias: true,
+      preferEnvironment: 'auto'
+    });
+    STAGE.appendChild(app.canvas);
+  } catch (e) {
+    loaderEl.style.display='none';
+    errorEl.textContent='Pixi 初期化失敗: ' + e.message;
+    errorEl.style.display='flex';
+    console.error(e);
+    return;
   }
-  window.addEventListener('resize', resizeSquare);
-  resizeSquare();
+
+  /* ---------- データをロード ---------- */
+  let puzzles;
+  try {
+    puzzles = (await (await fetch('contents.json')).json()).puzzles;
+  } catch (e) {
+    loaderEl.style.display='none';
+    errorEl.textContent='puzzles 読込失敗';
+    errorEl.style.display='flex';
+    console.error(e);
+    return;
+  }
+
+  /* ---------- GameState クラス ---------- */
+  class GameState {
+    cur     = null;
+    traced  = new Set();
+    path    = [];
+    needRedraw = true;
+
+    loadLevel(level){
+      this.cur = puzzles.find(p=>p.difficulty===level);
+      this.traced.clear();
+      this.path.length = 0;
+      this.invalidate();
+    }
+    invalidate(){ this.needRedraw = true; }
+  }
+  const state = new GameState();
+  state.loadLevel(1);
 
   /* ---------- Graphics レイヤ ---------- */
   const gEdges = new PIXI.Graphics();
   const gNodes = new PIXI.Graphics();
   app.stage.addChild(gEdges, gNodes);
 
-  /* ---------- パズル読み込み ---------- */
-  let puzzles=[], cur=null, traced=new Set(), path=[];
-  fetch('contents.json')
-    .then(r=>r.json())
-    .then(data=>{puzzles=data.puzzles; loadLevel(1);});
-
-  function loadLevel(level){
-    cur = puzzles.find(p=>p.difficulty == level);
-    traced.clear(); path.length = 0;
-    redraw();
+  /* ---------- 正方形レイアウト ---------- */
+  function resizeCanvas(){
+    const s = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
+    app.renderer.resize(s, s);
+    state.invalidate();
   }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
 
-  /* ---------- 描画 ---------- */
+  /* ---------- ユーティリティ ---------- */
   const R_BASE = 22;
-  function redraw(){
-    if(!cur) return;
-    const W = app.renderer.width,
-          H = app.renderer.height,
-          r = R_BASE * (W / 800);      // 基準800pxからスケール
-
-    gEdges.clear(); gNodes.clear();
-
-    // 全エッジ (未トレース)
-    gEdges.lineStyle({width:r*0.55, color:0x7b93ad, cap:'round'});
-    cur.edges.forEach(e=>{
-      const a=cur.nodes[e.from], b=cur.nodes[e.to];
-      gEdges.moveTo(a.x*W, a.y*H).lineTo(b.x*W, b.y*H);
-    });
-
-    // トレース済みエッジ
-    gEdges.lineStyle({width:r*0.7, color:0x43a4ff, cap:'round'});
-    traced.forEach(i=>{
-      const e=cur.edges[i], a=cur.nodes[e.from], b=cur.nodes[e.to];
-      gEdges.moveTo(a.x*W, a.y*H).lineTo(b.x*W, b.y*H);
-    });
-
-    // ノード
-    cur.nodes.forEach((n,i)=>{
-      const col = (path[path.length-1]===i)?0xffbf3c:0x43a4ff;
-      gNodes.beginFill(col).drawCircle(n.x*W, n.y*H, r).endFill();
-    });
+  function nodeHit(px,py){
+    const {width:W,height:H}=app.renderer;
+    const r = R_BASE*1.2*(W/800);
+    return state.cur.nodes.findIndex(n=>Math.hypot(n.x*W-px,n.y*H-py)<=r);
   }
+  const edgeIndex = (a,b)=>
+    state.cur.edges.findIndex(e=>(e.from===a&&e.to===b)||(e.from===b&&e.to===a));
 
-  /* ---------- 当たり判定 ---------- */
-  function nodeAt(px,py){
-    const W=app.renderer.width,H=app.renderer.height;
-    const r=R_BASE * 1.2 * (W/800);
-    return cur.nodes.findIndex(n=>Math.hypot(n.x*W-px,n.y*H-py)<=r);
-  }
-  function edgeIdx(a,b){
-    return cur.edges.findIndex(e=>(e.from===a&&e.to===b)||(e.from===b&&e.to===a));
-  }
-
-  /* ---------- ポインタイベント ---------- */
+  /* ---------- 入力 ---------- */
   app.stage.eventMode='static';
   app.stage.on('pointerdown',e=>{
-    const {x,y}=e.global, idx=nodeAt(x,y);
-    if(idx!==-1){ path=[idx]; redraw(); }
+    const {x,y}=e.global, idx=nodeHit(x,y);
+    if(idx!==-1){ state.path=[idx]; state.invalidate(); }
   });
   app.stage.on('pointermove',e=>{
-    if(!path.length) return;
-    const {x,y}=e.global, idx=nodeAt(x,y);
-    if(idx!==-1 && idx!==path[path.length-1]){
-      const id=edgeIdx(path[path.length-1], idx);
-      if(id!==-1 && !traced.has(id)){
-        traced.add(id); path.push(idx); redraw();
+    if(!state.path.length) return;
+    const {x,y}=e.global, idx=nodeHit(x,y);
+    if(idx!==-1 && idx!==state.path[state.path.length-1]){
+      const id = edgeIndex(state.path[state.path.length-1], idx);
+      if(id!==-1 && !state.traced.has(id)){
+        state.traced.add(id);
+        state.path.push(idx);
+        state.invalidate();
       }
     }
   });
 
-  /* ---------- UIボタン ---------- */
-  document.getElementById('resetBtn').onclick=()=>{ traced.clear(); path.length=0; redraw(); };
-  document.getElementById('hintBtn').onclick=()=>{
-    const id=cur.edges.findIndex((_,i)=>!traced.has(i));
-    if(id===-1) return;
-    path=[cur.edges[id].from]; redraw();
+  /* ---------- 再描画 (ticker で 1 フレーム 1 回) ---------- */
+  app.ticker.add(()=>{
+    if(!state.needRedraw) return;
+    state.needRedraw=false;
+    const {width:W,height:H}=app.renderer;
+    const r = R_BASE*(W/800);
+
+    gEdges.clear(); gNodes.clear();
+
+    /* 未トレースエッジ */
+    gEdges.lineStyle({width:r*0.5,color:0x7b93ad,cap:'round'});
+    state.cur.edges.forEach(e=>{
+      const a=state.cur.nodes[e.from], b=state.cur.nodes[e.to];
+      gEdges.moveTo(a.x*W,a.y*H).lineTo(b.x*W,b.y*H);
+    });
+    /* トレース済み */
+    gEdges.lineStyle({width:r*0.65,color:0x43a4ff,cap:'round'});
+    state.traced.forEach(i=>{
+      const e=state.cur.edges[i], a=state.cur.nodes[e.from], b=state.cur.nodes[e.to];
+      gEdges.moveTo(a.x*W,a.y*H).lineTo(b.x*W,b.y*H);
+    });
+    /* ノード */
+    state.cur.nodes.forEach((n,i)=>{
+      const col = (state.path[state.path.length-1]===i)?0xffbf3c:0x43a4ff;
+      gNodes.beginFill(col).drawCircle(n.x*W,n.y*H,r).endFill();
+    });
+  });
+
+  /* ---------- UI ボタン ---------- */
+  document.getElementById('resetBtn').onclick=()=>{
+    state.traced.clear(); state.path.length=0; state.invalidate();
   };
-});
+  document.getElementById('hintBtn').onclick=()=>{
+    const id=state.cur.edges.findIndex((_,i)=>!state.traced.has(i));
+    if(id!==-1){ state.path=[state.cur.edges[id].from]; state.invalidate(); }
+  };
+
+  /* ---------- ローダーを隠す ---------- */
+  loaderEl.style.display='none';
+})();
 </script>
 </body>
 </html>
