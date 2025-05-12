@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Line Puzzle Pro WebGL</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/pixi.js@8.9.2/dist/pixi.min.js"></script>
+<script src="pixi.js"></script>
 <style>
 :root{
   --bg:#f4f7fb;
@@ -40,37 +40,41 @@ canvas{touch-action:none}
 </div>
 
 <script>
-const STAGE = document.getElementById('stage');
+document.addEventListener('DOMContentLoaded', async () => {
+  const STAGE = document.getElementById('stage');        // 正方形枠の親要素
 
-  /* グローバル window.app に保存 → どこからでも参照可 */
-  window.app = new PIXI.Application({
-    width: 1,
-    height: 1,
-    backgroundAlpha: 0,
-    antialias: true,
-    preferEnvironment: 'auto'   // WebGL が無効でも自動で Canvas2D へ
-  });
-
-  /* renderer が失敗したらエラー表示して return */
-  if (!app.renderer) {
-    STAGE.textContent = 'Pixi Renderer の初期化に失敗しました（WebGL 無効？）';
-    throw new Error('Renderer init failed');
+  /* 2) 非同期で Application を生成  */
+  let app;
+  try {
+    app = await PIXI.Application.create({
+      backgroundAlpha: 0,
+      antialias: true,
+      // WebGL → Canvas2D 自動フォールバック
+      preferEnvironment: 'auto'
+    });
+  } catch (e) {
+    STAGE.textContent = 'Pixi Renderer の初期化に失敗しました';
+    console.error(e);
+    return;
   }
 
-  STAGE.appendChild(app.view);
+  /* 3) view を DOM に追加してからリサイズ */
+  STAGE.appendChild(app.canvas);                 // v8 は .canvas です
+  resizeSquare();
+  window.addEventListener('resize', resizeSquare);
 
-  /* 正方形フィット */
-  function layout() {
+  function resizeSquare() {
     const s = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
     app.renderer.resize(s, s);
   }
-  window.addEventListener('resize', layout);
-  layout();
 
-  /* ====== ここから line-puzzle の描画ロジック ====== */
-  const g = new PIXI.Graphics();
-  app.stage.addChild(g);
-  g.lineStyle({width:8,color:0x43a4ff}).drawPolygon([50,50,350,50,350,350,50,350,50,50]);
+  /* ---------------- 以下、ゲーム描画 ---------------- */
+  const edges = new PIXI.Graphics();
+  const nodes = new PIXI.Graphics();
+  app.stage.addChild(edges, nodes);
+
+  /* …puzzles.json を fetch → draw() など… */
+});
 /* ------------ レンダリング用コンテナ ------------ */
 const gEdges = new PIXI.Graphics();
 const gNodes = new PIXI.Graphics();
