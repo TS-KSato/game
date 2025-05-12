@@ -2,282 +2,301 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OneStroke（ワンストローク）</title>
-
-<!-- ===== CSS ===== -->
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Line Puzzle Game</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
+/* =========  COLOR & TYPO  ========= */
 :root{
-  /* カスタムプロパティ ―― 色・書体・フォーカスリング */
-  --bg:#ffffff;
-  --node:#007bff;
-  --edge-untraced:#666666;
-  --edge-traced:#007bff;
-  --font:Arial,system-ui, sans-serif;
-  --focus:3px solid #000;
+  --bg-grad-from:#e0eafc;
+  --bg-grad-to:#cfdef3;
+  --c-primary:#007bff;
+  --c-edge:#8a8a8a;
+  --c-text:#222;
+  --radius:18px;
+  --shadow:0 4px 10px rgba(0,0,0,.15);
+  --focus-ring:3px solid #000;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-@media (prefers-contrast: more){
-  :root{ --edge-untraced:#000; }
+/* =========  LAYOUT  ========= */
+html,body{height:100%;margin:0;background:linear-gradient(var(--bg-grad-from),var(--bg-grad-to));color:var(--c-text);}
+header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:.6rem 1rem;background:rgba(255,255,255,.8);backdrop-filter:blur(6px);
+  box-shadow:var(--shadow);position:relative;z-index:5;
 }
-@media (prefers-reduced-motion: reduce){
-  *{ animation:none !important; transition:none !important; }
-}
+h1{margin:0;font-size:1.1rem;font-weight:600}
+#progressWrap{flex:1;margin:0 .8rem;height:.4rem;background:#ddd;border-radius:9999px;overflow:hidden}
+#progressBar{height:100%;width:0;background:var(--c-primary);transition:width .3s linear}
+#timeRing{position:relative;width:2.5rem;height:2.5rem}
+#timeRing svg{transform:rotate(-90deg)}
+#timeText{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;font-size:.6rem;font-weight:600}
 
-html,body{margin:0; height:100%; background:var(--bg); font-family:var(--font);}
-h1{margin:0; font-size:1.25rem;}
-header{display:flex; justify-content:space-between; align-items:center; padding:.5rem 1rem; background:#f5f5f5;}
-#timer{font-weight:bold;}
-nav{display:flex; overflow-x:auto; border-block-end:1px solid #ccc;}
+/* ---- navigation ---- */
+nav{display:flex;overflow-x:auto;background:rgba(255,255,255,.8);backdrop-filter:blur(6px);}
 nav button{
-  flex:1 1 0; min-width:4rem;
-  padding:.5rem; font-size:1rem;
-  background:none; border:none; border-block-end:3px solid transparent;
+  flex:1 1 0;min-width:3rem;padding:.6rem 0;border:none;background:none;
+  font-size:.9rem;font-weight:600;border-bottom:3px solid transparent;
 }
-nav button[aria-selected="true"]{border-color:var(--node); font-weight:bold;}
-main{display:flex; flex-direction:column; height:calc(100% - 3.5rem);}/* header+nav 高さ分除外 */
-#gameCanvas{flex:1; width:100vw; height:80vh; display:block; touch-action:none; background:#fafafa;}
+nav button[aria-selected="true"]{border-color:var(--c-primary);color:var(--c-primary)}
+nav button:focus{outline:var(--focus-ring)}
 
-.controls{display:flex; justify-content:space-around; padding:.5rem; gap:.5rem;}
+/* ---- game area ---- */
+main{display:flex;flex-direction:column;height:calc(100% - 6rem);}
+#gameCanvas{flex:1;width:100%;touch-action:none;background:#ffffffaa}
+
+/* ---- controls ---- */
+.controls{display:flex;gap:.5rem;padding:.7rem;background:rgba(255,255,255,.8);backdrop-filter:blur(6px)}
 .controls button{
-  flex:1 1 auto; padding:.5rem 0;
-  font-size:1rem; background:#fff;
-  border:1px solid #ccc; border-radius:4px;
+  flex:1;display:flex;justify-content:center;align-items:center;gap:.3rem;
+  padding:.5rem 0;font-size:.9rem;font-weight:600;border:none;border-radius:var(--radius);
+  background:#fff;box-shadow:var(--shadow);transition:transform .15s;
 }
-.controls button:focus{outline:var(--focus);}
+.controls button:active{transform:scale(.95)}
+.controls button i{font-size:.9rem}
 
-/* SVG-likeスタイル（Canvas描画の線幅に合わせて参考値）*/
-.node{fill:var(--node);}
-.edge{stroke:var(--edge-untraced);stroke-width:10;stroke-linecap:round;}
-.edge.traced{stroke:var(--edge-traced);stroke-width:15;}
-  #startOverlay{
-  position:fixed; inset:0;
-  background:rgba(0,0,0,.7);
-  display:flex; flex-direction:column; justify-content:center; align-items:center;
-  color:#fff; text-align:center; z-index:1000;
+/* ---- start overlay ---- */
+#startOverlay{
+  position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  background:rgba(0,0,0,.7);z-index:999;color:#fff;text-align:center;
 }
-#startOverlay .inner{ animation:fadeIn 0.8s ease-out; }
-@keyframes fadeIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+#startOverlay h2{margin:0 0 .5rem;font-size:1.4rem}
+#startOverlay p{margin:0;font-size:.95rem;animation:blink 1.4s infinite}
+@keyframes blink{0%,40%{opacity:1}50%{opacity:.3}90%,100%{opacity:1}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---- node highlight animation ---- */
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.18)}100%{transform:scale(1)}}
 </style>
 </head>
-
 <body>
+
 <header>
-  <h1>OneStroke（ワンストローク）</h1>
-  <div id="timer" aria-live="polite">--:--</div>
+  <h1>Line Puzzle Game</h1>
+  <div id="progressWrap"><div id="progressBar"></div></div>
+
+  <!-- 円形タイマー (SVG) -->
+  <div id="timeRing" aria-hidden="true">
+    <svg width="40" height="40">
+      <circle cx="20" cy="20" r="18" stroke="#ddd" stroke-width="4" fill="none"/>
+      <circle id="ringStroke" cx="20" cy="20" r="18" stroke="var(--c-primary)" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="113"/>
+    </svg>
+    <div id="timeText">--</div>
+  </div>
 </header>
 
 <nav id="levelTabs" aria-label="難易度"></nav>
 
 <main>
   <canvas id="gameCanvas" role="img" aria-label="線パズル"></canvas>
-
   <div class="controls">
-    <button id="resetBtn" aria-label="リセット">Reset</button>
-    <button id="hintBtn"  aria-label="ヒント">Hint</button>
-    <button id="toggleTimerBtn" aria-pressed="true" aria-label="タイマーをオフにする">Timer On</button>
+    <button id="resetBtn"><i class="fa-solid fa-arrow-rotate-right"></i>Reset</button>
+    <button id="hintBtn"><i class="fa-solid fa-lightbulb"></i>Hint</button>
+    <button id="toggleTimerBtn" aria-pressed="true" aria-label="タイマーをオフにする">
+      <i class="fa-solid fa-stopwatch"></i>Timer On
+    </button>
   </div>
 </main>
+
+<!-- ▶ Tap to Start Overlay -->
 <div id="startOverlay" role="dialog" aria-modal="true">
-    <div class="inner">
-      <h2>Line Puzzle Game</h2>
-      <p>タップしてスタート</p>
-    </div>
-  </div>
-<!-- ===== JavaScript (ES6+) ===== -->
+  <h2>Line Puzzle Game</h2>
+  <p>▶ タップしてスタート</p>
+</div>
+
 <script>
-/* ---------- グローバル ---------- */
-const canvas=document.getElementById('gameCanvas');
-const ctx=canvas.getContext('2d');
-const announcer=createLiveRegion();
-let puzzles=[];            // JSON 読込後にセット
-let currentPuzzle=null;    // {id, difficulty, nodes, edges}
-let tracedEdges=new Set();
-let selectedNode=null;
-let timerEnabled=true, timeLeft=90, intervalId;
+/* ========== GLOBAL ========= */
+const canvas = document.getElementById('gameCanvas');
+const ctx     = canvas.getContext('2d');
+const ring    = document.getElementById('ringStroke');
+const timeTxt = document.getElementById('timeText');
+const bar     = document.getElementById('progressBar');
+const announcer = (()=>{const d=document.createElement('div');d.setAttribute('aria-live','polite');d.style.position='absolute';d.style.left='-9999px';document.body.appendChild(d);return d})();
+let puzzles=[], currentPuzzle=null;
+let tracedEdges=new Set(), selectedNode=null;
+let timerEnabled=true, totalTime=90, timeLeft=90, intervalId;
+let gameStarted=false;
 
-/* ---------- JSON 読込 ---------- */
-fetch('contents.json')
- .then(r=>r.json())
- .then(data=>{
-   puzzles=data.puzzles;
-   buildTabs();            // 難易度タブ生成
-   resizeCanvas();
-   loadPuzzleByDifficulty(1);   // デフォルト難易度 1
- })
- .catch(err=>{alert('puzzles 読込失敗: '+err)});
+/* Color cache */
+let C_NODE,C_EDGE,C_EDGE_ON;
 
-/* ---------- UI 初期化 ---------- */
-document.getElementById('resetBtn').addEventListener('click',()=>reloadSamePuzzle());
-document.getElementById('hintBtn').addEventListener('click',showHint);
-document.getElementById('toggleTimerBtn').addEventListener('click',toggleTimer);
-canvas.addEventListener('touchstart',e=>{
-  const t=e.changedTouches[0];
-  handleTap(t.clientX,t.clientY);
+/* ========== LOAD JSON ========= */
+fetch('contents.json').then(r=>r.json()).then(data=>{
+  puzzles=data.puzzles;
+  const rs=getComputedStyle(document.documentElement);
+  C_NODE     = rs.getPropertyValue('--c-primary').trim();
+  C_EDGE     = rs.getPropertyValue('--c-edge').trim();
+  C_EDGE_ON  = rs.getPropertyValue('--c-primary').trim();
+  buildTabs(); resizeCanvas(); loadPuzzleByDifficulty(1);
+}).catch(e=>alert('puzzles 読込失敗:\n'+e));
+
+/* ========== POINTER / TOUCH ========= */
+function getXY(evt){
+  if(evt.touches?.length) return {x:evt.touches[0].clientX, y:evt.touches[0].clientY};
+  return {x:evt.clientX, y:evt.clientY};
+}
+function onInput(evt){
+  if(!gameStarted) return;
+  evt.preventDefault();
+  const {x,y}=getXY(evt); handleTap(x,y);
+}
+if('PointerEvent' in window){
+  canvas.addEventListener('pointerdown',onInput,{passive:false});
+}else{
+  canvas.addEventListener('touchstart',onInput,{passive:false});
+  canvas.addEventListener('mousedown',onInput);
+}
+
+/* ========== START OVERLAY ========= */
+document.getElementById('startOverlay').addEventListener('pointerdown',()=>{
+  document.getElementById('startOverlay').style.display='none';
+  gameStarted=true; resetState();
 });
-window.addEventListener('resize',resizeCanvas);
 
-/* ---------- タブ生成 ---------- */
+/* ========== TABS ========= */
 function buildTabs(){
-  const levelTabs=document.getElementById('levelTabs');
-  levelTabs.innerHTML='';
-  const levels=[...new Set(puzzles.map(p=>p.difficulty))].sort((a,b)=>a-b);
-  levels.forEach((lvl,i)=>{
-    const btn=document.createElement('button');
-    btn.textContent=lvl;
-    btn.dataset.level=lvl;
-    btn.setAttribute('aria-selected',i===0?'true':'false');
-    btn.addEventListener('click',()=>{
-       levelTabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected','false'));
-       btn.setAttribute('aria-selected','true');
-       loadPuzzleByDifficulty(lvl);
+  const nav=document.getElementById('levelTabs'); nav.innerHTML='';
+  [...new Set(puzzles.map(p=>p.difficulty))].sort((a,b)=>a-b).forEach((lvl,i)=>{
+    const b=document.createElement('button');
+    b.textContent=lvl; b.dataset.level=lvl; b.setAttribute('aria-selected',i?'false':'true');
+    b.addEventListener('click',()=>{
+      nav.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected','false'));
+      b.setAttribute('aria-selected','true'); loadPuzzleByDifficulty(lvl);
     });
-    levelTabs.appendChild(btn);
+    nav.appendChild(b);
   });
 }
 
-/* ---------- パズルロード ---------- */
+/* ========== LOAD PUZZLE ========= */
 function loadPuzzleByDifficulty(level){
   const list=puzzles.filter(p=>p.difficulty==level);
-  if(list.length===0){alert('その難易度は未登録です');return;}
-  currentPuzzle=list[0];          // 先頭を選択（改良余地：進捗保存・ランダム化）
-  resetState();
-  announce(`Level ${level} (ID ${currentPuzzle.id}) 開始`);
+  if(!list.length) return alert('難易度無し');
+  currentPuzzle=list[0]; tracedEdges.clear(); selectedNode=null; render();
+  if(gameStarted) resetState();               // ステージ変更時のみ
 }
-function reloadSamePuzzle(){
-  if(!currentPuzzle)return;
-  resetState();
-  announce('リセットしました');
-}
+
+/* ========== RESET ========= */
 function resetState(){
   tracedEdges.clear(); selectedNode=null;
-  timeLeft=90; updateTimerDisplay();
-  if(timerEnabled) startTimer(); else stopTimer();
-  render();
+  timeLeft=totalTime; updateTimerUI();
+  timerEnabled?startTimer():stopTimer();
+  render(); announce('スタート！');
 }
 
-/* ---------- 描画 ---------- */
+/* ========== DRAW ========= */
 function resizeCanvas(){
   const dpr=devicePixelRatio||1;
-  canvas.width=canvas.clientWidth*dpr;
-  canvas.height=canvas.clientHeight*dpr;
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  render();
+  canvas.width = canvas.clientWidth*dpr;
+  canvas.height= canvas.clientHeight*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0); render();
 }
+window.addEventListener('resize',resizeCanvas);
+
 function render(){
-  if(!currentPuzzle)return;
-  const w=canvas.clientWidth, h=canvas.clientHeight;
+  if(!currentPuzzle) return;
+  const w=canvas.clientWidth,h=canvas.clientHeight;
   ctx.clearRect(0,0,w,h);
 
-  // edges
+  /* --- edges --- */
   currentPuzzle.edges.forEach((e,i)=>{
     const f=currentPuzzle.nodes[e.from], t=currentPuzzle.nodes[e.to];
     ctx.beginPath(); ctx.moveTo(f.x*w,f.y*h); ctx.lineTo(t.x*w,t.y*h);
-    ctx.strokeStyle=getComputedStyle(document.documentElement)
-      .getPropertyValue(tracedEdges.has(i)?'--edge-traced':'--edge-untraced');
-    ctx.lineWidth=tracedEdges.has(i)?15:10; ctx.stroke();
-  });
-  // nodes
-  currentPuzzle.nodes.forEach((n,idx)=>{
-    ctx.beginPath(); ctx.arc(n.x*w,n.y*h,20,0,Math.PI*2);
-    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--node'); ctx.fill();
-    if(idx===selectedNode){ctx.lineWidth=4;ctx.strokeStyle='#ff0';ctx.stroke();}
-  });
-}
-
-/* ---------- ゲームロジック ---------- */
-function getNodeAt(x,y){
-  const rect=canvas.getBoundingClientRect(), w=rect.width, h=rect.height;
-  return currentPuzzle.nodes.findIndex(n=>Math.hypot(n.x*w-x,n.y*h-y)<=22);
-}
-function handleTap(clientX,clientY){
-  if(!currentPuzzle)return;
-  const nodeIdx=getNodeAt(clientX,clientY);
-  if(nodeIdx===-1)return;
-
-  if(selectedNode===null){ selectedNode=nodeIdx; render(); return; }
-  if(selectedNode===nodeIdx){ selectedNode=null; render(); return; }
-
-  const edgeIdx=currentPuzzle.edges.findIndex((e,i)=>
-    (e.from===selectedNode&&e.to===nodeIdx)||(e.from===nodeIdx&&e.to===selectedNode));
-  if(edgeIdx!==-1 && !tracedEdges.has(edgeIdx)){
-    tracedEdges.add(edgeIdx);
-    announce(`線 ${tracedEdges.size}/${currentPuzzle.edges.length} 本完了`);
-    if(tracedEdges.size===currentPuzzle.edges.length){
-      announce('パズルクリア！'); stopTimer();
+    ctx.strokeStyle=tracedEdges.has(i)?C_EDGE_ON:C_EDGE;
+    ctx.lineWidth=tracedEdges.has(i)?14:10; ctx.lineCap='round'; ctx.stroke();
+    if(tracedEdges.has(i)){
+      ctx.shadowColor=C_EDGE_ON; ctx.shadowBlur=6;
     }
-  }else{ announce('無効な移動です'); }
-  selectedNode=nodeIdx; render();
+    ctx.shadowBlur=0;
+  });
+
+  /* --- nodes --- */
+  currentPuzzle.nodes.forEach((n,idx)=>{
+    ctx.beginPath(); ctx.arc(n.x*w,n.y*h,22,0,Math.PI*2);
+    /* radial gradient for depth */
+    const g=ctx.createRadialGradient(n.x*w-4,n.y*h-4,4,n.x*w,n.y*h,22);
+    g.addColorStop(0,'#fff'); g.addColorStop(1,C_NODE);
+    ctx.fillStyle=g; ctx.fill();
+    /* highlight */
+    if(idx===selectedNode){
+      ctx.lineWidth=4; ctx.strokeStyle='#ff0'; ctx.stroke();
+    }
+  });
 }
 
-/* ---------- ヒント ---------- */
-function showHint(){
-  if(!currentPuzzle)return;
-  const idx=currentPuzzle.edges.findIndex((_,i)=>!tracedEdges.has(i));
-  if(idx!==-1){
-    selectedNode=currentPuzzle.edges[idx].from;
-    render();
-    announce('ヒントを表示');
+/* ========== GAME LOGIC ========= */
+function getNodeAt(px,py){
+  if(!currentPuzzle) return-1;
+  const r=canvas.getBoundingClientRect(),x=px-r.left,y=py-r.top,w=r.width,h=r.height;
+  return currentPuzzle.nodes.findIndex(n=>Math.hypot(n.x*w-x,n.y*h-y)<=26);
+}
+function handleTap(px,py){
+  const idx=getNodeAt(px,py); if(idx===-1) return;
+
+  /* node animation */
+  selectedNode=idx; render();
+  ctx.save(); ctx.translate(0,0);
+  /* minimal pop via CSS animation by adding class? (canvas can't) */
+
+  if(selectedNode===null) return;
+
+  if(selectedNode!==idx){
+    selectedNode=idx; render(); return;
   }
 }
 
-/* ---------- タイマー ---------- */
-function updateTimerDisplay(){
-  const m=String(Math.floor(timeLeft/60)).padStart(2,'0');
-  const s=String(timeLeft%60).padStart(2,'0');
-  document.getElementById('timer').textContent=`${m}:${s}`;
+function handleTap(px,py){
+  const nodeIdx=getNodeAt(px,py); if(nodeIdx===-1) return;
+  if(selectedNode===null){selectedNode=nodeIdx;render();return;}
+  if(selectedNode===nodeIdx){selectedNode=null;render();return;}
+
+  const edgeIdx=currentPuzzle.edges.findIndex(e=>
+    (e.from===selectedNode&&e.to===nodeIdx)||(e.to===selectedNode&&e.from===nodeIdx));
+
+  if(edgeIdx===-1||tracedEdges.has(edgeIdx)){
+    announce('無効な移動'); selectedNode=nodeIdx; render(); return;
+  }
+  tracedEdges.add(edgeIdx); selectedNode=nodeIdx; render();
+  announce(`あと ${currentPuzzle.edges.length-tracedEdges.size} 本`);
+  bar.style.width = `${100*tracedEdges.size/currentPuzzle.edges.length}%`;
+
+  if(tracedEdges.size===currentPuzzle.edges.length){
+    announce('クリア！'); stopTimer();
+  }
+}
+
+/* ========== TIMER ========= */
+function updateTimerUI(){
+  /* テキスト */
+  timeTxt.textContent = `${Math.floor(timeLeft/60)}:${String(timeLeft%60).padStart(2,'0')}`;
+  /* 円グラフ */
+  const circumference=113;          // 2πr (r=18)
+  ring.style.strokeDashoffset = circumference*(1-timeLeft/totalTime);
 }
 function startTimer(){
   clearInterval(intervalId);
   intervalId=setInterval(()=>{
-    if(!timerEnabled){clearInterval(intervalId);return;}
-    if(timeLeft>0){timeLeft--;updateTimerDisplay();}
-    else{clearInterval(intervalId);announce('Time up');}
+    if(--timeLeft<0){stopTimer();announce('Time Up');return;}
+    updateTimerUI();
   },1000);
 }
 function stopTimer(){clearInterval(intervalId);}
-function toggleTimer(e){
+
+document.getElementById('resetBtn').addEventListener('click',()=>{if(gameStarted)resetState()});
+document.getElementById('hintBtn').addEventListener('click',()=>{
+  const idx=currentPuzzle?.edges.findIndex((_,i)=>!tracedEdges.has(i));
+  if(idx!==-1){selectedNode=currentPuzzle.edges[idx].from;render();announce('ヒント表示');}
+});
+document.getElementById('toggleTimerBtn').addEventListener('click',e=>{
   timerEnabled=!timerEnabled;
-  e.target.textContent=timerEnabled?'Timer On':'Timer Off';
-  e.target.setAttribute('aria-pressed',timerEnabled);
-  if(timerEnabled) startTimer(); else stopTimer();
-}
-
-/* ---------- アクセシビリティ用 live region ---------- */
-function createLiveRegion(){
-  const el=document.createElement('div');
-  el.setAttribute('aria-live','polite');
-  el.style.position='absolute'; el.style.left='-9999px';
-  document.body.appendChild(el);
-  return el;
-}
-const announce=msg=>announcer.textContent=msg;
-let gameStarted = false;
-
-/* ▼ pointer + 予備で touch/click */
-['pointerdown','touchstart','click'].forEach(evt=>{
-  canvas.addEventListener(evt, e=>{
-    if(!gameStarted) return;              // スタート前は無視
-    const x = (e.touches?.[0]?.clientX) ?? e.clientX;
-    const y = (e.touches?.[0]?.clientY) ?? e.clientY;
-    handleTap(x,y);
-  }, {passive:true});
+  e.currentTarget.querySelector('i').className=timerEnabled?'fa-solid fa-stopwatch':'fa-solid fa-ban';
+  e.currentTarget.childNodes[1].nodeValue= timerEnabled?'Timer On':'Timer Off';
+  e.currentTarget.setAttribute('aria-pressed',timerEnabled);
+  e.currentTarget.setAttribute('aria-label',timerEnabled?'タイマーをオフにする':'タイマーをオンにする');
+  timerEnabled?startTimer():stopTimer();
 });
 
-/* ▼ スタートオーバーレイをタップしたらゲーム開始 */
-document.getElementById('startOverlay').addEventListener('pointerdown', ()=>{
-  document.getElementById('startOverlay').style.display='none';
-  gameStarted = true;
-  resetState();          // ここで初めてタイマーが動き出す
-});
-
-/* ▼ 初期ロード時は resetState() を呼ばないように変更 */
-function loadPuzzleByDifficulty(level){
-  const list = puzzles.filter(p=>p.difficulty==level);
-  if(!list.length){alert('その難易度は未登録です');return;}
-  currentPuzzle = list[0];
-  render();              // まず描画だけ
-  if(gameStarted) resetState();   // 既にゲーム中ならリセット
-}
+/* ========== ACCESSIBILITY ========= */
+function announce(msg){announcer.textContent=msg;}
 </script>
 </body>
 </html>
