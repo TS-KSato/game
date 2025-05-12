@@ -1,48 +1,49 @@
 <!doctype html><html lang="ja"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Line Puzzle Pro</title>
+<title>Line Puzzle Pro — Final</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
-/* ---------- Tokens ---------- */
+/* ----------------  TOKENS  ---------------- */
 :root{
- --c-main:#2563eb;--c-edge:#94a3b8;--c-warn:#ef4444;--c-bg:#f4f7fb;
- --panel:rgba(255,255,255,.8);--radius:16px;--shadow:0 4px 12px rgb(0 0 0 /.12);
+ --c-main:#2563eb;--c-edge:#94a3b8;--c-warn:#ef4444;--c-bg:#f6f8fb;
+ --panel:rgba(255,255,255,.8);--shadow:0 4px 12px rgb(0 0 0 /.12);--radius:16px;
  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 html,body{margin:0;height:100%;background:var(--c-bg);color:#1e293b}
 
-/* ---------- Header ---------- */
+/* ----------------  HEADER  ---------------- */
 header{display:flex;align-items:center;gap:.8rem;padding:.7rem 1rem;
   background:var(--panel);backdrop-filter:blur(8px);box-shadow:var(--shadow)}
-h1{margin:0;font-size:1.1rem;font-weight:600}
+h1{margin:0;font-size:1.15rem;font-weight:600}
 #barWrap{flex:1;height:.35rem;background:#e2e8f0;border-radius:9999px;overflow:hidden}
 #bar{display:block;height:100%;width:0;background:var(--c-main);transition:width .25s}
-#clock{min-width:3rem;text-align:center;font-variant-numeric:tabular-nums}
+#clock{min-width:3.2rem;text-align:center;font-variant-numeric:tabular-nums}
 
-/* ---------- Tabs ---------- */
+/* ----------------  TABS  ---------------- */
 nav{display:flex;overflow-x:auto;background:var(--panel);backdrop-filter:blur(8px)}
 nav button{flex:1 1 0;min-width:3rem;padding:.55rem 0;border:none;background:none;
   font-weight:600;color:#64748b;border-bottom:3px solid transparent}
 nav button[aria-selected="true"]{color:var(--c-main);border-color:var(--c-main)}
 nav button:focus{outline:3px solid #000}
 
-/* ---------- Main ---------- */
+/* ----------------  MAIN  ---------------- */
 main{display:flex;flex-direction:column;height:calc(100% - 6rem)}
 #cv{flex:1;width:100%;touch-action:none;background:#fff;cursor:crosshair}
 
-/* ---------- Controls ---------- */
+/* ----------------  CONTROLS  ---------------- */
 .ctrl{display:flex;gap:.6rem;padding:.8rem;background:var(--panel);backdrop-filter:blur(8px)}
 .ctrl button{flex:1;padding:.55rem 0;border:none;border-radius:var(--radius);background:#fff;
-  display:flex;justify-content:center;align-items:center;gap:.3rem;font-weight:600;box-shadow:var(--shadow)}
+  display:flex;justify-content:center;align-items:center;gap:.35rem;font-weight:600;box-shadow:var(--shadow)}
 .ctrl button:active{transform:scale(.96)}.ctrl button i{color:#475569}
 
-/* ---------- Overlays ---------- */
+/* ----------------  OVERLAYS  ---------------- */
 .ovr{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
-  background:rgba(0,0,0,.8);z-index:900;color:#fff;text-align:center}
-.ovr h2{margin:0 0 .5rem;font-size:1.4rem}.ovr p{margin:0;font-size:.95rem}
-@keyframes blink{0%,40%{opacity:1}50%{opacity:.3}100%{opacity:1}}
+  background:rgba(0,0,0,.82);z-index:900;color:#fff;text-align:center}
+.ovr h2{margin:0 0 .6rem;font-size:1.45rem}
+.ovr p{margin:0;font-size:1rem}@keyframes blink{0%,40%{opacity:1}50%{opacity:.3}100%{opacity:1}}
 #start p{animation:blink 1.4s infinite}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style></head><body role="application">
+</style>
+</head><body role="application">
 
 <header>
   <h1>Line Puzzle Pro</h1>
@@ -65,100 +66,246 @@ main{display:flex;flex-direction:column;height:calc(100% - 6rem)}
 <div id="start" class="ovr"><h2>Line Puzzle Pro</h2><p>▶ タップしてスタート</p></div>
 <div id="modal" class="ovr" style="display:none">
   <h2 id="modalTitle"></h2>
-  <button id="nextBtn" style="margin-top:1rem;padding:.6rem 1.4rem;border:none;border-radius:12px;
-   background:var(--c-main);color:#fff;font-weight:700;box-shadow:var(--shadow)">OK</button>
+  <button id="modalBtn" style="margin-top:1.1rem;padding:.65rem 1.5rem;border:none;border-radius:12px;
+   background:var(--c-main);color:#fff;font-weight:700;box-shadow:var(--shadow)">Next</button>
 </div>
 
 <script>
-/* ---------- state ---------- */
-const cvs=cv,ctx=cvs.getContext('2d'), bar=bar, clk=clock,
- modal=document.getElementById('modal'),startOvr=start,modalTitle=modalTitle,nextBtn=nextBtn;
-const live=(()=>{const d=document.createElement('div');d.setAttribute('aria-live','polite');
-  d.style.position='absolute';d.style.left='-9999px';document.body.appendChild(d);return d})();
-let puzzles=[],cur=null,traced=new Set(),path=[],TIME=90,remain=90,timerId=null,paused=false,playing=false;
+/* ===== 完全に型安全に要素を取得 ===== */
+const cvs       = document.getElementById('cv');
+const ctx       = cvs.getContext('2d');
+const bar       = document.getElementById('bar');
+const clockLbl  = document.getElementById('clock');
+const tabsRoot  = document.getElementById('tabs');
+const resetBtn  = document.getElementById('reset');
+const hintBtn   = document.getElementById('hint');
+const pauseBtn  = document.getElementById('pause');
+const startOvr  = document.getElementById('start');
+const modal     = document.getElementById('modal');
+const modalTitle= document.getElementById('modalTitle');
+const modalBtn  = document.getElementById('modalBtn');
+const announcer = (()=>{const d=document.createElement('div');d.setAttribute('aria-live','polite');
+                        d.style.position='absolute';d.style.left='-9999px';document.body.appendChild(d);return d})(); 
 
-/* color cache */
-const CS=getComputedStyle(document.documentElement),C_NODE=CS.getPropertyValue('--c-main').trim(),
-  C_EDGE=CS.getPropertyValue('--c-edge').trim(),C_ON=C_NODE,C_ERR=CS.getPropertyValue('--c-warn').trim();
+/* ===== カラートークン ===== */
+const CS     = getComputedStyle(document.documentElement);
+const C_NODE = CS.getPropertyValue('--c-main').trim();
+const C_EDGE = CS.getPropertyValue('--c-edge').trim();
+const C_ON   = C_NODE;
+const C_ERR  = CS.getPropertyValue('--c-warn').trim();
 
-/* ---------- init ---------- */
-fetch('contents.json').then(r=>r.json()).then(d=>{puzzles=d.puzzles;tabs();resize();load(1);})
-.catch(e=>alert(e));
+/* ===== ゲームステート ===== */
+let puzzles = [], cur=null, traced=new Set(), path=[], TOTAL=90, remain=90, timerId=null;
+let ready   = false;   // JSON 読込完了フラグ
+let playing = false;   // ゲーム中
+let paused  = false;   // Pause 中
+let hintCool= false;   // ヒントのクールダウン
 
-function tabs(){
-  const nav=tabsElem=document.getElementById('tabs');nav.innerHTML='';
-  [...new Set(puzzles.map(p=>p.difficulty))].sort((a,b)=>a-b)
-  .forEach((lvl,i)=>{const b=document.createElement('button');
-   b.textContent=lvl;b.dataset.lvl=lvl;b.setAttribute('aria-selected',!i);
-   b.onclick=()=>{nav.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected','false'));
-     b.setAttribute('aria-selected','true');load(lvl)};nav.appendChild(b)});
+/* ===== デバイスピクセル比に合わせてキャンバス調整 ===== */
+function resizeCanvas(){
+  const dpr = window.devicePixelRatio || 1;
+  cvs.width  = cvs.clientWidth  * dpr;
+  cvs.height = cvs.clientHeight * dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  draw();
+}
+window.addEventListener('resize',resizeCanvas);
+
+/* ===== JSON 読込 ===== */
+fetch('contents.json')
+  .then(r=>r.json())
+  .then(data=>{
+     puzzles = data.puzzles;
+     buildTabs();
+     loadLevel(1);
+     ready = true;
+     announcer.textContent = 'ロード完了。タップして開始できます';
+   })
+  .catch(e=>alert('JSON 読込エラー\n'+e));
+
+/* ===== タブ生成 ===== */
+function buildTabs(){
+  tabsRoot.innerHTML='';
+  [...new Set(puzzles.map(p=>p.difficulty))].sort((a,b)=>a-b).forEach((lvl,i)=>{
+      const b=document.createElement('button');
+      b.textContent=lvl; b.dataset.lvl=lvl;
+      b.setAttribute('aria-selected',!i);
+      b.onclick=()=>{tabsRoot.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected','false'));
+                     b.setAttribute('aria-selected','true'); loadLevel(lvl);};
+      tabsRoot.appendChild(b);
+  });
 }
 
-function resize(){const d=window.devicePixelRatio||1;cvs.width=cvs.clientWidth*d;cvs.height=cvs.clientHeight*d;ctx.setTransform(d,0,0,d,0,0);draw()}
-window.onresize=resize;
+/* ===== レベルロード & ゲームリセット ===== */
+function loadLevel(lvl){
+  cur = puzzles.find(p=>p.difficulty==lvl) || puzzles[0];
+  resetGame(false);
+}
+function resetGame(announce = true){
+  if(!cur) return;
+  traced.clear(); path.length=0; remain=TOTAL;
+  updateHUD();
+  draw();
+  if(announce) announcer.textContent='リセットしました';
+  if(playing && !paused) startTimer();
+}
 
-/* ---------- load / reset ---------- */
-function load(lvl){cur=puzzles.find(p=>p.difficulty==lvl);reset()}
-function reset(){
- traced.clear();path.length=0;remain=TIME;updateUI();draw();
- if(playing&&!paused)runTimer()}
-function updateUI(){bar.style.width=`${100*traced.size/cur.edges.length}%`;clk.textContent=remain}
+/* ===== HUD（プログレスバー・タイマー） ===== */
+function updateHUD(){
+  bar.style.width = `${100*traced.size/cur.edges.length}%`;
+  clockLbl.textContent = remain.toString().padStart(2,'0');
+}
 
-/* ---------- draw ---------- */
+/* ===== 描画 ===== */
 function draw(){
- if(!cur)return;const w=cvs.clientWidth,h=cvs.clientHeight;ctx.clearRect(0,0,w,h);
- cur.edges.forEach((e,i)=>{const f=cur.nodes[e.from],t=cur.nodes[e.to];
-   ctx.beginPath();ctx.moveTo(f.x*w,f.y*h);ctx.lineTo(t.x*w,t.y*h);
-   ctx.lineWidth=traced.has(i)?14:10;ctx.lineCap='round';
-   ctx.strokeStyle=traced.has(i)?C_ON:C_EDGE;ctx.stroke()});
- cur.nodes.forEach((n,i)=>{const x=n.x*w,y=n.y*h;
-   ctx.beginPath();ctx.arc(x,y,22,0,2*Math.PI);ctx.fillStyle=C_NODE;ctx.fill();
-   if(path[path.length-1]===i){ctx.lineWidth=4;ctx.strokeStyle='#facc15';ctx.stroke()}});
+  if(!cur) return;
+  const w = cvs.clientWidth, h = cvs.clientHeight;
+  ctx.clearRect(0,0,w,h);
+
+  /* edges */
+  cur.edges.forEach((e,i)=>{
+    const a = cur.nodes[e.from], b = cur.nodes[e.to];
+    ctx.beginPath(); ctx.moveTo(a.x*w,a.y*h); ctx.lineTo(b.x*w,b.y*h);
+    ctx.lineWidth = traced.has(i)?14:10;
+    ctx.lineCap   = 'round';
+    ctx.strokeStyle = traced.has(i)?C_ON:C_EDGE;
+    ctx.stroke();
+  });
+
+  /* nodes */
+  cur.nodes.forEach((n,i)=>{
+    const x=n.x*w,y=n.y*h;
+    ctx.beginPath(); ctx.arc(x,y,22,0,Math.PI*2);
+    ctx.fillStyle = C_NODE; ctx.fill();
+    if(path[path.length-1]===i){
+      ctx.lineWidth=4; ctx.strokeStyle='#facc15'; ctx.stroke();
+    }
+  });
 }
 
-/* ---------- input ---------- */
-function idx(px,py){const r=cvs.getBoundingClientRect(),x=px-r.left,y=py-r.top,w=r.width,h=r.height;
- return cur.nodes.findIndex(n=>Math.hypot(n.x*w-x,n.y*h-y)<=25)}
-function edgeIdx(a,b){return cur.edges.findIndex(e=>(e.from==a&&e.to==b)||(e.to==a&&e.from==b))}
+/* ===== 点・線ユーティリティ ===== */
+function nodeAt(px,py){
+  const r=cvs.getBoundingClientRect(),x=px-r.left,y=py-r.top,w=r.width,h=r.height;
+  return cur.nodes.findIndex(n=>Math.hypot(n.x*w-x,n.y*h-y)<=25);
+}
+function edgeIndex(a,b){
+  return cur.edges.findIndex(e=>(e.from===a&&e.to===b)||(e.from===b&&e.to===a));
+}
 function connect(a,b){
- const i=edgeIdx(a,b);if(i===-1||traced.has(i)){shake();return false}
- traced.add(i);path.push(b);updateUI();draw();if(traced.size===cur.edges.length)finish(true);return true}
-function shake(){ctx.save();ctx.strokeStyle=C_ERR;ctx.lineWidth=16;ctx.lineCap='round';
- const e=cur.edges[edgeIdx(path[path.length-1],idxNext)]||null;ctx.restore()}
-function onDown(e){if(!playing||paused)return;const p=getPoint(e);const i=idx(p.x,p.y);if(i!==-1){path=[i];draw()}}
-function onMove(e){if(!playing||paused||!path.length)return;
- const p=getPoint(e),i=idx(p.x,p.y);if(i!==-1&&i!==path[path.length-1])connect(path[path.length-1],i)}
-function getPoint(e){return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY}}
-['pointerdown','touchstart','mousedown'].forEach(evt=>cvs.addEventListener(evt,onDown,{passive:false}));
-['pointermove','touchmove','mousemove'].forEach(evt=>cvs.addEventListener(evt,onMove,{passive:false}));
+  const idx=edgeIndex(a,b);
+  if(idx===-1 || traced.has(idx)){
+    flashErrorLine(a,b); return false;
+  }
+  traced.add(idx); path.push(b); updateHUD(); draw();
+  if(traced.size===cur.edges.length) endGame(true);
+  return true;
+}
 
-/* ---------- timer ---------- */
-function runTimer(){clearInterval(timerId);timerId=setInterval(()=>{if(paused)return;
- remain--;updateUI();if(remain===10)flashClock();if(remain<=0){finish(false)}},1000)}
-function flashClock(){clk.style.color=C_ERR;setTimeout(()=>clk.style.color='',9000)}
-function finish(win){
- clearInterval(timerId);playing=false;modalTitle.textContent=win?'🎉 Clear!':'⏰ Time Up';
- nextBtn.onclick=()=>{modal.style.display='none';playing=true;reset();};modal.style.display='flex';
- live.textContent=win?'クリアしました':'時間切れです';}
+/* ===== エラー線一瞬ハイライト ===== */
+function flashErrorLine(aIdx,bIdx){
+  const w=cvs.clientWidth,h=cvs.clientHeight;
+  const a=cur.nodes[aIdx],b=cur.nodes[bIdx];
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(a.x*w,a.y*h); ctx.lineTo(b.x*w,b.y*h);
+  ctx.lineWidth=16; ctx.lineCap='round'; ctx.strokeStyle=C_ERR;
+  ctx.stroke(); ctx.restore();
+  navigator.vibrate?.(100);
+  setTimeout(draw,120);
+}
 
-/* ---------- hint ---------- */
-let hintCool=false;
-hint.onclick=()=>{if(hintCool||traced.size===cur.edges.length)return;
- const i=cur.edges.findIndex((_,i)=>!traced.has(i));if(i===-1)return;
- const {from,to}=cur.edges[i];ctx.save();ctx.strokeStyle='#facc15';ctx.lineWidth=18;ctx.lineCap='round';
- const w=cvs.clientWidth,h=cvs.clientHeight;ctx.beginPath();ctx.moveTo(cur.nodes[from].x*w,cur.nodes[from].y*h);
- ctx.lineTo(cur.nodes[to].x*w,cur.nodes[to].y*h);ctx.stroke();ctx.restore();live.textContent='ヒント表示';
- hintCool=true;setTimeout(()=>hintCool=false,5000)}
+/* ===== 入力（pointer / touch / mouse 全面対応） ===== */
+function pointFrom(evt){
+  return evt.touches ? {x:evt.touches[0].clientX, y:evt.touches[0].clientY} : {x:evt.clientX, y:evt.clientY};
+}
+function handleDown(evt){
+  if(!playing||paused) return;
+  const p=pointFrom(evt), idx=nodeAt(p.x,p.y);
+  if(idx!==-1){path=[idx];draw();}
+}
+function handleMove(evt){
+  if(!playing||paused||!path.length) return;
+  const p=pointFrom(evt), idx=nodeAt(p.x,p.y);
+  if(idx!==-1 && idx!==path[path.length-1]) connect(path[path.length-1],idx);
+}
+['pointerdown','mousedown','touchstart'].forEach(t=>cvs.addEventListener(t,handleDown,{passive:false}));
+['pointermove','mousemove','touchmove'].forEach(t=>cvs.addEventListener(t,handleMove,{passive:false}));
 
-/* ---------- pause ---------- */
-pause.onclick=()=>{if(!playing)return;paused=!paused;pause.querySelector('i').className=
- paused?'fa-solid fa-play':'fa-solid fa-pause';pause.childNodes[1].nodeValue=paused?'Resume':'Pause';
- paused?live.textContent='一時停止':runTimer()}
+/* ===== タイマー ===== */
+function startTimer(){
+  clearInterval(timerId);
+  timerId=setInterval(()=>{
+      if(paused) return;
+      remain--; updateHUD();
+      if(remain<=0) endGame(false);
+      else if(remain===10){ clockLbl.style.color=C_ERR; navigator.vibrate?.([100,50,100]); }
+  },1000);
+}
+function stopTimer(){ clearInterval(timerId);}
 
-/* ---------- start overlay ---------- */
-startOvr.onclick=()=>{startOvr.style.display='none';playing=true;reset();runTimer()}
+/* ===== ゲーム終了 ===== */
+function endGame(won){
+  stopTimer(); playing=false;
+  modalTitle.textContent = won?'🎉 Clear!':'⏰ Time Up';
+  modalBtn.textContent   = won? 'Next Level' : 'Retry';
+  modal.style.display    = 'flex';
+  announcer.textContent  = won? 'クリアしました' : '時間切れです';
+}
+modalBtn.onclick=()=>{
+  modal.style.display='none';
+  if(remain<=0){ resetGame(); playing=true; startTimer(); }
+  else{ /* クリア */ loadNextLevel(); }
+};
+function loadNextLevel(){
+  const lvls=[...new Set(puzzles.map(p=>p.difficulty))].sort((a,b)=>a-b);
+  const curr = parseInt(cur.difficulty,10);
+  const nxt  = lvls[lvls.indexOf(curr)+1] || lvls[0];
+  tabsRoot.querySelectorAll('button').forEach(b=>b.dataset.lvl==nxt?
+      b.setAttribute('aria-selected','true'):b.setAttribute('aria-selected','false'));
+  loadLevel(nxt); playing=true; startTimer();
+}
 
-/* ---------- other buttons ---------- */
-reset.onclick=()=>{playing&&reset();live.textContent='リセット'};
-nextBtn.onclick=()=>modal.style.display='none'; /* fallback */
-</script></body></html>
+/* ===== ヒント (5 秒クールダウン) ===== */
+hintBtn.onclick=()=>{
+  if(!playing||paused||hintCool) return;
+  const idx = cur.edges.findIndex((_,i)=>!traced.has(i));
+  if(idx===-1) return;
+  const {from,to}=cur.edges[idx]; flashHint(from,to);
+  announcer.textContent='ヒントを表示';
+  hintCool=true; setTimeout(()=>hintCool=false,5000);
+};
+function flashHint(aIdx,bIdx){
+  const w=cvs.clientWidth,h=cvs.clientHeight;
+  const a=cur.nodes[aIdx], b=cur.nodes[bIdx];
+  ctx.save(); ctx.lineWidth=14; ctx.lineCap='round'; ctx.strokeStyle='#facc15';
+  ctx.beginPath(); ctx.moveTo(a.x*w,a.y*h); ctx.lineTo(b.x*w,b.y*h); ctx.stroke(); ctx.restore();
+  setTimeout(draw,700);
+}
+
+/* ===== Pause / Resume ===== */
+pauseBtn.onclick=()=>{
+  if(!playing) return;
+  paused=!paused;
+  pauseBtn.querySelector('i').className = paused?'fa-solid fa-play':'fa-solid fa-pause';
+  pauseBtn.childNodes[1].nodeValue = paused? 'Resume':'Pause';
+  announcer.textContent = paused? '一時停止' : '再開';
+  if(!paused) startTimer();
+};
+
+/* ===== Reset ===== */
+resetBtn.onclick=()=>{ if(playing){ resetGame(); }};
+
+/* ===== スタートオーバーレイ ===== */
+startOvr.addEventListener('pointerdown',tryStart,{passive:true});
+startOvr.addEventListener('click',tryStart);
+function tryStart(){
+  if(!ready) return;                 // JSON まだロード中
+  startOvr.style.display='none';
+  playing=true; paused=false;
+  resizeCanvas(); resetGame(false); startTimer();
+  announcer.textContent='ゲーム開始';
+}
+
+/* ===== 初期描画 ===== */
+resizeCanvas();
+</script>
+</body></html>
