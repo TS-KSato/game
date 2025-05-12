@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Line Puzzle Pro WebGL</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet">
-<script src="pixi.min.js"></script>
 <script src="pixi.js"></script>
 <style>
 :root{
@@ -51,7 +50,7 @@ let currentPath = [];
 // PIXI Graphics Objects
 const gEdges = new PIXI.Graphics();
 const gNodes = new PIXI.Graphics();
-const gTestBounds = new PIXI.Graphics();
+const gTestBounds = new PIXI.Graphics(); // 元の 'g' (テスト図形)
 
 // 定数
 const NODE_BASE_RADIUS = 20;
@@ -66,42 +65,8 @@ let appColors = {
     accent: 0xffbf3c,
 };
 
-// Pixi Application 初期化
+// Pixi Application
 let app;
-try {
-  app = new PIXI.Application({
-    width: 1,
-    height: 1,
-    backgroundAlpha: 0,
-    antialias: true,
-    forceCanvas: true, // ★変更点: WebGLに問題がある場合に備え、Canvas 2Dレンダラーを強制的に使用
-  });
-} catch (e) {
-  STAGE_ELEMENT.textContent = 'Pixi Applicationの作成中にエラーが発生しました: ' + e.message;
-  console.error('Error creating PIXI.Application:', e);
-  throw e; // エラーを再スローしてスクリプトを停止
-}
-
-
-// Renderer初期化チェック
-if (!app || !app.renderer) {
-  STAGE_ELEMENT.textContent = 'Pixi Renderer の初期化に失敗しました。お使いのブラウザがCanvas 2Dをサポートしているか、またはPixiJSライブラリ (`pixi.min.js`) が正しく読み込まれ、互換性のあるバージョンであるか確認してください。';
-  console.error('Pixi Renderer initialization failed. PIXI object:', PIXI, 'App object:', app);
-  throw new Error('Renderer init failed');
-}
-
-// DOMにCanvasを追加
-// forceCanvas: true のため、app.view が使われることを期待 (多くのPixiJSバージョンで)
-// PixiJS v8+ など新しいバージョンでは app.canvas の場合もあります。
-if (app.view instanceof HTMLCanvasElement) {
-    STAGE_ELEMENT.appendChild(app.view);
-} else if (app.canvas instanceof HTMLCanvasElement) {
-    STAGE_ELEMENT.appendChild(app.canvas);
-} else {
-    STAGE_ELEMENT.textContent = 'Pixi Canvas要素 (app.view / app.canvas) が見つかりません。PixiJSのバージョンと読み込み状態を確認してください。';
-    console.error('Pixi canvas element not found. app.view:', app.view, 'app.canvas:', app.canvas);
-    throw new Error('Pixi canvas element not found.');
-}
 
 
 // CSSから色を読み込んでキャッシュする関数
@@ -114,7 +79,6 @@ function cacheCssColors() {
     appColors.accent = PIXI.utils.string2hex(styles.getPropertyValue('--accent'));
   } catch (e) {
     console.warn("CSSカスタムプロパティからの色の読み込みに失敗しました。デフォルト色を使用します。", e);
-    // フォールバックとしてデフォルト値を維持
   }
 }
 
@@ -222,7 +186,7 @@ function connectNodes(nodeAIndex, nodeBIndex){
 
 function onPointerDown(event){
   if (!currentPuzzle || !app || !app.stage) return;
-  const localPos = event.data.getLocalPosition(app.stage);
+  const localPos = event.data.getLocalPosition(app.stage); // v8ではevent.dataは不要、event.getLocalPosition(app.stage)
   const touchedNodeIdx = getTouchedNodeIndex(localPos.x, localPos.y);
 
   if(touchedNodeIdx !== -1){
@@ -235,7 +199,7 @@ function onPointerDown(event){
 function onPointerMove(event){
   if (!currentPuzzle || currentPath.length === 0 || !app || !app.stage) return;
 
-  const localPos = event.data.getLocalPosition(app.stage);
+  const localPos = event.getLocalPosition(app.stage); // v8ではevent.dataは不要
   const touchedNodeIdx = getTouchedNodeIndex(localPos.x, localPos.y);
   const lastNodeInPath = currentPath[currentPath.length - 1];
 
@@ -244,26 +208,54 @@ function onPointerMove(event){
   }
 }
 
-// 初期化処理
-function initializeGame() {
-  if (!app || !app.stage) {
-      console.error("Pixi Application または Stage が初期化されていません。");
-      return;
+// 非同期初期化処理
+async function initializeGame() {
+  // PixiJS v8 style initialization
+  app = new PIXI.Application();
+
+  try {
+    await app.init({
+        width: 1, // 初期サイズはリサイズ時に調整
+        height: 1,
+        backgroundAlpha: 0, // HTMLの背景を透過
+        antialias: true,
+        preference: 'webgl', // WebGLを優先
+        // autoStart: false, // Tickerを自分で管理する場合。デフォルトはtrue
+    });
+  } catch (e) {
+      STAGE_ELEMENT.textContent = 'Pixi Application の初期化に失敗しました (WebGL利用不可?): ' + e.message;
+      console.error('Error initializing PIXI.Application:', e);
+      throw e; // 初期化失敗時はここで処理を中断
   }
+
+  // Renderer初期化チェック (app.initが成功すればrendererは存在するはず)
+  if (!app.renderer) {
+    STAGE_ELEMENT.textContent = 'Pixi Renderer の初期化に失敗しました。';
+    console.error('Pixi Renderer initialization failed after app.init. PIXI object:', PIXI, 'App object:', app);
+    throw new Error('Renderer init failed after app.init');
+  }
+
+  // DOMにCanvasを追加 (v8では app.canvas を使用)
+  STAGE_ELEMENT.appendChild(app.canvas);
+
+
+  // PIXI Graphicsオブジェクトをステージに追加
   app.stage.addChild(gEdges);
   app.stage.addChild(gNodes);
-  app.stage.addChild(gTestBounds);
+  app.stage.addChild(gTestBounds); // テスト図形も追加
 
-  cacheCssColors();
+  cacheCssColors(); // CSS カラーをキャッシュ
 
   window.addEventListener('resize', resizeSquare);
-  resizeSquare();
+  resizeSquare(); // 初期リサイズ実行
 
+  // 入力イベントリスナーを設定 (v8 style)
   app.stage.eventMode = 'static';
-  app.stage.interactive = true; // 念のため古いバージョンとの互換性
+  app.stage.interactive = true; // 互換性のため残しても良いが、eventModeが主
   app.stage.on('pointerdown', onPointerDown);
   app.stage.on('pointermove', onPointerMove);
 
+  // JSONデータ読み込み
   fetch('contents.json')
     .then(response => {
       if (!response.ok) {
@@ -274,8 +266,8 @@ function initializeGame() {
     .then(data => {
       puzzles = data.puzzles;
       if (puzzles && puzzles.length > 0) {
-        loadPuzzle(1);
-        // drawTestBounds(); // 初期描画
+        loadPuzzle(1); // 最初のレベルをロード
+        // drawTestBounds();
       } else {
         console.error("No puzzles found in contents.json or data is malformed.");
         STAGE_ELEMENT.textContent = 'パズルデータの読み込みに失敗しました。contents.jsonを確認してください。';
@@ -286,6 +278,7 @@ function initializeGame() {
       STAGE_ELEMENT.textContent = `エラー: ${error.message}`;
     });
 
+  // UIボタンのイベントリスナー
   document.getElementById('resetBtn').onclick = () => {
     if (currentPuzzle) {
       loadPuzzle(currentPuzzle.difficulty);
@@ -300,15 +293,19 @@ function initializeGame() {
     const hintEdge = currentPuzzle.edges[unsolvedEdgeIndex];
     currentPath = [hintEdge.from];
     tracedEdges.clear();
-    // Optional: もしヒントで示されたエッジをトレース済みにするなら:
-    // tracedEdges.add(unsolvedEdgeIndex);
-    // currentPath.push(hintEdge.to);
     draw();
   };
+
+  // Optional: Start the Pixi ticker if autoStart was false in app.init options
+  // app.ticker.start();
 }
 
-// ゲーム初期化を実行 (DOMが完全に読み込まれてからの方が安全な場合もあるが、ここではscriptがbody末尾なので即時実行)
-initializeGame();
+// ゲーム初期化を実行
+initializeGame().catch(error => {
+    // initializeGame内でスローされた致命的なエラーをここでキャッチ
+    console.error("ゲームの初期化中に致命的なエラーが発生しました:", error);
+    // 必要であれば、ユーザーにエラーを通知する処理をここに追加
+});
 
 </script>
 </body>
