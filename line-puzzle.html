@@ -63,7 +63,7 @@ function layout(){
 window.addEventListener('resize',layout);
 
 /* ------------ JSON 読込 ------------ */
-fetch('puzzles.json')
+fetch('contents.json')
   .then(r=>r.json())
   .then(d=>{puzzles=d.puzzles;load(1);layout();});
 
