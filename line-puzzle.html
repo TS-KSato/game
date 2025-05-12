@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Line Puzzle Pro WebGL</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/pixi.js@8.x/dist/pixi.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/browser/pixi.min.js"></script>
 <style>
 :root{
   --bg:#f4f7fb;
@@ -40,18 +40,36 @@ canvas{touch-action:none}
 </div>
 
 <script>
-/* ------------ Pixi アプリ初期化 ------------ */
-const STAGE = document.getElementById('stage');
-const app = new PIXI.Application({
-width: 1, height: 1,
-antialias: true,
-backgroundAlpha: 0,
-powerPreference: 'high-performance',
-preferEnvironment: 'pixi' // WebGL 不可なら自動で Canvas2D にフォールバック
-});
-STAGE.appendChild(app.view);
-layout();
+document.addEventListener('DOMContentLoaded', init);
 
+function init() {
+  const STAGE = document.getElementById('stage');
+  const app = new PIXI.Application({
+    width: 1,
+    height: 1,
+    backgroundAlpha: 0,
+    antialias: true,
+    preferEnvironment: 'auto'
+  });
+if (!app.renderer) {
+    STAGE.textContent = 'Pixi Renderer の初期化に失敗しました（WebGL 無効？）';
+    return;
+  }
+
+  STAGE.appendChild(app.view);
+  function layout() {
+    const size = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
+    app.renderer.resize(size, size);
+    draw();
+  }
+  window.addEventListener('resize', layout);
+  layout(); 
+const gEdges = new PIXI.Graphics();
+  const gNodes = new PIXI.Graphics();
+  app.stage.addChild(gEdges, gNodes);
+
+  function draw() { /* …図形描画ロジック… */ }
+}
 /* ------------ レンダリング用コンテナ ------------ */
 const gEdges = new PIXI.Graphics();
 const gNodes = new PIXI.Graphics();
