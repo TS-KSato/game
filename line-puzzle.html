@@ -1,34 +1,32 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Line Puzzle Pro – Stable</title>
-
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Line Puzzle Pro – Final</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.9.2/pixi.min.js"
-        onerror="this.onerror=null;this.src='pixi.js'"></script>
+        onerror="this.onerror=null;this.src='pixi.min.js'"></script>
 
 <style>
-:root{--node:#43a4ff;--edge:#7b93ad;--edge-on:#43a4ff;--accent:#ffbf3c}
+:root{ --node:#43a4ff; --edge:#7b93ad; --edgeOn:#43a4ff; --accent:#ffbf3c }
 html,body{margin:0;height:100%;display:flex;flex-direction:column;background:#f4f7fb;font-family:sans-serif}
 header{height:56px;display:flex;justify-content:center;align-items:center;
-       background:rgba(255,255,255,.85);backdrop-filter:blur(8px);box-shadow:0 4px 10px #0002}
+       background:#fff8;backdrop-filter:blur(6px);box-shadow:0 3px 8px #0002}
 h1{margin:0;font-size:16px;font-weight:700}
 #stage{flex:1;display:flex;justify-content:center;align-items:center;overflow:hidden;position:relative}
-#ui{display:flex;gap:.6rem;padding:10px;background:rgba(255,255,255,.85);backdrop-filter:blur(8px)}
-#ui button{flex:1;border:none;padding:12px 0;border-radius:14px;background:#fff;font-weight:700;box-shadow:0 3px 6px #0002;cursor:pointer}
+#ui{display:flex;gap:.6rem;padding:10px;background:#fff8;backdrop-filter:blur(6px)}
+#ui button{flex:1;border:none;padding:12px 0;border-radius:14px;background:#fff;font-weight:700;
+           box-shadow:0 3px 6px #0002;cursor:pointer}
 #ui button:active{transform:scale(.96)}
-#loader,#error{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;
-               font-size:18px;background:#fff8}
+#overlay{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;
+         background:#fff8;font-size:18px;backdrop-filter:blur(2px)}
+canvas{touch-action:none}
 </style>
 </head>
 <body>
 <header><h1>Line Puzzle Pro</h1></header>
 
-<div id="stage">
-  <div id="loader">Loading…</div>
-  <div id="error" style="display:none;color:#c00"></div>
-</div>
+<div id="stage"><div id="overlay">Loading…</div></div>
 
 <div id="ui">
   <button id="resetBtn">Reset</button>
@@ -36,142 +34,110 @@ h1{margin:0;font-size:16px;font-weight:700}
 </div>
 
 <script>
+/* ---------- ここから全処理を 1 つの IIFE に閉じ込め ---------- */
 (async () => {
-  const STAGE = document.getElementById('stage');
-  const loaderEl = document.getElementById('loader');
-  const errorEl  = document.getElementById('error');
+  const overlay = document.getElementById('overlay');
+  const stage   = document.getElementById('stage');
 
-  /* ---------- 安全に Pixi Application を初期化 ---------- */
-  let app;
-  try {
-    app = new PIXI.Application();
-    await app.init({
-      width: 1, height: 1,
-      backgroundAlpha: 0,
-      antialias: true,
-      preferEnvironment: 'auto'
-    });
-    STAGE.appendChild(app.canvas);
-  } catch (e) {
-    loaderEl.style.display='none';
-    errorEl.textContent='Pixi 初期化失敗: ' + e.message;
-    errorEl.style.display='flex';
-    console.error(e);
+  /* 1. Pixi がロード済みか検証 */
+  if (typeof PIXI === 'undefined') {
+    overlay.textContent = 'Pixi が読み込めませんでした';
     return;
   }
 
-  /* ---------- データをロード ---------- */
+  /* 2. Application 初期化 (同期) */
+  const app = new PIXI.Application();
+  await app.init({
+    width: 1, height: 1,
+    backgroundAlpha: 0,
+    antialias: true,
+    preferEnvironment: 'auto'   // WebGL→Canvas2D 自動フォールバック
+  });
+  stage.appendChild(app.canvas);
+
+  /* 3. データ読込 */
   let puzzles;
   try {
     puzzles = (await (await fetch('contents.json')).json()).puzzles;
   } catch (e) {
-    loaderEl.style.display='none';
-    errorEl.textContent='puzzles 読込失敗';
-    errorEl.style.display='flex';
+    overlay.textContent = 'puzzles 読込失敗';
     console.error(e);
     return;
   }
 
-  /* ---------- GameState クラス ---------- */
-  class GameState {
-    cur     = null;
-    traced  = new Set();
-    path    = [];
-    needRedraw = true;
-
-    loadLevel(level){
-      this.cur = puzzles.find(p=>p.difficulty===level);
-      this.traced.clear();
-      this.path.length = 0;
-      this.invalidate();
-    }
-    invalidate(){ this.needRedraw = true; }
+  /* 4. 状態クラス */
+  class State {
+    cur = null; traced=new Set(); path=[];
+    load(level){ this.cur=puzzles.find(p=>p.difficulty===level); this.traced.clear(); this.path.length=0; invalid=true; }
   }
-  const state = new GameState();
-  state.loadLevel(1);
+  const st = new State(); st.load(1);
 
-  /* ---------- Graphics レイヤ ---------- */
-  const gEdges = new PIXI.Graphics();
-  const gNodes = new PIXI.Graphics();
-  app.stage.addChild(gEdges, gNodes);
+  /* 5. Graphics */
+  const gE=new PIXI.Graphics(), gN=new PIXI.Graphics();
+  app.stage.addChild(gE,gN);
 
-  /* ---------- 正方形レイアウト ---------- */
-  function resizeCanvas(){
-    const s = Math.max(1, Math.min(STAGE.clientWidth, STAGE.clientHeight));
-    app.renderer.resize(s, s);
-    state.invalidate();
+  /* 6. 正方形リサイズ */
+  function fit(){
+    const s=Math.max(1,Math.min(stage.clientWidth,stage.clientHeight));
+    app.renderer.resize(s,s); invalid=true;
   }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
+  window.addEventListener('resize',fit); fit();
 
-  /* ---------- ユーティリティ ---------- */
-  const R_BASE = 22;
-  function nodeHit(px,py){
-    const {width:W,height:H}=app.renderer;
-    const r = R_BASE*1.2*(W/800);
-    return state.cur.nodes.findIndex(n=>Math.hypot(n.x*W-px,n.y*H-py)<=r);
-  }
-  const edgeIndex = (a,b)=>
-    state.cur.edges.findIndex(e=>(e.from===a&&e.to===b)||(e.from===b&&e.to===a));
-
-  /* ---------- 入力 ---------- */
-  app.stage.eventMode='static';
-  app.stage.on('pointerdown',e=>{
-    const {x,y}=e.global, idx=nodeHit(x,y);
-    if(idx!==-1){ state.path=[idx]; state.invalidate(); }
-  });
-  app.stage.on('pointermove',e=>{
-    if(!state.path.length) return;
-    const {x,y}=e.global, idx=nodeHit(x,y);
-    if(idx!==-1 && idx!==state.path[state.path.length-1]){
-      const id = edgeIndex(state.path[state.path.length-1], idx);
-      if(id!==-1 && !state.traced.has(id)){
-        state.traced.add(id);
-        state.path.push(idx);
-        state.invalidate();
-      }
-    }
-  });
-
-  /* ---------- 再描画 (ticker で 1 フレーム 1 回) ---------- */
+  /* 7. 描画 */
+  const R=22; let invalid=true;
   app.ticker.add(()=>{
-    if(!state.needRedraw) return;
-    state.needRedraw=false;
-    const {width:W,height:H}=app.renderer;
-    const r = R_BASE*(W/800);
+    if(!invalid||!st.cur)return; invalid=false;
+    const W=app.renderer.width,H=app.renderer.height,r=R*(W/800);
+    gE.clear(); gN.clear();
 
-    gEdges.clear(); gNodes.clear();
-
-    /* 未トレースエッジ */
-    gEdges.lineStyle({width:r*0.5,color:0x7b93ad,cap:'round'});
-    state.cur.edges.forEach(e=>{
-      const a=state.cur.nodes[e.from], b=state.cur.nodes[e.to];
-      gEdges.moveTo(a.x*W,a.y*H).lineTo(b.x*W,b.y*H);
+    /* 全エッジ */
+    gE.lineStyle({width:r*.5,color:0x7b93ad,cap:'round'});
+    st.cur.edges.forEach(e=>{
+      const a=st.cur.nodes[e.from],b=st.cur.nodes[e.to];
+      gE.moveTo(a.x*W,a.y*H).lineTo(b.x*W,b.y*H);
     });
     /* トレース済み */
-    gEdges.lineStyle({width:r*0.65,color:0x43a4ff,cap:'round'});
-    state.traced.forEach(i=>{
-      const e=state.cur.edges[i], a=state.cur.nodes[e.from], b=state.cur.nodes[e.to];
-      gEdges.moveTo(a.x*W,a.y*H).lineTo(b.x*W,b.y*H);
+    gE.lineStyle({width:r*.65,color:0x43a4ff,cap:'round'});
+    st.traced.forEach(i=>{
+      const e=st.cur.edges[i],a=st.cur.nodes[e.from],b=st.cur.nodes[e.to];
+      gE.moveTo(a.x*W,a.y*H).lineTo(b.x*W,b.y*H);
     });
     /* ノード */
-    state.cur.nodes.forEach((n,i)=>{
-      const col = (state.path[state.path.length-1]===i)?0xffbf3c:0x43a4ff;
-      gNodes.beginFill(col).drawCircle(n.x*W,n.y*H,r).endFill();
+    st.cur.nodes.forEach((n,i)=>{
+      const c=(st.path.at(-1)===i)?0xffbf3c:0x43a4ff;
+      gN.beginFill(c).drawCircle(n.x*W,n.y*H,r).endFill();
     });
   });
 
-  /* ---------- UI ボタン ---------- */
-  document.getElementById('resetBtn').onclick=()=>{
-    state.traced.clear(); state.path.length=0; state.invalidate();
+  /* 8. ヒット判定 */
+  const hit=(x,y)=>{
+    const W=app.renderer.width,H=app.renderer.height,thr=R*1.2*(W/800);
+    return st.cur.nodes.findIndex(n=>Math.hypot(n.x*W-x,n.y*H-y)<=thr);
   };
+  const edgeIdx=(a,b)=>st.cur.edges.findIndex(e=>(e.from===a&&e.to===b)||(e.from===b&&e.to===a));
+
+  /* 9. 入力 */
+  app.stage.eventMode='static';
+  app.stage.on('pointerdown',e=>{
+    const {x,y}=e.global,idx=hit(x,y); if(idx!==-1){st.path=[idx];invalid=true;}
+  });
+  app.stage.on('pointermove',e=>{
+    if(!st.path.length)return;
+    const {x,y}=e.global,idx=hit(x,y);
+    if(idx!==-1&&idx!==st.path.at(-1)){
+      const ei=edgeIdx(st.path.at(-1),idx);
+      if(ei!==-1&&!st.traced.has(ei)){ st.traced.add(ei); st.path.push(idx); invalid=true; }
+    }
+  });
+
+  /* 10. UI */
+  document.getElementById('resetBtn').onclick=()=>{st.traced.clear();st.path.length=0;invalid=true;};
   document.getElementById('hintBtn').onclick=()=>{
-    const id=state.cur.edges.findIndex((_,i)=>!state.traced.has(i));
-    if(id!==-1){ state.path=[state.cur.edges[id].from]; state.invalidate(); }
+    const i=st.cur.edges.findIndex((_,i)=>!st.traced.has(i));
+    if(i!==-1){st.path=[st.cur.edges[i].from];invalid=true;}
   };
 
-  /* ---------- ローダーを隠す ---------- */
-  loaderEl.style.display='none';
+  overlay.style.display='none';   // ローディング完了
 })();
 </script>
 </body>
