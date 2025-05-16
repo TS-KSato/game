@@ -581,6 +581,7 @@
         if (this.state !== "playing") return;
         this.timer -= 1 / FPS; if (this.timer <= 0) { this.finish("時間切れ"); return; }
         document.getElementById("timer").textContent = String(Math.ceil(this.timer));
+        let cpuPaddle = this.paddles[1], cpuBall = this.balls[1];
         let currentDir = Math.sign(cpuBall.vy);
         if (this.lastBallDir !== currentDir) {
           this.cpuSkill = 0.97 + Math.random() * 0.05;
