@@ -100,7 +100,6 @@
       return isNaN(val) ? fallback : val;
     }
 
-    // 定数
     const GRID = 12, BLOCKS = GRID * GRID,
       BLOCK_P = "#00FFD0", BLOCK_C = "#FF2080", BLOCK_N = "#232338",
       PADDLE_P = "#FFFFFF", PADDLE_C = "#FFFFFF", BALL_P = "#FFFFFF", BALL_C = "#FFFFFF",
@@ -109,12 +108,7 @@
 
     class Block {
       constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.type = "Normal";
-        this.score = 1;
-        this.hits = 0;
-        this.maxHits = 1;
+        this.x = x; this.y = y; this.type = "Normal"; this.score = 1; this.hits = 0; this.maxHits = 1;
         this.owner = y < GRID / 2 ? 1 : 0;
       }
       hit(pid) {
@@ -153,7 +147,7 @@
         this.timer = MATCH;
         this.state = "wait";
         this.waitingForStart = true;
-        this.cpuNoMissUntil = 20; // CPUが絶対にミスしない時間
+        this.cpuNoMissUntil = 20;
         this.init();
         this.resize();
         this.loopBind = this.loop.bind(this);
@@ -161,7 +155,6 @@
         this.cpuSkill = 1;
         this.cpuJitter = 0;
         this.lastBallDir = null;
-
         window.addEventListener('resize', () => this.resize());
       }
       init() {
@@ -199,32 +192,28 @@
         this.timer -= 1 / FPS; if (this.timer <= 0) { this.finish("時間切れ"); return; }
         document.getElementById("timer").textContent = String(Math.ceil(this.timer));
 
+        // CPUの動き調整
         let cpuPaddle = this.paddles[1], cpuBall = this.balls[1];
         let playTime = MATCH - this.timer;
-
-        // --- CPUパドルAI制御 ---
         if (cpuBall.vy < 0 && cpuBall.y < GRID / 2) {
           let currentDir = Math.sign(cpuBall.vy);
           if (playTime < this.cpuNoMissUntil) {
-            // 20秒間は絶対ノーミス：予測地点へほぼ瞬時に移動
             let predictX = this.predictBallLandingX(cpuBall);
-            cpuPaddle.moveTo(cpuPaddle.x + (predictX - cpuPaddle.x) * 0.75);
+            cpuPaddle.moveTo(cpuPaddle.x + (predictX - cpuPaddle.x) * 0.7);
           } else {
-            // 21秒以降はミスが出るようにスキルを下げ、ゆらぎを大きく
             if (this.lastBallDir !== currentDir) {
-              this.cpuSkill = 0.85 + Math.random() * 0.13;
-              this.cpuJitter = (Math.random() - 0.5) * 1.1;
+              this.cpuSkill = 0.87 + Math.random() * 0.15;
+              this.cpuJitter = (Math.random() - 0.5) * 1.0;
               this.cpuTargetX = this.predictBallLandingX(cpuBall) * this.cpuSkill + this.cpuJitter;
               this.lastBallDir = currentDir;
             }
             cpuPaddle.moveTo(cpuPaddle.x + (this.cpuTargetX - cpuPaddle.x) * 0.13);
           }
         } else {
-          // ボールが上昇中でない時は中央付近に戻る
           cpuPaddle.moveTo(cpuPaddle.x + ((GRID / 2) - cpuPaddle.x) * 0.08);
         }
 
-        // プレイヤー・CPUごとのボール進行・衝突判定
+        // --- ゲームのコア物理処理 ---
         for (let pid = 0; pid < 2; pid++) {
           let b = this.balls[pid], p = this.paddles[pid];
           b.move();
@@ -233,30 +222,47 @@
           if (b.x - b.r < 0) { b.x = b.r; b.vx *= -1; }
           if (b.x + b.r > GRID) { b.x = GRID - b.r; b.vx *= -1; }
 
-          // パドル衝突判定
-          if (b.pid === 0 && b.vy > 0 && Math.abs(b.y - p.y) < 0.4 && Math.abs(b.x - p.x) < p.w / 2 + b.r) {
-            b.vy *= -1; this.se("hit");
-          }
-          if (b.pid === 1 && b.vy < 0 && Math.abs(b.y - p.y) < 0.4 && Math.abs(b.x - p.x) < p.w / 2 + b.r) {
-            b.vy *= -1; this.se("hit");
+          // パドル衝突
+          let paddleY = p.y;
+          let towardPaddle = (pid === 0 && b.vy > 0) || (pid === 1 && b.vy < 0);
+          let yDist = Math.abs(b.y - paddleY);
+          let xDist = Math.abs(b.x - p.x);
+          if (towardPaddle && yDist < 0.38 && xDist < p.w / 2 + b.r) {
+            // パドル上ヒット、バウンド
+            b.vy *= -1;
+            // パドル中央以外で当たるとx速度を追加
+            let offset = (b.x - p.x) / (p.w / 2);
+            b.vx += offset * 0.04;
+            // x速度の上限制御
+            b.vx = Math.max(-0.2, Math.min(0.2, b.vx));
+            // パドルの上端/下端から抜けるのを防ぐ
+            b.y = pid === 0 ? p.y - 0.41 : p.y + 0.41;
+            this.se("hit");
           }
 
-          // ブロック塗り替え
-          let bi = this.blocks.find(bl =>
+          // ブロック衝突（反射＆色変え）
+          let hitBlock = this.blocks.find(bl =>
             Math.abs(bl.x + 0.5 - b.x) < 0.45 && Math.abs(bl.y + 0.5 - b.y) < 0.45
           );
-          if (bi) {
-            let res = bi.hit(b.pid);
+          if (hitBlock) {
+            let prevOwner = hitBlock.owner;
+            let res = hitBlock.hit(pid);
             if (res.action === "paint") this.se("paint");
+            // ボールのy方向反転
+            // 端をかすめた場合はxも反転
+            let bx = b.x - (hitBlock.x + 0.5), by = b.y - (hitBlock.y + 0.5);
+            if (Math.abs(by) > Math.abs(bx)) {
+              b.vy *= -1;
+            } else {
+              b.vx *= -1;
+            }
+            // ボールをちょっと押し戻してめり込み防止
+            b.x += b.vx * 1.2; b.y += b.vy * 1.2;
           }
 
-          // ゴール判定
-          if (b.pid === 0 && b.y < 0) {
-            this.finish("あなたがミスしました"); return;
-          }
-          if (b.pid === 1 && b.y > GRID) {
-            this.finish("CPUがミスしました"); return;
-          }
+          // ゴール（失点）判定
+          if (pid === 0 && b.y < -0.4) { this.finish("あなたがミスしました"); return; }
+          if (pid === 1 && b.y > GRID + 0.4) { this.finish("CPUがミスしました"); return; }
         }
 
         this.render();
