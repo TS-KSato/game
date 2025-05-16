@@ -2,406 +2,253 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Block Painter - 完全スマホ・PC対応</title>
+  <title>Block Painter</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --main-bg: #181824;
-      --glass-bg: rgba(35,35,56,0.85);
-      --neon: #00FFD0;
-      --neon2: #FF2080;
-      --neutral: #232338;
-      --white: #FFFFFF;
-      --shadow: #0CFDFF44;
-    }
     html, body {
-      margin:0; padding:0; width:100vw; height:100vh; overflow:hidden; background: var(--main-bg);
+      margin:0; padding:0; width:100vw; height:100vh; overflow:hidden;
+      background: #181824;
+      -ms-touch-action: none;
+          touch-action: none;
+      overscroll-behavior: none;
     }
     body {
       min-height: 100vh;
       font-family:'Roboto Mono', 'Segoe UI', Verdana, Arial, 'ヒラギノ角ゴ ProN', sans-serif;
       display:flex; flex-direction:column; align-items:center; justify-content:center;
-      color: var(--white);
+      color: #FFF;
       font-size: clamp(16px, 5vw, 20px);
-      line-height: 1.45;
-      letter-spacing: 0.03em;
-      background: var(--main-bg);
-    }
-    #bg-glitch {
-      z-index:0; position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none;
-      background:
-        repeating-linear-gradient(135deg, #18182C 0 3px, transparent 3px 14px),
-        repeating-linear-gradient(-45deg, #232338 0 2px, transparent 2px 18px),
-        linear-gradient(120deg, #1d192b 65%, #00FFD0 120%);
-      opacity:0.65;
-      animation:bgGlitch 4s infinite linear alternate;
-      filter: blur(1.5px) brightness(1.10) contrast(1.05);
-    }
-    @keyframes bgGlitch {
-      0% { background-position: 0 0,0 0,0 0;}
-      25% { background-position: 8px 4px, -15px 18px, 0 20px;}
-      50% { background-position: -6px -8px, 10px 22px, 0 -10px;}
-      100% { background-position: 0 0,0 0,0 0;}
+      background: #181824;
+      overscroll-behavior: none;
     }
     #gamebox {
-      margin: 0 auto;
-      max-width: 540px;
-      width: 100vw;
-      background: rgba(35,35,56,0.90);
-      border-radius: 20px;
-      box-shadow: 0 2px 24px var(--shadow);
-      padding: 16px 0 24px 0;
+      max-width: 98vw; width: 98vw;
+      background: rgba(35,35,56,0.98);
+      border-radius: 18px;
+      box-shadow: 0 2px 16px #0CFDFF44;
+      padding: 10px 0 20px 0;
       position:relative;
       z-index:1;
       display: flex; flex-direction: column; align-items: center;
-      backdrop-filter: blur(2.8px) brightness(1.04);
     }
     #ui {
       width:96vw; max-width:96vw;
       display:flex;justify-content:space-between;align-items:center;
       gap: 14px;
-      margin:16px 0 0 0; font-size:18px; user-select:none;
+      margin:8px 0 0 0; font-size:18px; user-select:none;
     }
     .hud {
       font-family: 'Orbitron', sans-serif;
       font-size: 17px;
       font-weight: bold;
       letter-spacing: 1.5px;
-      display: flex;
-      align-items: center;
-      min-width: 60px;
-      padding: 0 6px;
+      display: flex; align-items: center;
+      min-width: 60px; padding: 0 6px;
     }
-    .hud-player { color: var(--neon); }
-    .hud-cpu { color: var(--neon2); flex-direction: row-reverse; }
+    .hud-player { color: #00FFD0; }
+    .hud-cpu { color: #FF2080; flex-direction: row-reverse; }
     .arrow { font-size: 1.3em; margin:0 5px; }
-    .glass-card {
-      background: var(--glass-bg);
-      border: 1.5px solid var(--neon);
+    #timer {
+      background: linear-gradient(90deg, #181824 40%, #00FFD0 100%);
+      border: 1.5px solid #00FFD0;
       border-radius: 12px;
-      box-shadow: 0 2px 10px var(--shadow);
-      padding: 10px 18px;
-      min-width: 56px;
-      text-align: center;
-      font-weight: 600;
-      color: var(--white);
-      font-family: 'Orbitron', 'Roboto Mono', monospace;
-      letter-spacing: 1.5px;
-      font-size: 18px;
-      transition: box-shadow 0.22s, background 0.15s;
-      position:relative;
-      overflow:hidden;
+      color: #fff; font-size: 20px;
+      padding: 6px 18px; font-family: 'Orbitron',sans-serif;
+      letter-spacing:1.2px; box-shadow: 0 0 8px #0CFDFF44;
+      text-align:center; min-width:54px;
     }
-    #timer { background: linear-gradient(90deg, var(--main-bg) 40%, var(--neon) 100%); border: 1.5px solid var(--neon); color: var(--white); font-size: 22px; box-shadow: 0 0 8px var(--shadow); }
     #game {
-      width:96vw; height:96vw; max-width:96vw; max-height:72vw; outline:none;
-      border-radius:3vw; touch-action:none;
-      box-shadow: 0 0 44px var(--neon2), 0 0 8px var(--neon) inset;
+      width:96vw; height:96vw; max-width:96vw; max-height:78vw; outline:none;
+      border-radius:3vw;
+      box-shadow: 0 0 28px #FF208055, 0 0 8px #00FFD0 inset;
       background:rgba(32,32,48,0.18);
-      border:2px solid var(--neon);
+      border:2px solid #00FFD0;
       margin-top:10px;
       display:block;
+      touch-action:none;
     }
     .game-title, #start h1 {
       font-family: 'Orbitron', sans-serif;
       font-size: clamp(28px, 8vw, 36px);
       letter-spacing: -0.5px;
-      color: var(--neon);
-      text-shadow: 0 0 14px var(--neon), 0 1px 0 #232338;
-      font-weight: 900;
-      margin: 0 0 8px 0;
-      text-align: center;
+      color: #00FFD0;
+      text-shadow: 0 0 14px #00FFD0, 0 1px 0 #232338;
+      font-weight: 900; margin: 0 0 8px 0; text-align: center;
       text-transform: uppercase;
     }
     #start p {
       color: #c8fff6;
       background:rgba(0,255,208,0.11);
-      padding:18px 14px;
-      border-radius:10px;
-      font-size:18px;
-      margin-bottom:32px;
-      line-height:1.6;
-      text-shadow:0 0 8px #00FFD033;
-      box-shadow:0 0 10px var(--neon2);
-      text-align:center;
-      font-family: 'Roboto Mono', monospace;
+      padding:16px 12px; border-radius:10px;
+      font-size:17px; margin-bottom:22px; line-height:1.5;
+      box-shadow:0 0 6px #FF208044;
+      text-align:center; font-family: 'Roboto Mono', monospace;
     }
-    .cpk-btn, .game-btn {
-      background: linear-gradient(90deg, var(--neon), var(--neon2) 100%);
-      color: var(--main-bg);
-      font-family: 'Orbitron', sans-serif;
-      font-size: 20px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      border-radius: 16px;
-      border: none;
-      padding: 14px 0;
-      margin: 12px 0 0 0;
-      min-width: 70vw;
-      min-height: 48px;
+    .game-btn {
+      background: linear-gradient(90deg, #00FFD0, #FF2080 100%);
+      color: #181824; font-family: 'Orbitron', sans-serif;
+      font-size: 20px; letter-spacing: 2px;
+      border-radius: 16px; border: none;
+      padding: 14px 0; margin: 14px 0 0 0;
+      min-width: 72vw; min-height: 48px;
       font-weight: 800;
-      box-shadow: 0 4px 24px var(--shadow);
-      outline: 2px solid #00FFD088;
-      position: relative;
-      overflow: hidden;
+      box-shadow: 0 4px 20px #0CFDFF44;
+      outline: 2px solid #00FFD044; position: relative;
       transition: transform 0.15s, box-shadow 0.18s, background 0.2s;
-      cursor: pointer;
-      display: block;
-      text-align: center;
-      outline-offset:2px;
+      cursor: pointer; display: block; text-align: center; outline-offset:2px;
     }
-    .cpk-btn:active, .game-btn:active,
-    .cpk-btn:focus, .game-btn:focus {
+    .game-btn:active, .game-btn:focus {
       transform: scale(0.97);
       box-shadow: 0 2px 12px #FF208088;
-      background: linear-gradient(90deg, var(--neon2), var(--neon) 100%);
-      outline: 2.5px solid var(--neon2);
+      background: linear-gradient(90deg, #FF2080, #00FFD0 100%);
+      outline: 2.5px solid #FF2080;
     }
     #result, #start, #countdown {
       position:absolute;left:0;top:0;width:100%;height:100%;
       display:flex;flex-direction:column;align-items:center;justify-content:center;
       z-index:10;
       background:rgba(18,18,36,0.96);
-      backdrop-filter:blur(8px) brightness(1.15);
-      border-radius:22px;
-      box-shadow:0 0 32px var(--shadow);
-      padding:32px 12px 20px 12px;
-      max-width:400px;
-      margin:auto;
-      color: var(--white);
-      animation:fadeIn 0.7s;
-      transition:opacity 0.3s;
+      backdrop-filter:blur(6px) brightness(1.12);
+      border-radius:18px; box-shadow:0 0 24px #00FFD044;
+      padding:28px 12px 20px 12px; max-width:400px; margin:auto;
+      color: #fff; animation:fadeIn 0.7s; transition:opacity 0.3s;
     }
     @keyframes fadeIn { from { opacity:0;} to {opacity:1;} }
     #result{display:none;}
-    #winner { color: var(--neon); font-size: 32px; margin-bottom: 8px; font-family:'Orbitron',sans-serif; letter-spacing:0.08em; text-shadow:0 3px 18px var(--neon),0 1px 2px #232338; text-align:center; font-weight:900; }
-    #reason{ color: var(--neon2); font-size:20px; margin-bottom: 16px; text-align:center; font-family:'Roboto Mono',monospace; text-shadow: 0 1px 6px var(--neon2), 0 0 2px var(--white);}
-    #countdown { font-family: 'Orbitron', sans-serif; color: var(--neon); font-size: 54px; letter-spacing:0.05em; text-shadow:0 0 24px var(--neon2),0 0 8px var(--neon); display:flex;align-items:center;justify-content:center; flex-direction:column; opacity:1; animation:countPulse 0.8s infinite alternate; }
-    @keyframes countPulse {0%{text-shadow:0 0 8px var(--neon2);}100%{text-shadow:0 0 36px var(--neon);}}
-    #countdown-label { font-size: 22px; margin-bottom: 10px; color: var(--white); text-shadow: 0 0 7px var(--neon2); letter-spacing:0.09em; font-family:'Roboto Mono',monospace; }
+    #winner { color: #00FFD0; font-size: 29px; margin-bottom: 8px;
+      font-family:'Orbitron',sans-serif; letter-spacing:0.08em;
+      text-shadow:0 2px 16px #00FFD0,0 1px 2px #232338; text-align:center; font-weight:900;}
+    #reason{ color: #FF2080; font-size:18px; margin-bottom: 12px;
+      text-align:center; font-family:'Roboto Mono',monospace; text-shadow: 0 1px 6px #FF2080, 0 0 2px #fff;}
+    #countdown { font-family: 'Orbitron', sans-serif; color: #00FFD0; font-size: 46px;
+      letter-spacing:0.05em; text-shadow:0 0 18px #FF2080,0 0 7px #00FFD0;
+      display:flex;align-items:center;justify-content:center; flex-direction:column;
+      opacity:1; animation:countPulse 0.8s infinite alternate;}
+    @keyframes countPulse {0%{text-shadow:0 0 7px #FF2080;}100%{text-shadow:0 0 26px #00FFD0;}}
+    #countdown-label { font-size: 19px; margin-bottom: 10px; color: #fff; text-shadow: 0 0 5px #FF2080;}
     #orientationWarning {
       display:none; position:fixed;top:0;left:0;width:100vw;height:100vh;
-      background: var(--neon);
-      color: var(--main-bg);
+      background: #00FFD0;
+      color: #181824;
       z-index:10000;
       flex-direction:column;justify-content:center;align-items:center;text-align:center;
-      font-size: 22px;
-      font-family:'Orbitron',sans-serif;
-      font-weight:bold;
-      letter-spacing:2px;
-      box-shadow: 0 2px 16px var(--shadow);
+      font-size: 21px; font-family:'Orbitron',sans-serif; font-weight:bold; letter-spacing:2px; box-shadow: 0 2px 16px #00FFD044;
     }
     /* バーチャルパッド */
     #virtualPad {
       position: fixed;
-      left: 50%;
-      bottom: 22px;
+      left: 50%; bottom: 22px;
       transform: translateX(-50%);
-      width: 124px;
-      height: 124px;
+      width: 118px; height: 118px;
       border-radius: 50%;
       background: linear-gradient(135deg, #00FFD0 40%, #FF2080 120%);
-      box-shadow: 0 4px 24px #00FFD066;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      user-select: none;
-      touch-action: none;
-      opacity: 0.92;
-      transition: opacity 0.18s;
+      box-shadow: 0 4px 24px #00FFD044;
+      display: none; /* 開始後にのみ出現 */
+      align-items: center; justify-content: center;
+      z-index: 2000; user-select: none; touch-action: none; opacity: 0.93;
       pointer-events: auto;
     }
     #padInner {
-      width: 60px;
-      height: 60px;
+      width: 58px; height: 58px;
       border-radius: 50%;
       background: #181824;
-      box-shadow: 0 2px 20px #fff8, 0 0 0 4px #fff3 inset;
+      box-shadow: 0 2px 18px #fff8, 0 0 0 4px #fff3 inset;
       transition: transform 0.09s, box-shadow 0.09s;
-      will-change: transform;
-      pointer-events:none;
+      will-change: transform; pointer-events:none;
     }
-    #virtualPad:active #padInner,
-    #virtualPad.active #padInner {
+    #virtualPad:active #padInner, #virtualPad.active #padInner {
       background: #222248;
-      box-shadow: 0 4px 32px #00ffd099, 0 0 0 8px #ff208022 inset;
-      transform: scale(1.15);
-    }
-    /* PC時非表示 */
-    #virtualPad.pc-hide {
-      display: none !important;
-    }
-    /* 操作ガイド */
-    #controlGuide {
-      display: none;
-      position: fixed;
-      bottom: 42px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(35,35,56,0.92);
-      color: var(--white);
-      padding: 16px 26px;
-      border-radius: 18px;
-      box-shadow: 0 2px 14px var(--shadow);
-      font-size: 18px;
-      font-family: 'Orbitron',sans-serif;
-      letter-spacing:0.07em;
-      z-index: 2222;
-      text-align: center;
-      opacity: 0.94;
-    }
-    #controlGuide.show {
-      display: block;
-      animation: fadeIn 0.6s;
-    }
-    /* ガイド - 初回説明 */
-    #firstGuide {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 3000;
-      background: rgba(20,24,38,0.92);
-      color: #fff;
-      align-items: center; justify-content: center;
-      text-align: center;
-      font-family: 'Roboto Mono', sans-serif;
-    }
-    #firstGuide .guideBox {
-      margin: auto;
-      background: #252540;
-      border-radius: 18px;
-      box-shadow: 0 2px 20px var(--neon2);
-      padding: 36px 28px;
-      max-width: 380px;
-    }
-    #firstGuide h2 {
-      color: var(--neon);
-      margin-bottom: 18px;
-      font-size: 1.2em;
-      font-family: 'Orbitron',sans-serif;
-    }
-    #firstGuide button {
-      margin-top: 22px;
-      background: linear-gradient(90deg, var(--neon2), var(--neon));
-      border: none;
-      color: #181824;
-      font-family: 'Orbitron', sans-serif;
-      font-size: 1.1em;
-      border-radius: 12px;
-      padding: 12px 38px;
-      box-shadow: 0 4px 14px var(--shadow);
-      cursor: pointer;
-      font-weight: 700;
-      transition: background 0.17s;
+      box-shadow: 0 4px 28px #00ffd099, 0 0 0 8px #ff208022 inset;
+      transform: scale(1.12);
     }
     @media (max-width: 414px) {
-      #gamebox { padding:8px 0 16px 0; }
-      .cpk-btn, .game-btn { font-size: 18px; min-height: 52px; }
-      .glass-card { font-size: 17px; padding: 8px 14px; }
-      #timer { font-size: 18px; }
-      #start h1, .game-title { font-size: 28px; }
-      #virtualPad { width: 92px; height: 92px;}
-      #padInner { width: 38px; height: 38px;}
+      #gamebox { padding:8px 0 12px 0; }
+      .game-btn { font-size: 17px; min-height: 48px; }
+      #timer { font-size: 17px; }
+      #start h1, .game-title { font-size: 25px; }
+      #virtualPad { width: 80px; height: 80px;}
+      #padInner { width: 33px; height: 33px;}
     }
     @media (orientation: landscape){
       #game { height:60vw; }
       #ui { font-size: 14px; }
-      .glass-card, #timer { font-size: 14px; }
-      #start h1, .game-title { font-size: 22px; }
-      #start p { font-size: 15px; }
-      .cpk-btn { font-size: 15px; padding: 10px 0; }
-      #orientationWarning{ font-size: 18px;}
-      #countdown{ font-size: 32px;}
-      #virtualPad { width: 68px; height: 68px;}
-      #padInner { width: 24px; height: 24px;}
+      #timer { font-size: 13px; }
+      #start h1, .game-title { font-size: 18px; }
+      .game-btn { font-size: 13px; padding: 8px 0; }
+      #orientationWarning{ font-size: 15px;}
+      #countdown{ font-size: 28px;}
+      #virtualPad { width: 54px; height: 54px;}
+      #padInner { width: 21px; height: 21px;}
     }
   </style>
 </head>
 <body>
-  <div id="bg-glitch"></div>
   <div id="gamebox">
     <div id="ui">
       <div class="hud hud-player"><span class="arrow">&#x25BC;</span>あなた</div>
-      <div id="timer" class="glass-card">30</div>
+      <div id="timer">30</div>
       <div class="hud hud-cpu">CPU<span class="arrow">&#x25B2;</span></div>
     </div>
     <canvas id="game" width="800" height="800" tabindex="0"></canvas>
     <div id="result" role="dialog" aria-modal="true">
       <div id="winner"></div>
       <div id="reason"></div>
-      <button class="cpk-btn game-btn" onclick="location.reload()">もう一度遊ぶ</button>
+      <button class="game-btn" onclick="location.reload()">もう一度遊ぶ</button>
     </div>
     <div id="start" role="dialog" aria-modal="true">
       <h1 class="game-title">Block Painter</h1>
-      <p>あなたは下側（<span style="color:#00FFD0">シアン</span>）、CPUは上側（<span style="color:#FF2080">ピンク</span>）です。中央から上下でエリア分割されています。相手または中立色のブロックのみヒット可能です。</p>
-      <button class="cpk-btn game-btn" id="playbtn" role="button" aria-pressed="false">はじめる</button>
+      <p>画面下の<b>大きな円形パッド</b>に指を置き、左右にスライドしてパドルを操作してください。ピンチズームやスワイプなど<br>他の操作はゲーム中無効です。</p>
+      <button class="game-btn" id="playbtn" role="button" aria-pressed="false">はじめる</button>
     </div>
     <div id="countdown" style="display:none;">
       <span id="countdown-label">ゲーム開始まで</span>
       <span id="count-number">3</span>
     </div>
   </div>
-  <!-- バーチャルパッド：スマホ時のみ下端中央に常時表示（PCでは非表示） -->
-  <div id="virtualPad" aria-label="バーチャルパッド" tabindex="0">
-    <div id="padInner"></div>
-  </div>
-  <!-- 操作ガイド -->
-  <div id="controlGuide" aria-live="polite">←→キーでパドルを操作できます</div>
-  <!-- 初回ガイド -->
-  <div id="firstGuide">
-    <div class="guideBox">
-      <h2>操作ガイド</h2>
-      <div>
-        <b>画面下の円形パッド</b>に指を置き、左右にスライドするとパドルを操作できます。<br>
-        <small>（PCでは←→キーで操作可能です）</small>
-      </div>
-      <button onclick="document.getElementById('firstGuide').style.display='none';">OK</button>
-    </div>
-  </div>
+  <!-- バーチャルパッド：ゲーム進行中のみ下端中央に出現 -->
+  <div id="virtualPad" aria-label="バーチャルパッド" tabindex="0"><div id="padInner"></div></div>
   <div id="orientationWarning">縦画面でご利用ください</div>
   <audio id="hit" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/pop.mp3" preload="auto"></audio>
   <audio id="paint" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/ping.mp3" preload="auto"></audio>
   <audio id="win" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/win.mp3" preload="auto"></audio>
   <audio id="startSE" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/startbeep.mp3" preload="auto"></audio>
   <script>
-    // モバイル判定
-    function isMobile() {
-      return /android|iphone|ipad|ipod|mobile|windows phone/i.test(navigator.userAgent);
-    }
-    // バーチャルパッド表示切替
-    function setPadMode() {
-      const pad = document.getElementById("virtualPad");
-      const guide = document.getElementById("controlGuide");
-      if (!pad || !guide) return;
-      if (isMobile()) {
-        pad.classList.remove("pc-hide");
-        guide.classList.remove("show");
-      } else {
-        pad.classList.add("pc-hide");
-        guide.classList.add("show");
+    // タッチ系の全誤爆防止（ゲーム中のみバーチャルパッド以外全て無効）
+    let isPlaying = false;
+    document.addEventListener('touchstart', function(e) {
+      if(isPlaying && !e.target.closest("#virtualPad")) e.preventDefault();
+    }, {passive:false});
+    document.addEventListener('touchmove', function(e) {
+      if(isPlaying && !e.target.closest("#virtualPad")) e.preventDefault();
+    }, {passive:false});
+    document.addEventListener('touchend', function(e) {
+      if(isPlaying && !e.target.closest("#virtualPad")) e.preventDefault();
+    }, {passive:false});
+
+    // ピンチズーム/ダブルタップ等も全て無効化（ゲーム中のみ）
+    document.addEventListener('gesturestart', e => { if(isPlaying) e.preventDefault(); });
+    document.addEventListener('gesturechange', e => { if(isPlaying) e.preventDefault(); });
+    document.addEventListener('gestureend', e => { if(isPlaying) e.preventDefault(); });
+
+    // スマホ特化なのでorientation only
+    function enforcePortrait() {
+      const w = document.getElementById('orientationWarning');
+      if (w) {
+        if (window.innerWidth > window.innerHeight && window.matchMedia("(orientation: landscape)").matches) {
+          w.style.display = 'flex';
+        } else {
+          w.style.display = 'none';
+        }
       }
     }
-    window.addEventListener("resize", setPadMode);
-    window.addEventListener("DOMContentLoaded", setPadMode);
+    window.addEventListener("resize", enforcePortrait);
+    document.addEventListener("DOMContentLoaded", enforcePortrait);
 
-    // 初回ガイド表示
-    if (!localStorage.getItem('bp_first_guide')) {
-      window.addEventListener("DOMContentLoaded", () => {
-        document.getElementById('firstGuide').style.display = "flex";
-        localStorage.setItem('bp_first_guide', '1');
-      });
-    }
-
-    const GRID = 16, BLOCKS = GRID * GRID,
-      BLOCK_P = "#00FFD0",
-      BLOCK_C = "#FF2080",
-      BLOCK_N = "#232338",
-      PADDLE_P = "#FFFFFF",
-      PADDLE_C = "#FFFFFF",
-      BALL_P = "#FFFFFF",
-      BALL_C = "#FFFFFF",
+    // ブロック数を約30%減（12×12=144）
+    const GRID = 12, BLOCKS = GRID * GRID,
+      BLOCK_P = "#00FFD0", BLOCK_C = "#FF2080", BLOCK_N = "#232338",
+      PADDLE_P = "#FFFFFF", PADDLE_C = "#FFFFFF", BALL_P = "#FFFFFF", BALL_C = "#FFFFFF",
       BG = "#181824";
     const PADDLE_WIDTH = 1.8, BALL_R = 0.18, MATCH = 30, FPS = 60;
 
@@ -453,7 +300,6 @@
         this.waitingForStart = true;
         this.init();
         this.resize();
-        this.setupInput();
         this.loopBind = this.loop.bind(this);
       }
       init() {
@@ -469,23 +315,15 @@
         this.waitingForStart = true;
         document.getElementById("timer").textContent = MATCH;
       }
-      setupInput() {
-        // PC: キー操作のみ
-        let self = this;
-        window.addEventListener("keydown", e => {
-          if (self.state !== "playing") return;
-          if (e.key === "ArrowLeft") { self.paddles[0].moveTo(self.paddles[0].x - 0.65); }
-          if (e.key === "ArrowRight") { self.paddles[0].moveTo(self.paddles[0].x + 0.65); }
-        });
-        window.addEventListener("resize", () => { self.resize(); enforcePortrait(); });
-      }
       resize() {
-        const s = Math.min(window.innerWidth * 0.96, window.innerHeight * 0.72, 540);
+        const s = Math.min(window.innerWidth * 0.96, window.innerHeight * 0.78, 520);
         this.canvas.width = this.canvas.height = s;
       }
       start() {
         if (!this.waitingForStart) return;
         this.state = "playing"; this.waitingForStart = false;
+        isPlaying = true;
+        document.getElementById("virtualPad").style.display = "flex";
         requestAnimationFrame(this.loopBind);
       }
       loop() {
@@ -494,7 +332,7 @@
         document.getElementById("timer").textContent = String(Math.ceil(this.timer));
         let cpuPaddle = this.paddles[1], cpuBall = this.balls[1];
         let targetX = cpuBall.y < GRID / 2 ? cpuBall.x : GRID / 2;
-        cpuPaddle.moveTo(cpuPaddle.x + (targetX - cpuPaddle.x) * 0.12);
+        cpuPaddle.moveTo(cpuPaddle.x + (targetX - cpuPaddle.x) * 0.13);
         for (let pid = 0; pid < 2; pid++) {
           let b = this.balls[pid], p = this.paddles[pid];
           b.move();
@@ -525,6 +363,8 @@
       }
       finish(reason) {
         this.state = "result";
+        isPlaying = false;
+        document.getElementById("virtualPad").style.display = "none";
         let winnerText, reasonText = reason || "";
         if (reason && reason.includes("CPUがミス")) { winnerText = "あなたの勝ち！";
         } else if (reason && reason.includes("あなたがミス")) { winnerText = "CPUの勝ち";
@@ -552,10 +392,10 @@
           ctx.fillStyle = bl.color();
           if (bl.y === GRID / 2 - 1 || bl.y === GRID / 2) {
             ctx.strokeStyle = "#FFF";
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 3;
           } else {
             ctx.strokeStyle = "#444";
-            ctx.lineWidth = 1.2;
+            ctx.lineWidth = 1.1;
           }
           ctx.beginPath();
           ctx.rect((bl.x + 0.03) * s, (bl.y + 0.03) * s, s * 0.93, s * 0.93);
@@ -568,9 +408,9 @@
           ctx.save();
           ctx.fillStyle = "#FFFFFF";
           ctx.shadowColor = pid ? "#FF2080" : "#00FFD0";
-          ctx.shadowBlur = 16;
+          ctx.shadowBlur = 13;
           ctx.beginPath();
-          ctx.roundRect((p.x - PADDLE_WIDTH / 2) * s, (p.y - 0.18) * s, s * PADDLE_WIDTH, s * 0.44, s * 0.21);
+          ctx.roundRect((p.x - PADDLE_WIDTH / 2) * s, (p.y - 0.18) * s, s * PADDLE_WIDTH, s * 0.44, s * 0.18);
           ctx.fill();
           ctx.restore();
         }
@@ -581,8 +421,8 @@
           ctx.arc(b.x * s, b.y * s, s * BALL_R, 0, 2 * Math.PI);
           ctx.fillStyle = "#FFFFFF";
           ctx.shadowColor = pid ? "#FF2080" : "#00FFD0";
-          ctx.shadowBlur = 24;
-          ctx.globalAlpha = 0.97;
+          ctx.shadowBlur = 20;
+          ctx.globalAlpha = 0.95;
           ctx.fill();
           ctx.restore();
         }
@@ -597,6 +437,8 @@
         document.querySelector(".hud-cpu").insertAdjacentHTML('beforeend','<span class="arrow">&#x25B2;</span>');
       }
     }
+
+    // ゲーム進行フロー
     let g;
     function startCountdownThenPlay() {
       const cd = document.getElementById("countdown");
@@ -625,63 +467,44 @@
           cd.style.display = "none";
           g = new Game();
           setupVirtualPad(g);
-          setTimeout(()=>g.start(), 120);
+          setTimeout(()=>g.start(), 100);
         }
       }, 800);
     }
     document.getElementById("playbtn").onclick = startCountdownThenPlay;
-    function enforcePortrait() {
-      const w = document.getElementById('orientationWarning');
-      if (w) {
-        if (window.innerWidth > window.innerHeight && window.matchMedia("(orientation: landscape)").matches) {
-          w.style.display = 'flex';
-        } else {
-          w.style.display = 'none';
-        }
-      }
-    }
-    window.addEventListener("resize", enforcePortrait);
-    document.addEventListener("DOMContentLoaded", enforcePortrait);
 
-    // バーチャルパッド実装
+    // バーチャルパッド
     function setupVirtualPad(gameInstance) {
       const pad = document.getElementById("virtualPad");
       const padInner = document.getElementById("padInner");
-      if (!pad || !padInner || !isMobile()) return;
+      if (!pad || !padInner) return;
       let padActive = false, padStartX = 0, lastMove = 0;
-      const PAD_SENSITIVITY = 0.045; // 移動速度の係数
+      const PAD_SENSITIVITY = 0.048;
       function resetPadVisual() {
-        padInner.style.transition = "transform 0.19s";
+        padInner.style.transition = "transform 0.17s";
         padInner.style.transform = "translateX(0px)";
         pad.classList.remove("active");
       }
       pad.onpointerdown = function(e) {
         if (!gameInstance || gameInstance.state !== "playing") return;
-        padActive = true;
-        pad.classList.add("active");
+        padActive = true; pad.classList.add("active");
         pad.setPointerCapture(e.pointerId);
-        padStartX = e.clientX;
-        padInner.style.transition = "none";
-        lastMove = 0;
+        padStartX = e.clientX; padInner.style.transition = "none"; lastMove = 0;
       };
       pad.onpointermove = function(e) {
         if (!padActive || !gameInstance || gameInstance.state !== "playing") return;
         const deltaX = e.clientX - padStartX;
-        padInner.style.transform = `translateX(${Math.max(-40, Math.min(40, deltaX))}px)`;
-        if (Math.abs(deltaX - lastMove) > 6) {
+        padInner.style.transform = `translateX(${Math.max(-36, Math.min(36, deltaX))}px)`;
+        if (Math.abs(deltaX - lastMove) > 5) {
           gameInstance.paddles[0].moveTo(gameInstance.paddles[0].x + (deltaX - lastMove) * PAD_SENSITIVITY);
           lastMove = deltaX;
         }
       };
       pad.onpointerup = function(e) {
-        padActive = false;
-        resetPadVisual();
-        pad.releasePointerCapture(e.pointerId);
+        padActive = false; resetPadVisual(); pad.releasePointerCapture(e.pointerId);
       };
       pad.onpointerleave = function(e) {
-        padActive = false;
-        resetPadVisual();
-        pad.releasePointerCapture(e.pointerId);
+        padActive = false; resetPadVisual(); pad.releasePointerCapture(e.pointerId);
       };
     }
   </script>
