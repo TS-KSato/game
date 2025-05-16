@@ -7,36 +7,52 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     html, body {
-      margin:0; padding:0; width:100vw; height:100vh; overflow:hidden;
+      height: 100dvh;
+      width: 100dvw;
+      margin: 0; padding: 0;
       background: #181824;
-      -ms-touch-action: none;
-          touch-action: none;
+      overflow: hidden;
+      box-sizing: border-box;
+      /* Safe Area for iOS/Android */
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
       overscroll-behavior: none;
+      touch-action: none;
     }
     body {
-      min-height: 100vh;
+      min-height: 100dvh;
+      min-width: 100dvw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-family:'Roboto Mono', 'Segoe UI', Verdana, Arial, 'ヒラギノ角ゴ ProN', sans-serif;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
       color: #FFF;
       font-size: clamp(16px, 5vw, 20px);
       background: #181824;
-      overscroll-behavior: none;
     }
     #gamebox {
-      max-width: 98vw; width: 98vw;
+      width: min(96vw, 96vh, 520px);
+      height: min(96vw, 96vh, 520px);
+      max-width: 98vw;
+      max-height: 98vh;
+      margin: auto;
       background: rgba(35,35,56,0.98);
       border-radius: 18px;
       box-shadow: 0 2px 16px #0CFDFF44;
       padding: 10px 0 20px 0;
-      position:relative;
-      z-index:1;
-      display: flex; flex-direction: column; align-items: center;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      position: relative;
     }
     #ui {
-      width:96vw; max-width:96vw;
-      display:flex;justify-content:space-between;align-items:center;
+      width: 90%;
+      max-width: 96vw;
+      display: flex; justify-content: space-between; align-items: center;
       gap: 14px;
-      margin:8px 0 0 0; font-size:18px; user-select:none;
+      margin: 8px 0 0 0;
+      font-size: 18px;
+      user-select: none;
     }
     .hud {
       font-family: 'Orbitron', sans-serif;
@@ -48,25 +64,30 @@
     }
     .hud-player { color: #00FFD0; }
     .hud-cpu { color: #FF2080; flex-direction: row-reverse; }
-    .arrow { font-size: 1.3em; margin:0 5px; }
+    .arrow { font-size: 1.3em; margin: 0 5px; }
     #timer {
       background: linear-gradient(90deg, #181824 40%, #00FFD0 100%);
       border: 1.5px solid #00FFD0;
       border-radius: 12px;
       color: #fff; font-size: 20px;
       padding: 6px 18px; font-family: 'Orbitron',sans-serif;
-      letter-spacing:1.2px; box-shadow: 0 0 8px #0CFDFF44;
-      text-align:center; min-width:54px;
+      letter-spacing: 1.2px; box-shadow: 0 0 8px #0CFDFF44;
+      text-align: center; min-width: 54px;
     }
     #game {
-      width:96vw; height:96vw; max-width:96vw; max-height:78vw; outline:none;
-      border-radius:3vw;
+      width: 90%;
+      height: 90%;
+      max-width: 96vw;
+      max-height: 78vw;
+      aspect-ratio: 1 / 1;
+      border-radius: 3vw;
       box-shadow: 0 0 28px #FF208055, 0 0 8px #00FFD0 inset;
-      background:rgba(32,32,48,0.18);
-      border:2px solid #00FFD0;
-      margin-top:10px;
-      display:block;
-      touch-action:none;
+      background: rgba(32,32,48,0.18);
+      border: 2px solid #00FFD0;
+      margin-top: 10px;
+      display: block;
+      touch-action: none;
+      outline: none;
     }
     .game-title, #start h1 {
       font-family: 'Orbitron', sans-serif;
@@ -105,21 +126,21 @@
       outline: 2.5px solid #FF2080;
     }
     #result, #start, #countdown {
-      position:absolute;left:0;top:0;width:100%;height:100%;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      z-index:10;
-      background:rgba(18,18,36,0.96);
-      backdrop-filter:blur(6px) brightness(1.12);
-      border-radius:18px; box-shadow:0 0 24px #00FFD044;
-      padding:28px 12px 20px 12px; max-width:400px; margin:auto;
-      color: #fff; animation:fadeIn 0.7s; transition:opacity 0.3s;
+      position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 10;
+      background: rgba(18,18,36,0.96);
+      backdrop-filter: blur(6px) brightness(1.12);
+      border-radius: 18px; box-shadow: 0 0 24px #00FFD044;
+      padding: 28px 12px 20px 12px; max-width: 400px; margin: auto;
+      color: #fff; animation: fadeIn 0.7s; transition: opacity 0.3s;
     }
     @keyframes fadeIn { from { opacity:0;} to {opacity:1;} }
-    #result{display:none;}
+    #result {display: none;}
     #winner { color: #00FFD0; font-size: 29px; margin-bottom: 8px;
       font-family:'Orbitron',sans-serif; letter-spacing:0.08em;
       text-shadow:0 2px 16px #00FFD0,0 1px 2px #232338; text-align:center; font-weight:900;}
-    #reason{ color: #FF2080; font-size:18px; margin-bottom: 12px;
+    #reason { color: #FF2080; font-size:18px; margin-bottom: 12px;
       text-align:center; font-family:'Roboto Mono',monospace; text-shadow: 0 1px 6px #FF2080, 0 0 2px #fff;}
     #countdown { font-family: 'Orbitron', sans-serif; color: #00FFD0; font-size: 46px;
       letter-spacing:0.05em; text-shadow:0 0 18px #FF2080,0 0 7px #00FFD0;
@@ -128,11 +149,11 @@
     @keyframes countPulse {0%{text-shadow:0 0 7px #FF2080;}100%{text-shadow:0 0 26px #00FFD0;}}
     #countdown-label { font-size: 19px; margin-bottom: 10px; color: #fff; text-shadow: 0 0 5px #FF2080;}
     #orientationWarning {
-      display:none; position:fixed;top:0;left:0;width:100vw;height:100vh;
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
       background: #00FFD0;
       color: #181824;
-      z-index:10000;
-      flex-direction:column;justify-content:center;align-items:center;text-align:center;
+      z-index: 10000;
+      flex-direction: column; justify-content: center; align-items: center; text-align: center;
       font-size: 21px; font-family:'Orbitron',sans-serif; font-weight:bold; letter-spacing:2px; box-shadow: 0 2px 16px #00FFD044;
     }
     /* バーチャルパッド */
@@ -155,7 +176,7 @@
       background: #181824;
       box-shadow: 0 2px 18px #fff8, 0 0 0 4px #fff3 inset;
       transition: transform 0.09s, box-shadow 0.09s;
-      will-change: transform; pointer-events:none;
+      will-change: transform; pointer-events: none;
     }
     #virtualPad:active #padInner, #virtualPad.active #padInner {
       background: #222248;
@@ -163,15 +184,19 @@
       transform: scale(1.12);
     }
     @media (max-width: 414px) {
-      #gamebox { padding:8px 0 12px 0; }
+      #gamebox { padding: 8px 0 12px 0; }
       .game-btn { font-size: 17px; min-height: 48px; }
       #timer { font-size: 17px; }
       #start h1, .game-title { font-size: 25px; }
       #virtualPad { width: 80px; height: 80px;}
       #padInner { width: 33px; height: 33px;}
     }
-    @media (orientation: landscape){
-      #game { height:60vw; }
+    @media (orientation: landscape) {
+      #gamebox {
+        width: min(60vw, 60vh, 380px);
+        height: min(60vw, 60vh, 380px);
+      }
+      #game { height: 60vw; }
       #ui { font-size: 14px; }
       #timer { font-size: 13px; }
       #start h1, .game-title { font-size: 18px; }
@@ -225,8 +250,6 @@
     document.addEventListener('touchend', function(e) {
       if(isPlaying && !e.target.closest("#virtualPad")) e.preventDefault();
     }, {passive:false});
-
-    // ピンチズーム/ダブルタップ等も全て無効化（ゲーム中のみ）
     document.addEventListener('gesturestart', e => { if(isPlaying) e.preventDefault(); });
     document.addEventListener('gesturechange', e => { if(isPlaying) e.preventDefault(); });
     document.addEventListener('gestureend', e => { if(isPlaying) e.preventDefault(); });
@@ -244,6 +267,12 @@
     }
     window.addEventListener("resize", enforcePortrait);
     document.addEventListener("DOMContentLoaded", enforcePortrait);
+
+    // ゲームのリサイズ: SafeAreaも考慮
+    function getSafeAreaInset(styleProp, fallback=0) {
+      const val = parseInt(getComputedStyle(document.documentElement).getPropertyValue(styleProp));
+      return isNaN(val) ? fallback : val;
+    }
 
     // ブロック数を約30%減（12×12=144）
     const GRID = 12, BLOCKS = GRID * GRID,
@@ -301,6 +330,9 @@
         this.init();
         this.resize();
         this.loopBind = this.loop.bind(this);
+
+        // ウィンドウリサイズ時も自動リサイズ
+        window.addEventListener('resize', () => this.resize());
       }
       init() {
         this.blocks = [];
@@ -316,7 +348,14 @@
         document.getElementById("timer").textContent = MATCH;
       }
       resize() {
-        const s = Math.min(window.innerWidth * 0.96, window.innerHeight * 0.78, 520);
+        // SafeAreaも考慮
+        const safeTop = getSafeAreaInset('padding-top', 0);
+        const safeBottom = getSafeAreaInset('padding-bottom', 0);
+        const safeLeft = getSafeAreaInset('padding-left', 0);
+        const safeRight = getSafeAreaInset('padding-right', 0);
+        const safeW = window.innerWidth - safeLeft - safeRight;
+        const safeH = window.innerHeight - safeTop - safeBottom;
+        const s = Math.min(safeW * 0.96, safeH * 0.96, 520);
         this.canvas.width = this.canvas.height = s;
       }
       start() {
