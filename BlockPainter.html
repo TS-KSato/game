@@ -68,7 +68,9 @@
   <audio id="win" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/win.mp3" preload="auto"></audio>
   <audio id="startSE" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/startbeep.mp3" preload="auto"></audio>
   <script>
+    // --- 変数・初期化 ---
     let isPlaying = false;
+    // --- タッチ/ジェスチャ無効化 ---
     document.addEventListener('touchstart', function (e) {
       if (isPlaying && !e.target.closest("#virtualPad")) e.preventDefault();
     }, { passive: false });
@@ -82,6 +84,7 @@
     document.addEventListener('gesturechange', e => { if (isPlaying) e.preventDefault(); });
     document.addEventListener('gestureend', e => { if (isPlaying) e.preventDefault(); });
 
+    // --- 画面縦固定 ---
     function enforcePortrait() {
       const w = document.getElementById('orientationWarning');
       if (w) {
@@ -95,27 +98,30 @@
     window.addEventListener("resize", enforcePortrait);
     document.addEventListener("DOMContentLoaded", enforcePortrait);
 
+    // --- 安全領域取得 ---
     function getSafeAreaInset(styleProp, fallback = 0) {
       const val = parseInt(getComputedStyle(document.documentElement).getPropertyValue(styleProp));
       return isNaN(val) ? fallback : val;
     }
 
-    const GRID = 12, BLOCKS = GRID * GRID,
+    // --- 定数 ---
+    const GRID = 12,
       BLOCK_P = "#00FFD0", BLOCK_C = "#FF2080", BLOCK_N = "#232338",
-      PADDLE_P = "#FFFFFF", PADDLE_C = "#FFFFFF", BALL_P = "#FFFFFF", BALL_C = "#FFFFFF",
+      PADDLE_P = "#FFFFFF", PADDLE_C = "#FFFFFF",
+      BALL_P = "#FFFFFF", BALL_C = "#FFFFFF",
       BG = "#181824";
     const PADDLE_WIDTH = 1.8, BALL_R = 0.18, MATCH = 30, FPS = 60;
 
+    // --- ブロッククラス ---
     class Block {
       constructor(x, y) {
-        this.x = x; this.y = y; this.type = "Normal"; this.score = 1; this.hits = 0; this.maxHits = 1;
+        this.x = x; this.y = y; this.type = "Normal";
         this.owner = y < GRID / 2 ? 1 : 0;
       }
       hit(pid) {
         if (this.owner === pid) return { action: "none" };
-        const prev = this.owner;
-        this.owner = pid;
-        return { action: "paint", prevOwner: prev, score: this.score };
+        const prev = this.owner; this.owner = pid;
+        return { action: "paint", prevOwner: prev };
       }
       color() {
         if (this.owner === 0) return BLOCK_P;
@@ -123,23 +129,24 @@
         return BLOCK_N;
       }
     }
+    // --- パドルクラス ---
     class Paddle {
       constructor(y, color) { this.x = GRID / 2; this.y = y; this.color = color; this.w = PADDLE_WIDTH; }
       moveTo(nx) { this.x = Math.max(this.w / 2, Math.min(GRID - this.w / 2, nx)); }
     }
+    // --- ボールクラス ---
     class Ball {
       constructor(pid, color, startY) { this.pid = pid; this.x = GRID / 2; this.y = startY; this.r = BALL_R; this.color = color; this.reset(); }
       reset() {
         this.x = GRID / 2; this.y = this.pid ? 1.3 : GRID - 1.3;
         this.vx = (Math.random() - 0.5) * 0.045;
-        // --- MODIFICATION START: Corrected initial Y velocity ---
-        // Original: this.vy = this.pid ? -0.10 : 0.10;
-        // Player (pid=0) ball should move UP (negative vy), CPU (pid=1) ball should move DOWN (positive vy)
-        this.vy = this.pid ? 0.10 : -0.10; 
-        // --- MODIFICATION END ---
+        // -- ここが重要: プレイヤー0は上向き(-vy), CPU1は下向き(+vy)
+        this.vy = this.pid ? 0.10 : -0.10;
       }
       move() { this.x += this.vx; this.y += this.vy; }
     }
+
+    // --- ゲームクラス ---
     class Game {
       constructor() {
         this.canvas = document.getElementById('game');
@@ -147,7 +154,6 @@
         this.blocks = [];
         this.paddles = [null, null];
         this.balls = [null, null];
-        this.score = [0, 0];
         this.timer = MATCH;
         this.state = "wait";
         this.waitingForStart = true;
@@ -168,7 +174,6 @@
         this.paddles[1] = new Paddle(0.5, PADDLE_C);
         this.balls[0] = new Ball(0, BALL_P, GRID - 1.3);
         this.balls[1] = new Ball(1, BALL_C, 1.3);
-        this.score = [0, 0];
         this.timer = MATCH;
         this.state = "wait";
         this.waitingForStart = true;
@@ -196,9 +201,10 @@
         this.timer -= 1 / FPS; if (this.timer <= 0) { this.finish("時間切れ"); return; }
         document.getElementById("timer").textContent = String(Math.ceil(this.timer));
 
+        // --- CPU AI: 20秒までは絶対返球 ---
         let cpuPaddle = this.paddles[1], cpuBall = this.balls[1];
         let playTime = MATCH - this.timer;
-        if (cpuBall.vy < 0 && cpuBall.y < GRID / 2) { // CPU ball coming towards CPU paddle
+        if (cpuBall.vy > 0 && cpuBall.y < GRID / 2) { // 上→下方向（CPUへ向かう時）
           let currentDir = Math.sign(cpuBall.vy);
           if (playTime < this.cpuNoMissUntil) {
             let predictX = this.predictBallLandingX(cpuBall);
@@ -216,15 +222,18 @@
           cpuPaddle.moveTo(cpuPaddle.x + ((GRID / 2) - cpuPaddle.x) * 0.08);
         }
 
+        // --- ゲーム進行: 物理処理 ---
         for (let pid = 0; pid < 2; pid++) {
           let b = this.balls[pid], p = this.paddles[pid];
           b.move();
 
+          // 壁バウンド
           if (b.x - b.r < 0) { b.x = b.r; b.vx *= -1; }
           if (b.x + b.r > GRID) { b.x = GRID - b.r; b.vx *= -1; }
 
+          // パドル衝突判定
           let paddleY = p.y;
-          let towardPaddle = (pid === 0 && b.vy > 0) || (pid === 1 && b.vy < 0);
+          let towardPaddle = (pid === 0 && b.vy < 0) || (pid === 1 && b.vy > 0);
           let yDist = Math.abs(b.y - paddleY);
           let xDist = Math.abs(b.x - p.x);
           if (towardPaddle && yDist < 0.38 && xDist < p.w / 2 + b.r) {
@@ -232,76 +241,40 @@
             let offset = (b.x - p.x) / (p.w / 2);
             b.vx += offset * 0.04;
             b.vx = Math.max(-0.2, Math.min(0.2, b.vx));
-            b.y = pid === 0 ? p.y - (0.22 + b.r + 0.01) : p.y + (0.22 + b.r + 0.01); // Paddle thickness 0.44/2 = 0.22
+            b.y = pid === 0 ? p.y + (0.22 + b.r + 0.01) : p.y - (0.22 + b.r + 0.01); // Y方向補正
             this.se("hit");
           }
-          
-          // --- MODIFICATION START: Improved Block Collision Detection ---
+
+          // ブロック衝突: 標準的な円と矩形の衝突
           let hitBlock = null;
           for (const bl of this.blocks) {
             const blockCenterX = bl.x + 0.5;
             const blockCenterY = bl.y + 0.5;
-            
-            const distX = Math.abs(b.x - blockCenterX); // Distance between ball center and block center (X)
-            const distY = Math.abs(b.y - blockCenterY); // Distance between ball center and block center (Y)
-
-            // Broad phase: AABB check (is ball close enough to potentially collide?)
-            if (distX > (0.5 + b.r) || distY > (0.5 + b.r)) {
-              continue; 
-            }
-
-            // Narrow phase:
-            // Case 1 & 2: Ball center is within the "slab" of the block (horizontally or vertically)
-            // This means the ball is hitting a face (top, bottom, left, or right)
-            if (distX <= 0.5 || distY <= 0.5) {
-              hitBlock = bl;
-              break; 
-            }
-            
-            // Case 3: Ball might be hitting a corner
-            // Calculate distance from ball center to block corner
+            const distX = Math.abs(b.x - blockCenterX);
+            const distY = Math.abs(b.y - blockCenterY);
+            if (distX > (0.5 + b.r) || distY > (0.5 + b.r)) continue;
+            if (distX <= 0.5 || distY <= 0.5) { hitBlock = bl; break; }
             const cornerDistSq = Math.pow(distX - 0.5, 2) + Math.pow(distY - 0.5, 2);
-            if (cornerDistSq <= (b.r * b.r)) {
-              hitBlock = bl;
-              break;
-            }
+            if (cornerDistSq <= (b.r * b.r)) { hitBlock = bl; break; }
           }
-          // --- MODIFICATION END ---
-
           if (hitBlock) {
-            let prevOwner = hitBlock.owner;
             let res = hitBlock.hit(pid);
             if (res.action === "paint") this.se("paint");
-            
-            let bx_rel = b.x - (hitBlock.x + 0.5); // Ball X relative to block center
-            let by_rel = b.y - (hitBlock.y + 0.5); // Ball Y relative to block center
-
-            // Determine primary collision axis based on penetration or relative position.
-            // Original logic used relative position of centers, which is generally okay for simple physics.
-            // We calculate penetration depth to be more robust for reflection logic.
+            let bx_rel = b.x - (hitBlock.x + 0.5), by_rel = b.y - (hitBlock.y + 0.5);
             const overlapX = (0.5 + b.r) - Math.abs(bx_rel);
             const overlapY = (0.5 + b.r) - Math.abs(by_rel);
-
-            if (overlapY < overlapX && overlapY > 0) { // Collision primarily vertical
-                 b.vy *= -1;
-                 // Adjust position to prevent sticking
-                 b.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-            } else if (overlapX < overlapY && overlapX > 0) { // Collision primarily horizontal
-                 b.vx *= -1;
-                 // Adjust position
-                 b.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-            } else { // Corner or exact edge hit, or very slight overlap
-                // Fallback to original logic or more complex corner reflection if needed
-                if (Math.abs(by_rel) > Math.abs(bx_rel)) {
-                    b.vy *= -1;
-                } else {
-                    b.vx *= -1;
-                }
+            if (overlapY < overlapX && overlapY > 0) {
+              b.vy *= -1;
+              b.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
+            } else if (overlapX < overlapY && overlapX > 0) {
+              b.vx *= -1;
+              b.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
+            } else {
+              if (Math.abs(by_rel) > Math.abs(bx_rel)) { b.vy *= -1; } else { b.vx *= -1; }
             }
-            // Original simple push-back, can be used if precise repositioning is tricky
-            // b.x += b.vx * 0.1; b.y += b.vy * 0.1; // Reduced pushback
           }
 
+          // ゴール判定
           if (pid === 0 && b.y < -0.4) { this.finish("あなたがミスしました"); return; }
           if (pid === 1 && b.y > GRID + 0.4) { this.finish("CPUがミスしました"); return; }
         }
@@ -392,21 +365,19 @@
         document.querySelector(".hud-cpu").insertAdjacentHTML('beforeend', '<span class="arrow">&#x25B2;</span>');
       }
       predictBallLandingX(ball) {
-        let x = ball.x, y = ball.y;
-        let vx = ball.vx, vy = ball.vy;
-        // Simulate for a max of ~1.5 seconds (90 frames at 60fps) or until it reaches paddle line
-        for (let i = 0; i < 90; i++) { 
+        let x = ball.x, y = ball.y, vx = ball.vx, vy = ball.vy;
+        for (let i = 0; i < 90; i++) {
           x += vx; y += vy;
           if (x - ball.r < 0) { x = ball.r; vx *= -1; }
           if (x + ball.r > GRID) { x = GRID - ball.r; vx *= -1; }
-          // Prediction for CPU paddle (at y=0.5) or Player paddle (at y=GRID-0.5)
-          if (ball.pid === 1 && y <= 0.5) break; // CPU ball reaching CPU paddle line
-          if (ball.pid === 0 && y >= GRID - 0.5) break; // Player ball reaching Player paddle line
+          if (ball.pid === 1 && y <= 0.5) break;
+          if (ball.pid === 0 && y >= GRID - 0.5) break;
         }
         return x;
       }
     }
 
+    // --- カウントダウン＆スタート ---
     let g;
     function startCountdownThenPlay() {
       const cd = document.getElementById("countdown");
@@ -441,6 +412,7 @@
     }
     document.getElementById("playbtn").onclick = startCountdownThenPlay;
 
+    // --- バーチャルパッド ---
     function setupVirtualPad(gameInstance) {
       const pad = document.getElementById("virtualPad");
       const padInner = document.getElementById("padInner");
@@ -462,7 +434,7 @@
         if (!padActive || !gameInstance || gameInstance.state !== "playing") return;
         const deltaX = e.clientX - padStartX;
         padInner.style.transform = `translateX(${Math.max(-36, Math.min(36, deltaX))}px)`;
-        if (Math.abs(deltaX - lastMove) > 5) { // Threshold to reduce micro-movements
+        if (Math.abs(deltaX - lastMove) > 5) {
           gameInstance.paddles[0].moveTo(gameInstance.paddles[0].x + (deltaX - lastMove) * PAD_SENSITIVITY);
           lastMove = deltaX;
         }
@@ -470,10 +442,8 @@
       pad.onpointerup = function (e) {
         padActive = false; resetPadVisual(); pad.releasePointerCapture(e.pointerId);
       };
-      pad.onpointerleave = function (e) { // Also handle pointer leaving the pad area
-        if(padActive) { // only if it was active
-           padActive = false; resetPadVisual(); pad.releasePointerCapture(e.pointerId);
-        }
+      pad.onpointerleave = function (e) {
+        if (padActive) { padActive = false; resetPadVisual(); pad.releasePointerCapture(e.pointerId); }
       };
     }
   </script>
