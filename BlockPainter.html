@@ -492,28 +492,21 @@
         this.animationFrameId = requestAnimationFrame(this.loopBind);
       }
       
-      // CPU AIの改善
+      // CPU AI: 元のコンセプト通り自分のボールだけを追う
       updateCpuAI() {
         let cpuPaddle = this.paddles[1];
         let cpuBall = this.balls[1];
-        let playerBall = this.balls[0];
         
-        // CPU自身のボールが上向きに動いている場合（危険がない場合）
-        if (cpuBall.vy < 0) {
-          // プレイヤーのボールが上向きに動いていて、CPU側に向かっている場合
-          if (playerBall.vy < 0 && playerBall.y < GRID / 2) {
-            let predictX = this.predictBallLandingX(playerBall, cpuPaddle.y);
-            // プレイヤーのボールを優先的に守る
-            cpuPaddle.moveTo(cpuPaddle.x + (predictX - cpuPaddle.x) * this.cpuDifficultyFactor);
-          } else {
-            // 安全な時は中央に戻る
-            cpuPaddle.moveTo(cpuPaddle.x + ((GRID / 2) - cpuPaddle.x) * 0.08);
-          }
-        } 
         // CPU自身のボールが下向きに動いている場合（打ち返す必要がある）
-        else {
+        if (cpuBall.vy > 0) {
           let predictX = this.predictBallLandingX(cpuBall, cpuPaddle.y);
-          cpuPaddle.moveTo(cpuPaddle.x + (predictX - cpuPaddle.x) * this.cpuDifficultyFactor);
+          // 予測位置に向かって移動（難易度に応じて調整）
+          cpuPaddle.moveTo(cpuPaddle.x + (predictX - cpuPaddle.x) * 0.13);
+        } 
+        // CPU自身のボールが上向きに動いている場合（待機状態）
+        else {
+          // 安全な時は中央に戻る
+          cpuPaddle.moveTo(cpuPaddle.x + ((GRID / 2) - cpuPaddle.x) * 0.08);
         }
       }
       
