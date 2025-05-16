@@ -538,6 +538,10 @@
         this.init();
         this.resize();
         this.loopBind = this.loop.bind(this);
+        this.cpuTargetX = null;
+        this.cpuSkill = 1;
+        this.cpuJitter = 0;
+        this.lastBallDir = null;
 
         // ウィンドウリサイズ時も自動リサイズ
         window.addEventListener('resize', () => this.resize());
@@ -577,14 +581,14 @@
         if (this.state !== "playing") return;
         this.timer -= 1 / FPS; if (this.timer <= 0) { this.finish("時間切れ"); return; }
         document.getElementById("timer").textContent = String(Math.ceil(this.timer));
-        let cpuPaddle = this.paddles[1], cpuBall = this.balls[1];
-        // 軌道予測で返球目標位置を計算
-        let predictX = this.predictBallLandingX(cpuBall);
-        // ほんの少し揺らぎ（skillやブレ値を調整して難易度調整可能）
-        let skill = 0.96 + Math.random() * 0.08; // 0.96～1.04
-        let jitter = (Math.random() - 0.5) * 0.4; // -0.2～+0.2
-        let targetX = predictX * skill + jitter;
-        cpuPaddle.moveTo(cpuPaddle.x + (targetX - cpuPaddle.x) * 0.17);
+        let currentDir = Math.sign(cpuBall.vy);
+        if (this.lastBallDir !== currentDir) {
+          this.cpuSkill = 0.97 + Math.random() * 0.05;
+          this.cpuJitter = (Math.random() - 0.5) * 0.15;
+          this.cpuTargetX = this.predictBallLandingX(cpuBall) * this.cpuSkill + this.cpuJitter;
+          this.lastBallDir = currentDir;
+        }
+        cpuPaddle.moveTo(cpuPaddle.x + (this.cpuTargetX - cpuPaddle.x) * 0.22);
 
         for (let pid = 0; pid < 2; pid++) {
           let b = this.balls[pid], p = this.paddles[pid];
