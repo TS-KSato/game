@@ -126,17 +126,32 @@
       outline: 2.5px solid #FF2080;
     }
     #result, #start, #countdown {
-      position: absolute; left: 0; top: 0; width: 100%; height: 100%;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      z-index: 10;
-      background: rgba(18,18,36,0.96);
-      backdrop-filter: blur(6px) brightness(1.12);
-      border-radius: 18px; box-shadow: 0 0 24px #00FFD044;
-      padding: 28px 12px 20px 12px; max-width: 400px; margin: auto;
-      color: #fff; animation: fadeIn 0.7s; transition: opacity 0.3s;
-    }
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  background: rgba(18,18,36,0.96);
+  backdrop-filter: blur(6px) brightness(1.12);
+  border-radius: 18px;
+  box-shadow: 0 0 24px #00FFD044;
+  /* 余白も自動で中央寄せ */
+  padding: 5vw 2vw 3vw 2vw;
+  color: #fff;
+  animation: fadeIn 0.7s;
+  transition: opacity 0.3s;
+  /* これで親のサイズぴったり中央 */
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+}
+#result {display:none;}
+
     @keyframes fadeIn { from { opacity:0;} to {opacity:1;} }
-    #result {display: none;}
     #winner { color: #00FFD0; font-size: 29px; margin-bottom: 8px;
       font-family:'Orbitron',sans-serif; letter-spacing:0.08em;
       text-shadow:0 2px 16px #00FFD0,0 1px 2px #232338; text-align:center; font-weight:900;}
