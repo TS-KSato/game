@@ -607,7 +607,23 @@
         for (let pid = 0; pid < 2; pid++) {
           let b = this.balls[pid], p = this.paddles[pid];
           b.move();
-          // ...
+          if (Math.abs(b.x - p.x) < p.w / 2 && Math.abs(b.y - p.y) < 0.44 && ((pid === 0 && b.vy > 0) || (pid === 1 && b.vy < 0))) {
+            b.vy *= -1; b.vx += (b.x - p.x) * 0.09; b.vx = Math.max(-0.17, Math.min(0.17, b.vx)); b.y = pid === 0 ? p.y - 0.45 : p.y + 0.45; this.se("hit");
+          }
+          if (b.x - b.r < 0) { b.x = b.r; b.vx *= -1; this.se("hit"); }
+          if (b.x + b.r > GRID) { b.x = GRID - b.r; b.vx *= -1; this.se("hit"); }
+          if (pid === 0 && (b.y > GRID - 0.1)) { this.finish("あなたがミスして終了"); return; }
+          if (pid === 1 && (b.y < 0.1)) { this.finish("CPUがミスしてあなたの勝ち！"); return; }
+          for (let bl of this.blocks) {
+            if (b.x + b.r > bl.x && b.x - b.r < bl.x + 1 && b.y + b.r > bl.y && b.y - b.r < bl.y + 1) {
+              if (bl.owner === pid) continue;
+              const hitOutcome = bl.hit(pid);
+              if (hitOutcome.action === "paint") {
+                if (hitOutcome.prevOwner !== -1 && hitOutcome.prevOwner !== pid) this.score[hitOutcome.prevOwner] = Math.max(0, this.score[hitOutcome.prevOwner] - bl.score);
+                this.score[pid] += bl.score; this.se("paint"); b.vy *= -1; break;
+              }
+            }
+          }
         }
         this.render();
         requestAnimationFrame(this.loopBind);
