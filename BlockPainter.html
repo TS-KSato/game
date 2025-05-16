@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Block Painter - バーチャルパッド版</title>
+  <title>Block Painter - 完全スマホ・PC対応</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
@@ -194,31 +194,107 @@
     }
     /* バーチャルパッド */
     #virtualPad {
-      position: absolute;
+      position: fixed;
       left: 50%;
       bottom: 22px;
       transform: translateX(-50%);
-      width: 120px;
-      height: 120px;
+      width: 124px;
+      height: 124px;
       border-radius: 50%;
       background: linear-gradient(135deg, #00FFD0 40%, #FF2080 120%);
       box-shadow: 0 4px 24px #00FFD066;
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 20;
+      z-index: 2000;
       user-select: none;
       touch-action: none;
+      opacity: 0.92;
+      transition: opacity 0.18s;
+      pointer-events: auto;
     }
     #padInner {
-      width: 62px;
-      height: 62px;
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
       background: #181824;
-      box-shadow: 0 2px 10px #fff9;
-      transition: transform 0.09s;
+      box-shadow: 0 2px 20px #fff8, 0 0 0 4px #fff3 inset;
+      transition: transform 0.09s, box-shadow 0.09s;
       will-change: transform;
       pointer-events:none;
+    }
+    #virtualPad:active #padInner,
+    #virtualPad.active #padInner {
+      background: #222248;
+      box-shadow: 0 4px 32px #00ffd099, 0 0 0 8px #ff208022 inset;
+      transform: scale(1.15);
+    }
+    /* PC時非表示 */
+    #virtualPad.pc-hide {
+      display: none !important;
+    }
+    /* 操作ガイド */
+    #controlGuide {
+      display: none;
+      position: fixed;
+      bottom: 42px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(35,35,56,0.92);
+      color: var(--white);
+      padding: 16px 26px;
+      border-radius: 18px;
+      box-shadow: 0 2px 14px var(--shadow);
+      font-size: 18px;
+      font-family: 'Orbitron',sans-serif;
+      letter-spacing:0.07em;
+      z-index: 2222;
+      text-align: center;
+      opacity: 0.94;
+    }
+    #controlGuide.show {
+      display: block;
+      animation: fadeIn 0.6s;
+    }
+    /* ガイド - 初回説明 */
+    #firstGuide {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 3000;
+      background: rgba(20,24,38,0.92);
+      color: #fff;
+      align-items: center; justify-content: center;
+      text-align: center;
+      font-family: 'Roboto Mono', sans-serif;
+    }
+    #firstGuide .guideBox {
+      margin: auto;
+      background: #252540;
+      border-radius: 18px;
+      box-shadow: 0 2px 20px var(--neon2);
+      padding: 36px 28px;
+      max-width: 380px;
+    }
+    #firstGuide h2 {
+      color: var(--neon);
+      margin-bottom: 18px;
+      font-size: 1.2em;
+      font-family: 'Orbitron',sans-serif;
+    }
+    #firstGuide button {
+      margin-top: 22px;
+      background: linear-gradient(90deg, var(--neon2), var(--neon));
+      border: none;
+      color: #181824;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1em;
+      border-radius: 12px;
+      padding: 12px 38px;
+      box-shadow: 0 4px 14px var(--shadow);
+      cursor: pointer;
+      font-weight: 700;
+      transition: background 0.17s;
     }
     @media (max-width: 414px) {
       #gamebox { padding:8px 0 16px 0; }
@@ -226,8 +302,8 @@
       .glass-card { font-size: 17px; padding: 8px 14px; }
       #timer { font-size: 18px; }
       #start h1, .game-title { font-size: 28px; }
-      #virtualPad { width: 90px; height: 90px;}
-      #padInner { width: 44px; height: 44px;}
+      #virtualPad { width: 92px; height: 92px;}
+      #padInner { width: 38px; height: 38px;}
     }
     @media (orientation: landscape){
       #game { height:60vw; }
@@ -239,7 +315,7 @@
       #orientationWarning{ font-size: 18px;}
       #countdown{ font-size: 32px;}
       #virtualPad { width: 68px; height: 68px;}
-      #padInner { width: 28px; height: 28px;}
+      #padInner { width: 24px; height: 24px;}
     }
   </style>
 </head>
@@ -266,9 +342,22 @@
       <span id="countdown-label">ゲーム開始まで</span>
       <span id="count-number">3</span>
     </div>
-    <!-- バーチャルパッド -->
-    <div id="virtualPad" style="display: flex;">
-      <div id="padInner"></div>
+  </div>
+  <!-- バーチャルパッド：スマホ時のみ下端中央に常時表示（PCでは非表示） -->
+  <div id="virtualPad" aria-label="バーチャルパッド" tabindex="0">
+    <div id="padInner"></div>
+  </div>
+  <!-- 操作ガイド -->
+  <div id="controlGuide" aria-live="polite">←→キーでパドルを操作できます</div>
+  <!-- 初回ガイド -->
+  <div id="firstGuide">
+    <div class="guideBox">
+      <h2>操作ガイド</h2>
+      <div>
+        <b>画面下の円形パッド</b>に指を置き、左右にスライドするとパドルを操作できます。<br>
+        <small>（PCでは←→キーで操作可能です）</small>
+      </div>
+      <button onclick="document.getElementById('firstGuide').style.display='none';">OK</button>
     </div>
   </div>
   <div id="orientationWarning">縦画面でご利用ください</div>
@@ -277,6 +366,34 @@
   <audio id="win" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/win.mp3" preload="auto"></audio>
   <audio id="startSE" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/startbeep.mp3" preload="auto"></audio>
   <script>
+    // モバイル判定
+    function isMobile() {
+      return /android|iphone|ipad|ipod|mobile|windows phone/i.test(navigator.userAgent);
+    }
+    // バーチャルパッド表示切替
+    function setPadMode() {
+      const pad = document.getElementById("virtualPad");
+      const guide = document.getElementById("controlGuide");
+      if (!pad || !guide) return;
+      if (isMobile()) {
+        pad.classList.remove("pc-hide");
+        guide.classList.remove("show");
+      } else {
+        pad.classList.add("pc-hide");
+        guide.classList.add("show");
+      }
+    }
+    window.addEventListener("resize", setPadMode);
+    window.addEventListener("DOMContentLoaded", setPadMode);
+
+    // 初回ガイド表示
+    if (!localStorage.getItem('bp_first_guide')) {
+      window.addEventListener("DOMContentLoaded", () => {
+        document.getElementById('firstGuide').style.display = "flex";
+        localStorage.setItem('bp_first_guide', '1');
+      });
+    }
+
     const GRID = 16, BLOCKS = GRID * GRID,
       BLOCK_P = "#00FFD0",
       BLOCK_C = "#FF2080",
@@ -287,6 +404,7 @@
       BALL_C = "#FFFFFF",
       BG = "#181824";
     const PADDLE_WIDTH = 1.8, BALL_R = 0.18, MATCH = 30, FPS = 60;
+
     class Block {
       constructor(x, y) {
         this.x = x;
@@ -332,7 +450,6 @@
         this.score = [0, 0];
         this.timer = MATCH;
         this.state = "wait";
-        this.touchId = null;
         this.waitingForStart = true;
         this.init();
         this.resize();
@@ -353,7 +470,7 @@
         document.getElementById("timer").textContent = MATCH;
       }
       setupInput() {
-        // キー操作は従来通り
+        // PC: キー操作のみ
         let self = this;
         window.addEventListener("keydown", e => {
           if (self.state !== "playing") return;
@@ -507,7 +624,7 @@
           clearInterval(interval);
           cd.style.display = "none";
           g = new Game();
-          setupVirtualPad(g); // ←ここでバーチャルパッド連携
+          setupVirtualPad(g);
           setTimeout(()=>g.start(), 120);
         }
       }, 800);
@@ -530,23 +647,18 @@
     function setupVirtualPad(gameInstance) {
       const pad = document.getElementById("virtualPad");
       const padInner = document.getElementById("padInner");
-      if (!pad || !padInner) return;
-
-      // 最初は非表示
-      pad.style.opacity = "0.65";
-      pad.style.pointerEvents = "auto";
-
+      if (!pad || !padInner || !isMobile()) return;
       let padActive = false, padStartX = 0, lastMove = 0;
       const PAD_SENSITIVITY = 0.045; // 移動速度の係数
-
       function resetPadVisual() {
         padInner.style.transition = "transform 0.19s";
         padInner.style.transform = "translateX(0px)";
+        pad.classList.remove("active");
       }
-
       pad.onpointerdown = function(e) {
         if (!gameInstance || gameInstance.state !== "playing") return;
         padActive = true;
+        pad.classList.add("active");
         pad.setPointerCapture(e.pointerId);
         padStartX = e.clientX;
         padInner.style.transition = "none";
@@ -555,10 +667,7 @@
       pad.onpointermove = function(e) {
         if (!padActive || !gameInstance || gameInstance.state !== "playing") return;
         const deltaX = e.clientX - padStartX;
-        // 見た目だけpadInner動かす
         padInner.style.transform = `translateX(${Math.max(-40, Math.min(40, deltaX))}px)`;
-
-        // 8px以上動かしたら、パドル移動
         if (Math.abs(deltaX - lastMove) > 6) {
           gameInstance.paddles[0].moveTo(gameInstance.paddles[0].x + (deltaX - lastMove) * PAD_SENSITIVITY);
           lastMove = deltaX;
