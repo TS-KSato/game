@@ -2,9 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Block Painter</title>
+  <title>Block Painter - バーチャルパッド版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -193,12 +192,42 @@
       letter-spacing:2px;
       box-shadow: 0 2px 16px var(--shadow);
     }
+    /* バーチャルパッド */
+    #virtualPad {
+      position: absolute;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00FFD0 40%, #FF2080 120%);
+      box-shadow: 0 4px 24px #00FFD066;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      user-select: none;
+      touch-action: none;
+    }
+    #padInner {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: #181824;
+      box-shadow: 0 2px 10px #fff9;
+      transition: transform 0.09s;
+      will-change: transform;
+      pointer-events:none;
+    }
     @media (max-width: 414px) {
       #gamebox { padding:8px 0 16px 0; }
       .cpk-btn, .game-btn { font-size: 18px; min-height: 52px; }
       .glass-card { font-size: 17px; padding: 8px 14px; }
       #timer { font-size: 18px; }
       #start h1, .game-title { font-size: 28px; }
+      #virtualPad { width: 90px; height: 90px;}
+      #padInner { width: 44px; height: 44px;}
     }
     @media (orientation: landscape){
       #game { height:60vw; }
@@ -209,6 +238,8 @@
       .cpk-btn { font-size: 15px; padding: 10px 0; }
       #orientationWarning{ font-size: 18px;}
       #countdown{ font-size: 32px;}
+      #virtualPad { width: 68px; height: 68px;}
+      #padInner { width: 28px; height: 28px;}
     }
   </style>
 </head>
@@ -234,6 +265,10 @@
     <div id="countdown" style="display:none;">
       <span id="countdown-label">ゲーム開始まで</span>
       <span id="count-number">3</span>
+    </div>
+    <!-- バーチャルパッド -->
+    <div id="virtualPad" style="display: flex;">
+      <div id="padInner"></div>
     </div>
   </div>
   <div id="orientationWarning">縦画面でご利用ください</div>
@@ -318,24 +353,14 @@
         document.getElementById("timer").textContent = MATCH;
       }
       setupInput() {
-        let self = this, canvas = this.canvas;
-        canvas.addEventListener("pointerdown", e => {
-          if (self.state !== "playing") return; self.handlePointer(e); self.touchId = e.pointerId; canvas.setPointerCapture(e.pointerId);
-        });
-        canvas.addEventListener("pointermove", e => { if (self.state !== "playing" || e.pointerId !== self.touchId) return; self.handlePointer(e); });
-        canvas.addEventListener("pointerup", e => { if (e.pointerId === self.touchId) { self.touchId = null; canvas.releasePointerCapture(e.pointerId); } });
-        canvas.addEventListener("pointerleave", e => { if (e.pointerId === self.touchId) { self.touchId = null; canvas.releasePointerCapture(e.pointerId); } });
+        // キー操作は従来通り
+        let self = this;
         window.addEventListener("keydown", e => {
           if (self.state !== "playing") return;
           if (e.key === "ArrowLeft") { self.paddles[0].moveTo(self.paddles[0].x - 0.65); }
           if (e.key === "ArrowRight") { self.paddles[0].moveTo(self.paddles[0].x + 0.65); }
         });
         window.addEventListener("resize", () => { self.resize(); enforcePortrait(); });
-      }
-      handlePointer(e) {
-        const rect = this.canvas.getBoundingClientRect(), x = e.clientX - rect.left;
-        const nx = GRID * x / this.canvas.width;
-        this.paddles[0].moveTo(nx);
       }
       resize() {
         const s = Math.min(window.innerWidth * 0.96, window.innerHeight * 0.72, 540);
@@ -482,6 +507,7 @@
           clearInterval(interval);
           cd.style.display = "none";
           g = new Game();
+          setupVirtualPad(g); // ←ここでバーチャルパッド連携
           setTimeout(()=>g.start(), 120);
         }
       }, 800);
@@ -499,6 +525,56 @@
     }
     window.addEventListener("resize", enforcePortrait);
     document.addEventListener("DOMContentLoaded", enforcePortrait);
+
+    // バーチャルパッド実装
+    function setupVirtualPad(gameInstance) {
+      const pad = document.getElementById("virtualPad");
+      const padInner = document.getElementById("padInner");
+      if (!pad || !padInner) return;
+
+      // 最初は非表示
+      pad.style.opacity = "0.65";
+      pad.style.pointerEvents = "auto";
+
+      let padActive = false, padStartX = 0, lastMove = 0;
+      const PAD_SENSITIVITY = 0.045; // 移動速度の係数
+
+      function resetPadVisual() {
+        padInner.style.transition = "transform 0.19s";
+        padInner.style.transform = "translateX(0px)";
+      }
+
+      pad.onpointerdown = function(e) {
+        if (!gameInstance || gameInstance.state !== "playing") return;
+        padActive = true;
+        pad.setPointerCapture(e.pointerId);
+        padStartX = e.clientX;
+        padInner.style.transition = "none";
+        lastMove = 0;
+      };
+      pad.onpointermove = function(e) {
+        if (!padActive || !gameInstance || gameInstance.state !== "playing") return;
+        const deltaX = e.clientX - padStartX;
+        // 見た目だけpadInner動かす
+        padInner.style.transform = `translateX(${Math.max(-40, Math.min(40, deltaX))}px)`;
+
+        // 8px以上動かしたら、パドル移動
+        if (Math.abs(deltaX - lastMove) > 6) {
+          gameInstance.paddles[0].moveTo(gameInstance.paddles[0].x + (deltaX - lastMove) * PAD_SENSITIVITY);
+          lastMove = deltaX;
+        }
+      };
+      pad.onpointerup = function(e) {
+        padActive = false;
+        resetPadVisual();
+        pad.releasePointerCapture(e.pointerId);
+      };
+      pad.onpointerleave = function(e) {
+        padActive = false;
+        resetPadVisual();
+        pad.releasePointerCapture(e.pointerId);
+      };
+    }
   </script>
 </body>
 </html>
