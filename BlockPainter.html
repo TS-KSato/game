@@ -47,7 +47,7 @@
     <div id="result" role="dialog" aria-modal="true">
       <div id="winner"></div>
       <div id="reason"></div>
-      <button class="game-btn" onclick="location.reload()">もう一度遊ぶ</button>
+      <button class="game-btn" id="restart-btn">もう一度遊ぶ</button>
     </div>
     <div id="start" role="dialog" aria-modal="true">
       <h1 class="game-title">Block Painter</h1>
@@ -68,77 +68,322 @@
   <audio id="win" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/win.mp3" preload="auto"></audio>
   <audio id="startSE" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/startbeep.mp3" preload="auto"></audio>
   <script>
-    let isPlaying = false;
-    document.addEventListener('touchstart', function (e) {
-      if (isPlaying && !e.target.closest("#virtualPad")) e.preventDefault();
-    }, { passive: false });
-    document.addEventListener('touchmove', function (e) {
-      if (isPlaying && !e.target.closest("#virtualPad")) e.preventDefault();
-    }, { passive: false });
-    document.addEventListener('touchend', function (e) {
-      if (isPlaying && !e.target.closest("#virtualPad")) e.preventDefault();
-    }, { passive: false });
-    document.addEventListener('gesturestart', e => { if (isPlaying) e.preventDefault(); });
-    document.addEventListener('gesturechange', e => { if (isPlaying) e.preventDefault(); });
-    document.addEventListener('gestureend', e => { if (isPlaying) e.preventDefault(); });
-
-    function enforcePortrait() {
-      const w = document.getElementById('orientationWarning');
-      if (w) {
-        if (window.innerWidth > window.innerHeight && window.matchMedia("(orientation: landscape)").matches) {
-          w.style.display = 'flex';
-        } else {
-          w.style.display = 'none';
+    // ゲームコントローラーとイベントリスナー管理の改善
+    const GameController = {
+      instance: null,
+      isPlaying: false,
+      touchControlsActive: false,
+      
+      // 仮想パッドの状態
+      padState: {
+        active: false,
+        startX: 0,
+        lastMoveDelta: 0
+      },
+      
+      // 音声再生用ユーティリティ関数
+      playSound: function(id) {
+        const audio = document.getElementById(id);
+        if (audio) {
+          // 音声の再生状態をリセット
+          audio.pause();
+          audio.currentTime = 0;
+          
+          // 音声再生時のエラーハンドリング改善
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.warn(`Sound play failed: ${error}`);
+              // 自動再生ポリシーの問題の場合、ユーザーインタラクションが必要
+              if (error.name === 'NotAllowedError') {
+                // ここでは無音にフォールバックするだけ
+              }
+            });
+          }
         }
+      },
+      
+      // タッチイベントの処理をより効率的に
+      setupTouchControls: function() {
+        if (this.touchControlsActive) return;
+        
+        const preventDefaultForGame = (e) => {
+          // 仮想パッド以外でのゲームプレイ中のタッチイベントを制御
+          if (this.isPlaying && !e.target.closest("#virtualPad")) {
+            e.preventDefault();
+          }
+        };
+        
+        document.addEventListener('touchstart', preventDefaultForGame, { passive: false });
+        document.addEventListener('touchmove', preventDefaultForGame, { passive: false });
+        document.addEventListener('touchend', preventDefaultForGame, { passive: false });
+        
+        // ジェスチャーイベントの防止（iOS用）
+        document.addEventListener('gesturestart', e => { 
+          if (this.isPlaying) e.preventDefault(); 
+        }, { passive: false });
+        document.addEventListener('gesturechange', e => { 
+          if (this.isPlaying) e.preventDefault(); 
+        }, { passive: false });
+        document.addEventListener('gestureend', e => { 
+          if (this.isPlaying) e.preventDefault(); 
+        }, { passive: false });
+        
+        this.touchControlsActive = true;
+      },
+      
+      // スクリーン向きの強制
+      enforcePortraitMode: function() {
+        const orientationWarning = document.getElementById('orientationWarning');
+        if (!orientationWarning) return;
+        
+        const checkOrientation = () => {
+          if (window.innerWidth > window.innerHeight && window.matchMedia("(orientation: landscape)").matches) {
+            orientationWarning.style.display = 'flex';
+          } else {
+            orientationWarning.style.display = 'none';
+          }
+        };
+        
+        window.addEventListener("resize", checkOrientation);
+        checkOrientation(); // 初期チェック
+      },
+      
+      // ゲームの初期化とリスタート管理
+      initGame: function() {
+        // 画面の向き検出
+        this.enforcePortraitMode();
+        
+        // タッチイベントの設定
+        this.setupTouchControls();
+        
+        // イベントリスナーの設定
+        document.getElementById("playbtn").addEventListener("click", this.startCountdown.bind(this));
+        document.getElementById("restart-btn").addEventListener("click", this.restartGame.bind(this));
+        
+        // キーボード操作のサポート
+        document.getElementById("game").addEventListener("keydown", (e) => {
+          if (!this.instance || this.instance.state !== "playing") return;
+          
+          if (e.key === "ArrowLeft") {
+            const currentPos = this.instance.paddles[0].x;
+            this.instance.paddles[0].moveTo(currentPos - 0.3);
+          } else if (e.key === "ArrowRight") {
+            const currentPos = this.instance.paddles[0].x;
+            this.instance.paddles[0].moveTo(currentPos + 0.3);
+          }
+        });
+      },
+      
+      // カウントダウン表示とゲーム開始
+      startCountdown: function() {
+        const countdownEl = document.getElementById("countdown");
+        const startEl = document.getElementById("start");
+        const resultEl = document.getElementById("result");
+        
+        // 画面表示切り替え
+        startEl.style.display = "none";
+        resultEl.style.display = "none";
+        countdownEl.style.display = "flex";
+        
+        let count = 3;
+        const countNum = document.getElementById("count-number");
+        countNum.textContent = count;
+        
+        this.playSound("startSE");
+        
+        const interval = setInterval(() => {
+          count--;
+          if (count > 0) {
+            countNum.textContent = count;
+            this.playSound("startSE");
+          } else if (count === 0) {
+            countNum.textContent = "START!";
+            this.playSound("startSE");
+          } else {
+            clearInterval(interval);
+            countdownEl.style.display = "none";
+            this.startGame();
+          }
+        }, 800);
+      },
+      
+      // ゲーム開始
+      startGame: function() {
+        // 新しいゲームインスタンス作成
+        this.instance = new Game();
+        this.setupVirtualPad();
+        this.isPlaying = true;
+        
+        // 少し遅延させてからゲーム開始
+        setTimeout(() => {
+          if (this.instance) {
+            this.instance.start();
+          }
+        }, 100);
+      },
+      
+      // ゲーム再開（ページリロードなし）
+      restartGame: function() {
+        // 結果画面を非表示
+        document.getElementById("result").style.display = "none";
+        
+        // カウントダウンから再開
+        this.startCountdown();
+      },
+      
+      // 仮想パッドの設定
+      setupVirtualPad: function() {
+        const pad = document.getElementById("virtualPad");
+        const padInner = document.getElementById("padInner");
+        
+        if (!pad || !padInner || !this.instance) return;
+        
+        // 仮想パッドの表示
+        pad.style.display = "flex";
+        
+        // パッドの視覚的なリセット
+        const resetPadVisual = () => {
+          padInner.style.transition = "transform 0.17s";
+          padInner.style.transform = "translateX(0px)";
+          pad.classList.remove("active");
+          this.padState.active = false;
+        };
+        
+        // タッチの検出感度の調整
+        const PAD_SENSITIVITY = 0.048;
+        const MOVEMENT_THRESHOLD = 1; // 小さな動きも検出できるようにしきい値を下げる
+        
+        // ポインターイベントのハンドラー
+        pad.onpointerdown = (e) => {
+          if (!this.instance || this.instance.state !== "playing") return;
+          
+          this.padState.active = true;
+          pad.classList.add("active");
+          pad.setPointerCapture(e.pointerId);
+          this.padState.startX = e.clientX;
+          padInner.style.transition = "none";
+          this.padState.lastMoveDelta = 0;
+        };
+        
+        pad.onpointermove = (e) => {
+          if (!this.padState.active || !this.instance || this.instance.state !== "playing") return;
+          
+          const currentDeltaX = e.clientX - this.padState.startX;
+          
+          // パッドの視覚的な動き（制限つき）
+          padInner.style.transform = `translateX(${Math.max(-36, Math.min(36, currentDeltaX))}px)`;
+          
+          // 移動量を計算
+          const moveAmount = currentDeltaX - this.padState.lastMoveDelta;
+          
+          // 小さな動きでもパドルを動かせるようにしきい値を下げる
+          if (Math.abs(moveAmount) > MOVEMENT_THRESHOLD) {
+            this.instance.paddles[0].moveTo(
+              this.instance.paddles[0].x + moveAmount * PAD_SENSITIVITY
+            );
+            this.padState.lastMoveDelta = currentDeltaX;
+          }
+        };
+        
+        // ポインターイベント終了時の処理
+        const endPadInteraction = (e) => {
+          if (this.padState.active) {
+            resetPadVisual();
+            pad.releasePointerCapture(e.pointerId);
+            this.padState.lastMoveDelta = 0;
+          }
+        };
+        
+        pad.onpointerup = endPadInteraction;
+        pad.onpointercancel = endPadInteraction;
+        pad.onpointerleave = (e) => {
+          if (this.padState.active && e.pointerType === 'mouse') {
+            endPadInteraction(e);
+          }
+        };
       }
-    }
-    window.addEventListener("resize", enforcePortrait);
-    document.addEventListener("DOMContentLoaded", enforcePortrait);
+    };
 
-    function getSafeAreaInset(styleProp, fallback = 0) {
-      const val = parseInt(getComputedStyle(document.documentElement).getPropertyValue(styleProp));
-      return isNaN(val) ? fallback : val;
-    }
-
-    const GRID = 12,
-      BLOCK_P = "#00FFD0", BLOCK_C = "#FF2080", BLOCK_N = "#232338",
-      PADDLE_P = "#FFFFFF", PADDLE_C = "#FFFFFF",
-      BALL_P = "#FFFFFF", BALL_C = "#FFFFFF",
-      BG = "#181824";
-    const PADDLE_WIDTH = 1.8, BALL_R = 0.18, MATCH = 30, FPS = 60;
-    const PADDLE_HALF_HEIGHT = 0.22;
-
+    // ブロッククラス
     class Block {
       constructor(x, y) {
-        this.x = x; this.y = y; this.type = "Normal";
+        this.x = x;
+        this.y = y;
+        this.type = "Normal";
         this.owner = y < GRID / 2 ? 1 : 0;
       }
+      
       hit(pid) {
         if (this.owner === pid) return { action: "none" };
-        const prev = this.owner; this.owner = pid;
+        const prev = this.owner;
+        this.owner = pid;
         return { action: "paint", prevOwner: prev };
       }
+      
       color() {
         if (this.owner === 0) return BLOCK_P;
         if (this.owner === 1) return BLOCK_C;
         return BLOCK_N;
       }
     }
+
+    // パドルクラス
     class Paddle {
-      constructor(y, color) { this.x = GRID / 2; this.y = y; this.color = color; this.w = PADDLE_WIDTH; }
-      moveTo(nx) { this.x = Math.max(this.w / 2, Math.min(GRID - this.w / 2, nx)); }
+      constructor(y, color) {
+        this.x = GRID / 2;
+        this.y = y;
+        this.color = color;
+        this.w = PADDLE_WIDTH;
+      }
+      
+      moveTo(nx) {
+        this.x = Math.max(this.w / 2, Math.min(GRID - this.w / 2, nx));
+      }
     }
+
+    // ボールクラス
     class Ball {
-      constructor(pid, color, startY) { this.pid = pid; this.color = color; this.r = BALL_R; this.startY = startY; this.reset(); }
+      constructor(pid, color, startY) {
+        this.pid = pid;
+        this.color = color;
+        this.r = BALL_R;
+        this.startY = startY;
+        this.reset();
+      }
+      
       reset() {
         this.x = GRID / 2;
         this.y = this.startY;
         this.vx = (Math.random() - 0.5) * 0.045;
         this.vy = this.pid === 0 ? -0.10 : 0.10; // プレイヤーは上、CPUは下
       }
-      move() { this.x += this.vx; this.y += this.vy; }
+      
+      move() {
+        this.x += this.vx;
+        this.y += this.vy;
+      }
     }
 
+    // ゲーム定数
+    const GRID = 12,
+          BLOCK_P = "#00FFD0", 
+          BLOCK_C = "#FF2080", 
+          BLOCK_N = "#232338",
+          PADDLE_P = "#FFFFFF", 
+          PADDLE_C = "#FFFFFF",
+          BALL_P = "#FFFFFF", 
+          BALL_C = "#FFFFFF",
+          BG = "#181824";
+          
+    const PADDLE_WIDTH = 1.8, 
+          BALL_R = 0.18, 
+          MATCH = 30, 
+          FPS = 60;
+          
+    const PADDLE_HALF_HEIGHT = 0.22;
+
+    // ゲームクラス（改善版）
     class Game {
       constructor() {
         this.canvas = document.getElementById('game');
@@ -152,178 +397,325 @@
         this.playerScoreEl = document.getElementById("player-score");
         this.cpuScoreEl = document.getElementById("cpu-score");
         this.timerEl = document.getElementById("timer");
+        this.cpuDifficultyFactor = 0.15; // CPU難易度の調整
+        this.animationFrameId = null;
+        
         this.init();
         this.resize();
         this.loopBind = this.loop.bind(this);
-        this.cpuTargetX = null;
-        this.cpuSkill = 1;
-        this.cpuJitter = 0;
-        this.lastBallDir = null;
+        
+        // リサイズイベントのハンドリング
         window.addEventListener('resize', () => this.resize());
       }
+      
       init() {
         this.blocks = [];
-        for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) this.blocks.push(new Block(x, y));
+        for (let y = 0; y < GRID; y++) {
+          for (let x = 0; x < GRID; x++) {
+            this.blocks.push(new Block(x, y));
+          }
+        }
+        
         this.paddles[0] = new Paddle(GRID - 0.5, PADDLE_P); // Player
-        this.paddles[1] = new Paddle(0.5, PADDLE_C);       // CPU
-        this.balls[0] = new Ball(0, BALL_P, GRID - 1.3);   // Player
-        this.balls[1] = new Ball(1, BALL_C, 1.3);          // CPU
+        this.paddles[1] = new Paddle(0.5, PADDLE_C);        // CPU
+        this.balls[0] = new Ball(0, BALL_P, GRID - 1.3);    // Player
+        this.balls[1] = new Ball(1, BALL_C, 1.3);           // CPU
+        
         this.timer = MATCH;
         this.state = "wait";
         this.waitingForStart = true;
         this.timerEl.textContent = MATCH;
         this.playerScoreEl.textContent = "0";
         this.cpuScoreEl.textContent = "0";
+        
+        // 仮想パッドを非表示
+        const virtualPad = document.getElementById("virtualPad");
+        if (virtualPad) virtualPad.style.display = "none";
       }
+      
       resize() {
+        // 安全領域の取得
         const safeTop = getSafeAreaInset('padding-top', 0);
         const safeBottom = getSafeAreaInset('padding-bottom', 0);
         const safeLeft = getSafeAreaInset('padding-left', 0);
         const safeRight = getSafeAreaInset('padding-right', 0);
+        
         const safeW = window.innerWidth - safeLeft - safeRight;
         const safeH = window.innerHeight - safeTop - safeBottom;
+        
+        // キャンバスのサイズを調整
         const s = Math.min(safeW * 0.96, safeH * 0.96, 520);
         this.canvas.width = this.canvas.height = s;
+        
+        // 既に描画されていれば再描画
+        if (this.state === "playing") {
+          this.render();
+        }
       }
+      
       start() {
         if (!this.waitingForStart) return;
-        this.state = "playing"; this.waitingForStart = false;
-        isPlaying = true;
-        document.getElementById("virtualPad").style.display = "flex";
-        requestAnimationFrame(this.loopBind);
+        
+        this.state = "playing";
+        this.waitingForStart = false;
+        GameController.isPlaying = true;
+        
+        // 仮想パッドを表示
+        const virtualPad = document.getElementById("virtualPad");
+        if (virtualPad) virtualPad.style.display = "flex";
+        
+        // アニメーションフレームを開始
+        this.animationFrameId = requestAnimationFrame(this.loopBind);
       }
+      
       loop() {
         if (this.state !== "playing") return;
-        this.timer -= 1 / FPS; if (this.timer <= 0) { this.finish("時間切れ"); return; }
-        this.timerEl.textContent = String(Math.ceil(this.timer));
-
-        // CPU AI: 自分のボールだけ追う
-        let cpuPaddle = this.paddles[1], cpuBall = this.balls[1];
-        if (cpuBall.vy > 0) {
-          let predictX = this.predictBallLandingX(cpuBall, cpuPaddle.y);
-          cpuPaddle.moveTo(cpuPaddle.x + (predictX - cpuPaddle.x) * 0.13);
-        } else {
-          cpuPaddle.moveTo(cpuPaddle.x + ((GRID / 2) - cpuPaddle.x) * 0.08);
+        
+        // タイマー更新
+        this.timer -= 1 / FPS;
+        if (this.timer <= 0) {
+          this.finish("時間切れ");
+          return;
         }
-
+        this.timerEl.textContent = String(Math.ceil(this.timer));
+        
+        // CPU AI: プレイヤーのボールも追うように改善
+        this.updateCpuAI();
+        
+        // ボールの移動と衝突判定
+        this.updateBalls();
+        
+        // 描画
+        this.render();
+        
+        // 次のフレームを要求
+        this.animationFrameId = requestAnimationFrame(this.loopBind);
+      }
+      
+      // CPU AIの改善
+      updateCpuAI() {
+        let cpuPaddle = this.paddles[1];
+        let cpuBall = this.balls[1];
+        let playerBall = this.balls[0];
+        
+        // CPU自身のボールが上向きに動いている場合（危険がない場合）
+        if (cpuBall.vy < 0) {
+          // プレイヤーのボールが上向きに動いていて、CPU側に向かっている場合
+          if (playerBall.vy < 0 && playerBall.y < GRID / 2) {
+            let predictX = this.predictBallLandingX(playerBall, cpuPaddle.y);
+            // プレイヤーのボールを優先的に守る
+            cpuPaddle.moveTo(cpuPaddle.x + (predictX - cpuPaddle.x) * this.cpuDifficultyFactor);
+          } else {
+            // 安全な時は中央に戻る
+            cpuPaddle.moveTo(cpuPaddle.x + ((GRID / 2) - cpuPaddle.x) * 0.08);
+          }
+        } 
+        // CPU自身のボールが下向きに動いている場合（打ち返す必要がある）
+        else {
+          let predictX = this.predictBallLandingX(cpuBall, cpuPaddle.y);
+          cpuPaddle.moveTo(cpuPaddle.x + (predictX - cpuPaddle.x) * this.cpuDifficultyFactor);
+        }
+      }
+      
+      // ボールの更新と衝突判定の改善
+      updateBalls() {
         for (let pid = 0; pid < 2; pid++) {
-          let b = this.balls[pid], p = this.paddles[pid];
+          let b = this.balls[pid];
+          let p = this.paddles[pid];
+          
+          // ボールの移動
           b.move();
-
-          // 壁バウンド
-          if (b.x - b.r < 0) { b.x = b.r; b.vx *= -1; }
-          if (b.x + b.r > GRID) { b.x = GRID - b.r; b.vx *= -1; }
-
-          // パドル衝突判定
-          let paddleY = p.y;
-          let towardPaddle = (pid === 0 && b.vy < 0) || (pid === 1 && b.vy > 0);
-          let yDist = Math.abs(b.y - paddleY);
-          let xDist = Math.abs(b.x - p.x);
-          if (towardPaddle && yDist < (PADDLE_HALF_HEIGHT + b.r) && xDist < (p.w / 2 + b.r)) {
-            b.vy *= -1;
-            let offset = (b.x - p.x) / (p.w / 2);
-            b.vx += offset * 0.04;
-            b.vx = Math.max(-0.2, Math.min(0.2, b.vx));
-            const collisionOffset = PADDLE_HALF_HEIGHT + b.r + 0.01;
-            if (pid === 0) {
-              b.y = p.y - collisionOffset;
-            } else {
-              b.y = p.y + collisionOffset;
-            }
-            this.se("hit");
+          
+          // 壁バウンド - 改善なし
+          if (b.x - b.r < 0) {
+            b.x = b.r;
+            b.vx *= -1;
           }
-
-          // ブロック衝突
-          let hitBlock = null;
-          for (const bl of this.blocks) {
-            const blockCenterX = bl.x + 0.5, blockCenterY = bl.y + 0.5;
-            const distXb = Math.abs(b.x - blockCenterX), distYb = Math.abs(b.y - blockCenterY);
-            if (distXb > (0.5 + b.r) || distYb > (0.5 + b.r)) continue;
-            if (distXb <= 0.5 || distYb <= 0.5) { hitBlock = bl; break; }
-            const cornerDistSq = Math.pow(distXb - 0.5, 2) + Math.pow(distYb - 0.5, 2);
-            if (cornerDistSq <= (b.r * b.r)) { hitBlock = bl; break; }
+          if (b.x + b.r > GRID) {
+            b.x = GRID - b.r;
+            b.vx *= -1;
           }
-          if (hitBlock) {
-            let res = hitBlock.hit(pid);
-            if (res.action === "paint") this.se("paint");
-            let bx_rel = b.x - (hitBlock.x + 0.5);
-            let by_rel = b.y - (hitBlock.y + 0.5);
-            const overlapX = (0.5 + b.r) - Math.abs(bx_rel);
-            const overlapY = (0.5 + b.r) - Math.abs(by_rel);
-            if (overlapY < overlapX && overlapY > 0.001) {
-              b.vy *= -1;
-              b.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-            } else if (overlapX < overlapY && overlapX > 0.001) {
-              b.vx *= -1;
-              b.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-            } else {
-              const blockCenterX = hitBlock.x + 0.5, blockCenterY = hitBlock.y + 0.5;
-              const isCornerRegion = Math.abs(b.x - blockCenterX) > 0.5 && Math.abs(b.y - blockCenterY) > 0.5;
-              if (isCornerRegion && overlapX > 0.001 && overlapY > 0.001) {
-                b.vx *= -1; b.vy *= -1;
-                b.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-                b.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-              } else {
-                if (Math.abs(by_rel) >= Math.abs(bx_rel)) {
-                  b.vy *= -1;
-                  if (overlapY > 0.001) b.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-                } else {
-                  b.vx *= -1;
-                  if (overlapX > 0.001) b.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-                }
-              }
-            }
-          }
-
+          
+          // パドル衝突判定の改善
+          this.handlePaddleCollision(b, p, pid);
+          
+          // ブロック衝突判定の改善
+          this.handleBlockCollision(b, pid);
+          
           // ゴール判定
           if ((pid === 0 && b.y < -0.4) || (pid === 1 && b.y > GRID + 0.4)) {
             this.finish(pid === 0 ? "あなたがミスしました" : "CPUがミスしました");
             return;
           }
         }
-
-        this.render();
-        requestAnimationFrame(this.loopBind);
       }
-
+      
+      // パドル衝突判定の改善
+      handlePaddleCollision(ball, paddle, pid) {
+        const paddleY = paddle.y;
+        const towardPaddle = (pid === 0 && ball.vy < 0) || (pid === 1 && ball.vy > 0);
+        const yDist = Math.abs(ball.y - paddleY);
+        const xDist = Math.abs(ball.x - paddle.x);
+        
+        // パドルとの衝突判定改善 - 半径を考慮したより正確な判定
+        if (towardPaddle && yDist < (PADDLE_HALF_HEIGHT + ball.r) && xDist < (paddle.w / 2 + ball.r)) {
+          // 衝突時の反射角を計算
+          ball.vy *= -1;
+          
+          // パドルの位置に応じて横方向の速度を調整
+          let offset = (ball.x - paddle.x) / (paddle.w / 2);
+          ball.vx += offset * 0.04;
+          
+          // 速度の上限設定
+          ball.vx = Math.max(-0.2, Math.min(0.2, ball.vx));
+          
+          // ボールの位置を調整してパドルに埋まるのを防止
+          const collisionOffset = PADDLE_HALF_HEIGHT + ball.r + 0.01;
+          if (pid === 0) {
+            ball.y = paddle.y - collisionOffset;
+          } else {
+            ball.y = paddle.y + collisionOffset;
+          }
+          
+          // 衝突音再生
+          GameController.playSound("hit");
+        }
+      }
+      
+      // ブロック衝突判定の簡素化と改善
+      handleBlockCollision(ball, pid) {
+        // 衝突したブロックを検索
+        let hitBlock = this.findCollidingBlock(ball);
+        
+        if (hitBlock) {
+          // ブロックのヒット処理
+          let res = hitBlock.hit(pid);
+          if (res.action === "paint") {
+            GameController.playSound("paint");
+          }
+          
+          // ボールの位置をブロックの中心からの相対位置で計算
+          let bx_rel = ball.x - (hitBlock.x + 0.5);
+          let by_rel = ball.y - (hitBlock.y + 0.5);
+          
+          // 衝突の重なり量を計算
+          const overlapX = (0.5 + ball.r) - Math.abs(bx_rel);
+          const overlapY = (0.5 + ball.r) - Math.abs(by_rel);
+          
+          // Y方向の衝突処理（上下の辺）
+          if (overlapY < overlapX && overlapY > 0.001) {
+            ball.vy *= -1;
+            ball.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + ball.r) : -(0.5 + ball.r));
+          } 
+          // X方向の衝突処理（左右の辺）
+          else if (overlapX < overlapY && overlapX > 0.001) {
+            ball.vx *= -1;
+            ball.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + ball.r) : -(0.5 + ball.r));
+          } 
+          // 角衝突の処理
+          else {
+            // 角に衝突した場合、X方向とY方向の両方を反転
+            ball.vx *= -1;
+            ball.vy *= -1;
+            
+            // ボールの位置を調整して埋まり防止
+            ball.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + ball.r) : -(0.5 + ball.r));
+            ball.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + ball.r) : -(0.5 + ball.r));
+          }
+        }
+      }
+      
+      // 衝突しているブロックを検索する関数
+      findCollidingBlock(ball) {
+        for (const block of this.blocks) {
+          const blockCenterX = block.x + 0.5;
+          const blockCenterY = block.y + 0.5;
+          
+          // ブロックの中心からボールまでの距離を計算
+          const distX = Math.abs(ball.x - blockCenterX);
+          const distY = Math.abs(ball.y - blockCenterY);
+          
+          // 明らかに衝突していない場合はスキップ
+          if (distX > (0.5 + ball.r) || distY > (0.5 + ball.r)) continue;
+          
+          // 軸方向衝突（ブロックの辺と衝突）
+          if (distX <= 0.5 || distY <= 0.5) return block;
+          
+          // 角衝突判定（ブロックの角とボールの衝突）
+          const cornerDistSq = Math.pow(distX - 0.5, 2) + Math.pow(distY - 0.5, 2);
+          if (cornerDistSq <= (ball.r * ball.r)) return block;
+        }
+        
+        return null; // 衝突しているブロックがない
+      }
+      
+      // 効果音再生
       se(name) {
-        let a = document.getElementById(name);
-        if (a) { a.currentTime = 0; a.play().catch(() => { }); }
+        GameController.playSound(name);
       }
+      
+      // ゲーム終了処理
       finish(reason) {
         this.state = "result";
-        isPlaying = false;
+        GameController.isPlaying = false;
+        
+        // アニメーションフレームをキャンセル
+        if (this.animationFrameId) {
+          cancelAnimationFrame(this.animationFrameId);
+          this.animationFrameId = null;
+        }
+        
+        // 仮想パッドを非表示
         document.getElementById("virtualPad").style.display = "none";
+        
+        // 勝敗判定
         let winnerText, reasonText = reason || "";
+        
         if (reason && reason.includes("CPUがミス")) {
           winnerText = "あなたの勝ち！";
         } else if (reason && reason.includes("あなたがミス")) {
           winnerText = "CPUの勝ち";
         } else {
+          // スコア計算
           let pscore = 0, cscore = 0;
           for (let bl of this.blocks) {
             if (bl.owner === 0) pscore++;
             else if (bl.owner === 1) cscore++;
           }
+          
           if (pscore > cscore) winnerText = "あなたの勝ち！";
           else if (pscore < cscore) winnerText = "CPUの勝ち";
           else winnerText = "引き分け！";
+          
           reasonText = `時間切れ！ あなた: ${pscore} vs CPU: ${cscore}`;
         }
+        
+        // 結果画面の表示
         document.getElementById("result").style.display = "flex";
         document.getElementById("winner").textContent = winnerText;
         document.getElementById("reason").textContent = reasonText;
+        
+        // 勝利音再生
         this.se("win");
       }
+      
+      // 描画処理
       render() {
-        const ctx = this.ctx, s = this.canvas.width / GRID;
+        const ctx = this.ctx;
+        const s = this.canvas.width / GRID;
+        
+        // キャンバスのクリア
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         ctx.fillStyle = BG;
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // ブロックの描画
         for (let bl of this.blocks) {
           ctx.save();
           ctx.globalAlpha = 1;
           ctx.fillStyle = bl.color();
+          
+          // 中央線のブロックは強調表示
           if (bl.y === GRID / 2 - 1 || bl.y === GRID / 2) {
             ctx.strokeStyle = "#FFF";
             ctx.lineWidth = 3;
@@ -331,12 +723,15 @@
             ctx.strokeStyle = "#444";
             ctx.lineWidth = 1.1;
           }
+          
           ctx.beginPath();
           ctx.rect((bl.x + 0.03) * s, (bl.y + 0.03) * s, s * 0.93, s * 0.93);
           ctx.fill();
           ctx.stroke();
           ctx.restore();
         }
+        
+        // パドルの描画
         for (let pid = 0; pid < 2; pid++) {
           let p = this.paddles[pid];
           ctx.save();
@@ -344,10 +739,18 @@
           ctx.shadowColor = pid ? PADDLE_C : PADDLE_P;
           ctx.shadowBlur = 13;
           ctx.beginPath();
-          ctx.roundRect((p.x - PADDLE_WIDTH / 2) * s, (p.y - PADDLE_HALF_HEIGHT) * s, s * PADDLE_WIDTH, s * (PADDLE_HALF_HEIGHT * 2), s * 0.18);
+          ctx.roundRect(
+            (p.x - PADDLE_WIDTH / 2) * s,
+            (p.y - PADDLE_HALF_HEIGHT) * s,
+            s * PADDLE_WIDTH,
+            s * (PADDLE_HALF_HEIGHT * 2),
+            s * 0.18
+          );
           ctx.fill();
           ctx.restore();
         }
+        
+        // ボールの描画
         for (let pid = 0; pid < 2; pid++) {
           let b = this.balls[pid];
           ctx.save();
@@ -360,6 +763,8 @@
           ctx.fill();
           ctx.restore();
         }
+        
+        // スコア計算と表示
         let pscore = 0, cscore = 0;
         for (let bl of this.blocks) {
           if (bl.owner === 0) pscore++;
@@ -368,99 +773,49 @@
         this.playerScoreEl.textContent = pscore;
         this.cpuScoreEl.textContent = cscore;
       }
+      
+      // ボールの着地位置予測
       predictBallLandingX(ball, targetY) {
         let x = ball.x, y = ball.y, vx = ball.vx, vy = ball.vy;
-        for (let i = 0; i < 180; i++) {
-          x += vx; y += vy;
-          if (x - ball.r < 0) { x = ball.r; vx *= -1; }
-          if (x + ball.r > GRID) { x = GRID - ball.r; vx *= -1; }
+        
+        // シミュレーション反復回数を増やして精度を向上
+        for (let i = 0; i < 300; i++) {
+          x += vx;
+          y += vy;
+          
+          // 壁バウンドのシミュレーション
+          if (x - ball.r < 0) {
+            x = ball.r;
+            vx *= -1;
+          }
+          if (x + ball.r > GRID) {
+            x = GRID - ball.r;
+            vx *= -1;
+          }
+          
+          // 目標のY座標に達したら終了
           if (vy < 0 && y <= targetY) break;
           if (vy > 0 && y >= targetY) break;
+          
+          // 無限ループ防止
           if (y < -GRID || y > GRID * 2) break;
         }
+        
         return x;
       }
     }
 
-    let g;
-    function startCountdownThenPlay() {
-      const cd = document.getElementById("countdown");
-      const start = document.getElementById("start");
-      const result = document.getElementById("result");
-      start.style.display = "none"; result.style.display = "none";
-      cd.style.display = "flex";
-      let count = 3;
-      const countNum = document.getElementById("count-number");
-      countNum.textContent = count;
-      let countdownSE = () => {
-        let a = document.getElementById("startSE");
-        if (a) { a.currentTime = 0; a.play().catch(() => { }); }
-      }
-      countdownSE();
-      let interval = setInterval(() => {
-        count--;
-        if (count > 0) {
-          countNum.textContent = count;
-          countdownSE();
-        } else if (count === 0) {
-          countNum.textContent = "START!";
-          countdownSE();
-        } else {
-          clearInterval(interval);
-          cd.style.display = "none";
-          g = new Game();
-          setupVirtualPad(g);
-          setTimeout(() => g.start(), 100);
-        }
-      }, 800);
+    // セーフエリアの取得ユーティリティ
+    function getSafeAreaInset(styleProp, fallback = 0) {
+      const val = parseInt(getComputedStyle(document.documentElement).getPropertyValue(styleProp));
+      return isNaN(val) ? fallback : val;
     }
-    document.getElementById("playbtn").onclick = startCountdownThenPlay;
 
-    function setupVirtualPad(gameInstance) {
-      const pad = document.getElementById("virtualPad");
-      const padInner = document.getElementById("padInner");
-      if (!pad || !padInner) return;
-      let padActive = false, padStartX = 0, lastMoveDelta = 0;
-      const PAD_SENSITIVITY = 0.048;
-      function resetPadVisual() {
-        padInner.style.transition = "transform 0.17s";
-        padInner.style.transform = "translateX(0px)";
-        pad.classList.remove("active");
-      }
-      pad.onpointerdown = function (e) {
-        if (!gameInstance || gameInstance.state !== "playing") return;
-        padActive = true; pad.classList.add("active");
-        pad.setPointerCapture(e.pointerId);
-        padStartX = e.clientX;
-        padInner.style.transition = "none";
-        lastMoveDelta = 0;
-      };
-      pad.onpointermove = function (e) {
-        if (!padActive || !gameInstance || gameInstance.state !== "playing") return;
-        const currentDeltaX = e.clientX - padStartX;
-        padInner.style.transform = `translateX(${Math.max(-36, Math.min(36, currentDeltaX))}px)`;
-        const moveAmount = currentDeltaX - lastMoveDelta;
-        if (Math.abs(moveAmount) > 2) {
-          gameInstance.paddles[0].moveTo(gameInstance.paddles[0].x + moveAmount * PAD_SENSITIVITY);
-          lastMoveDelta = currentDeltaX;
-        }
-      };
-      function endPadInteraction(e) {
-        if (padActive) {
-          padActive = false;
-          resetPadVisual();
-          pad.releasePointerCapture(e.pointerId);
-          lastMoveDelta = 0;
-        }
-      }
-      pad.onpointerup = endPadInteraction;
-      pad.onpointercancel = endPadInteraction;
-      pad.onpointerleave = (e) => {
-        if (padActive && e.pointerType === 'mouse') {
-          endPadInteraction(e);
-        }
-      };
-    }
+    // DOMコンテンツ読み込み完了時の処理
+    document.addEventListener("DOMContentLoaded", () => {
+      // ゲームコントローラーの初期化
+      GameController.initGame();
+    });
   </script>
 </body>
 </html>
