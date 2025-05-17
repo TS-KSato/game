@@ -1,446 +1,211 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>Block Painter</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    html, body {height: 100dvh;width: 100dvw;margin: 0;padding: 0;background: #181824;overflow: hidden;box-sizing: border-box;padding-top: env(safe-area-inset-top, 0px);padding-bottom: env(safe-area-inset-bottom, 0px);padding-left: env(safe-area-inset-left, 0px);padding-right: env(safe-area-inset-right, 0px);overscroll-behavior: none;touch-action: none;}
-    body {min-height: 100dvh;min-width: 100dvw;display: flex;align-items: center;justify-content: center;font-family: 'Roboto Mono', 'Segoe UI', Verdana, Arial, 'ヒラギノ角ゴ ProN', sans-serif;color: #FFF;font-size: clamp(16px, 5vw, 20px);background: #181824;}
-    #gamebox {width: min(96vw, 96vh, 520px);height: min(96vw, 96vh, 520px);max-width: 98vw;max-height: 98vh;margin: auto;background: rgba(35, 35, 56, 0.98);border-radius: 18px;box-shadow: 0 2px 16px #0CFDFF44;padding: 10px 0 20px 0;display: flex;flex-direction: column;align-items: center;justify-content: center;position: relative;}
-    #ui {width: 90%;max-width: 96vw;display: flex;justify-content: space-between;align-items: center;gap: 14px;margin: 8px 0 0 0;font-size: 18px;user-select: none;}
-    .hud {font-family: 'Orbitron', sans-serif;font-size: 17px;font-weight: bold;letter-spacing: 1.5px;display: flex;align-items: center;min-width: 60px;padding: 0 6px;}
-    .hud-player {color: #00FFD0;}
-    .hud-cpu {color: #FF2080;flex-direction: row-reverse;}
-    .arrow {font-size: 1.3em;margin: 0 5px;}
-    #timer {background: linear-gradient(90deg, #181824 40%, #00FFD0 100%);border: 1.5px solid #00FFD0;border-radius: 12px;color: #fff;font-size: 20px;padding: 6px 18px;font-family: 'Orbitron', sans-serif;letter-spacing: 1.2px;box-shadow: 0 0 8px #0CFDFF44;text-align: center;min-width: 54px;}
-    #game {width: 90%;height: 90%;max-width: 96vw;max-height: 78vw;aspect-ratio: 1 / 1;border-radius: 3vw;box-shadow: 0 0 28px #FF208055, 0 0 8px #00FFD0 inset;background: rgba(32, 32, 48, 0.18);border: 2px solid #00FFD0;margin-top: 10px;display: block;touch-action: none;outline: none;}
-    .game-title,#start h1 {font-family: 'Orbitron', sans-serif;font-size: clamp(28px, 8vw, 36px);letter-spacing: -0.5px;color: #00FFD0;text-shadow: 0 0 14px #00FFD0, 0 1px 0 #232338;font-weight: 900;margin: 0 0 8px 0;text-align: center;text-transform: uppercase;}
-    #start p {color: #c8fff6;background: rgba(0, 255, 208, 0.11);padding: 16px 12px;border-radius: 10px;font-size: 17px;margin-bottom: 22px;line-height: 1.5;box-shadow: 0 0 6px #FF208044;text-align: center;font-family: 'Roboto Mono', monospace;}
-    .game-btn {background: linear-gradient(90deg, #00FFD0, #FF2080 100%);color: #181824;font-family: 'Orbitron', sans-serif;font-size: 20px;letter-spacing: 2px;border-radius: 16px;border: none;padding: 14px 0;margin: 14px 0 0 0;min-width: 72vw;min-height: 48px;font-weight: 800;box-shadow: 0 4px 20px #0CFDFF44;outline: 2px solid #00FFD044;position: relative;transition: transform 0.15s, box-shadow 0.18s, background 0.2s;cursor: pointer;display: block;text-align: center;outline-offset: 2px;}
-    .game-btn:active,.game-btn:focus {transform: scale(0.97);box-shadow: 0 2px 12px #FF208088;background: linear-gradient(90deg, #FF2080, #00FFD0 100%);outline: 2.5px solid #FF2080;}
-    #result,#start,#countdown {position: absolute;top: 50%;left: 50%;transform: translate(-50%, -50%);width: 90%;height: auto;max-width: 100%;max-height: 100%;display: flex;flex-direction: column;align-items: center;justify-content: center;z-index: 10;background: rgba(18, 18, 36, 0.96);backdrop-filter: blur(6px) brightness(1.12);border-radius: 18px;box-shadow: 0 0 24px #00FFD044;padding: 5vw 2vw 3vw 2vw;color: #fff;animation: fadeIn 0.7s;transition: opacity 0.3s;margin: 0;}
-    #result {display: none;}
-    @keyframes fadeIn {from {opacity: 0;}to {opacity: 1;}}
-    #winner {color: #00FFD0;font-size: 29px;margin-bottom: 8px;font-family: 'Orbitron', sans-serif;letter-spacing: 0.08em;text-shadow: 0 2px 16px #00FFD0, 0 1px 2px #232338;text-align: center;font-weight: 900;}
-    #reason {color: #FF2080;font-size: 18px;margin-bottom: 12px;text-align: center;font-family: 'Roboto Mono', monospace;text-shadow: 0 1px 6px #FF2080, 0 0 2px #fff;}
-    #countdown {font-family: 'Orbitron', sans-serif;color: #00FFD0;font-size: 46px;letter-spacing: 0.05em;text-shadow: 0 0 18px #FF2080, 0 0 7px #00FFD0;display: flex;align-items: center;justify-content: center;flex-direction: column;opacity: 1;animation: countPulse 0.8s infinite alternate;}
-    @keyframes countPulse {0% {text-shadow: 0 0 7px #FF2080;}100% {text-shadow: 0 0 26px #00FFD0;}}
-    #countdown-label {font-size: 19px;margin-bottom: 10px;color: #fff;text-shadow: 0 0 5px #FF2080;}
-    #orientationWarning {display: none;position: fixed;top: 0;left: 0;width: 100vw;height: 100dvh;background: #00FFD0;color: #181824;z-index: 10000;flex-direction: column;justify-content: center;align-items: center;text-align: center;font-size: 21px;font-family: 'Orbitron', sans-serif;font-weight: bold;letter-spacing: 2px;box-shadow: 0 2px 16px #00FFD044;}
-    #virtualPad {position: fixed;left: 50%;bottom: 22px;transform: translateX(-50%);width: 118px;height: 118px;border-radius: 50%;background: linear-gradient(135deg, #00FFD0 40%, #FF2080 120%);box-shadow: 0 4px 24px #00FFD044;display: none;align-items: center;justify-content: center;z-index: 2000;user-select: none;touch-action: none;opacity: 0.93;pointer-events: auto;}
-    #padInner {width: 58px;height: 58px;border-radius: 50%;background: #181824;box-shadow: 0 2px 18px #fff8, 0 0 0 4px #fff3 inset;transition: transform 0.09s, box-shadow 0.09s;will-change: transform;pointer-events: none;}
-    #virtualPad:active #padInner,#virtualPad.active #padInner {background: #222248;box-shadow: 0 4px 28px #00ffd099, 0 0 0 8px #ff208022 inset;transform: scale(1.12);}
-    @media (max-width: 414px) {#gamebox {padding: 8px 0 12px 0;}.game-btn {font-size: 17px;min-height: 48px;}#timer {font-size: 17px;}#start h1,.game-title {font-size: 25px;}#virtualPad {width: 80px;height: 80px;}#padInner {width: 33px;height: 33px;}}
-    @media (orientation: landscape) {#gamebox {width: min(60vw, 60vh, 380px);height: min(60vw, 60vh, 380px);}#game {height: 60vw;}#ui {font-size: 14px;}#timer {font-size: 13px;}#start h1,.game-title {font-size: 18px;}.game-btn {font-size: 13px;padding: 8px 0;}#orientationWarning {font-size: 15px;}#countdown {font-size: 28px;}#virtualPad {width: 54px;height: 54px;}#padInner {width: 21px;height: 21px;}}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Territory Breakout Pro</title>
+<style>
+:root {
+  --playerColor:#ffd63a;
+  --cpuColor:#337dff;
+  --bgBoard:#000;
+  --hudBg:#111;
+  --hudFg:#fff;
+  --accent:#ffa955;
+  font-family:"Segoe UI",system-ui,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+}
+html,body{
+  margin:0;padding:0;height:100%;background:var(--playerColor);color:var(--hudFg);
+  touch-action:manipulation;-webkit-user-select:none;user-select:none;
+  display:flex;flex-direction:column;align-items:center;
+}
+#hud{margin-top:4vh;background:var(--hudBg);padding:6px 18px;border-radius:24px;
+  display:flex;align-items:center;gap:12px;box-shadow:0 0 0 2px var(--hudBg);}
+.hudColor{width:24px;height:24px;border-radius:4px;}
+#timerBox{background:#444;padding:2px 10px;border-radius:6px;font-size:1.4rem;
+  font-weight:700;min-width:54px;text-align:center;}
+#gameCanvas{display:block;width:92vw;max-width:480px;aspect-ratio:9/16;
+  background:var(--bgBoard);margin-top:2vh;border:6px solid var(--bgBoard);box-sizing:border-box;}
+.overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:24px;background:rgba(0,0,0,.82);z-index:10;color:#fff;text-align:center;}
+.hidden{display:none!important}
+button{background:var(--playerColor);color:#000;border:none;border-radius:8px;
+  padding:14px 28px;font-size:1.2rem;font-weight:700;}
+button:active{background:var(--accent)}
+#sliderWrap{width:92vw;max-width:480px;margin:4vh 0;}
+#paddleSlider{width:100%;-webkit-appearance:none;appearance:none;height:20px;
+  border-radius:10px;background:#555;outline:none}
+#paddleSlider::-webkit-slider-thumb{ -webkit-appearance:none;appearance:none;
+  width:36px;height:36px;border-radius:50%;background:#f4f4f4;border:2px solid #999;cursor:pointer}
+#paddleSlider::-moz-range-thumb{width:36px;height:36px;border-radius:50%;
+  background:#f4f4f4;border:2px solid #999;cursor:pointer}
+</style>
 </head>
 <body>
-  <div id="gamebox">
-    <div id="ui">
-      <div class="hud hud-player"><span class="arrow">&#x25BC;</span>あなた: <span id="player-score">0</span></div>
-      <div id="timer">30</div>
-      <div class="hud hud-cpu">CPU: <span id="cpu-score">0</span><span class="arrow">&#x25B2;</span></div>
-    </div>
-    <canvas id="game" width="800" height="800" tabindex="0"></canvas>
-    <div id="result" role="dialog" aria-modal="true">
-      <div id="winner"></div>
-      <div id="reason"></div>
-      <button class="game-btn" id="restart-btn">もう一度遊ぶ</button>
-    </div>
-    <div id="start" role="dialog" aria-modal="true">
-      <h1 class="game-title">Block Painter</h1>
-      <p>あなたとCPUが各自のボールで相手陣地を塗り合い！<br>30秒後、より多くブロックを塗った方が勝利です。ボールを落としたら即負け！<br><br>画面下の<b>円形パッド</b>を左右に動かしてパドルを操作してください。</p>
-      <button class="game-btn" id="playbtn" role="button" aria-pressed="false">はじめる</button>
-    </div>
-    <div id="countdown" style="display:none;">
-      <span id="countdown-label">ゲーム開始まで</span>
-      <span id="count-number">3</span>
-    </div>
-  </div>
-  <div id="virtualPad" aria-label="バーチャルパッド" tabindex="0">
-    <div id="padInner"></div>
-  </div>
-  <div id="orientationWarning">縦画面でご利用ください</div>
-  <audio id="hit" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/pop.mp3" preload="auto"></audio>
-  <audio id="paint" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/ping.mp3" preload="auto"></audio>
-  <audio id="win" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/win.mp3" preload="auto"></audio>
-  <audio id="startSE" src="https://cdn.jsdelivr.net/gh/thisable/audio@main/startbeep.mp3" preload="auto"></audio>
-  <script>
-    // --- 環境&画面回転 ---
-    document.addEventListener("DOMContentLoaded", enforcePortrait);
-    window.addEventListener("resize", enforcePortrait);
-    function enforcePortrait() {
-      const w = document.getElementById('orientationWarning');
-      if (w) {
-        if (window.innerWidth > window.innerHeight && window.matchMedia("(orientation: landscape)").matches) {
-          w.style.display = 'flex';
-        } else {
-          w.style.display = 'none';
-        }
+<div id="hud"><div class="hudColor" style="background:var(--playerColor)"></div>
+<span id="playerCount">50</span><span>あなた</span>
+<div id="timerBox"><span id="timer">30</span></div>
+<span>CPU</span><span id="cpuCount">50</span>
+<div class="hudColor" style="background:var(--cpuColor)"></div></div>
+<canvas id="gameCanvas"></canvas>
+<div id="sliderWrap" class="hidden">
+  <input type="range" id="paddleSlider" min="0" max="100" value="50" />
+</div>
+<div id="overlayStart" class="overlay">
+  <div id="countText" style="font-size:3rem;font-weight:700;">START</div>
+  <button id="startBtn">Tap to Start!</button>
+</div>
+<div id="overlayResult" class="overlay hidden">
+  <h2 id="resultText"></h2><button id="restartBtn">Play Again</button>
+</div>
+<script type="module">
+(()=>{
+  const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d');
+  const DPR=window.devicePixelRatio||1,ROWS=10,COLS=10;
+  const COLOR={player:getCSS('--playerColor'),cpu:getCSS('--cpuColor'),empty:'#111'};
+  const hud={timer:document.getElementById('timer'),player:document.getElementById('playerCount'),cpu:document.getElementById('cpuCount')};
+  const overlayStart=document.getElementById('overlayStart'),overlayResult=document.getElementById('overlayResult');
+  const countText=document.getElementById('countText'),startBtn=document.getElementById('startBtn'),restartBtn=document.getElementById('restartBtn');
+  const sliderWrap=document.getElementById('sliderWrap'),paddleSlider=document.getElementById('paddleSlider');
+  function getCSS(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+  let W,H,cellW,cellH,boardTop,boardBottom,paddleH,blockAreaTop,blockAreaBottom;
+  function resize(){
+    W=canvas.clientWidth*DPR;H=canvas.clientHeight*DPR;canvas.width=W;canvas.height=H;
+    const margin=H*0.12;
+    boardTop=margin; boardBottom=H-margin;
+    // ブロックエリア高さを中央寄せで全体の1/2に
+    const blockAreaH = (boardBottom-boardTop)/2;
+    blockAreaTop = (H-blockAreaH)/2;
+    blockAreaBottom = blockAreaTop + blockAreaH;
+    cellH = blockAreaH/ROWS;
+    cellW = W/COLS;
+    paddleH = Math.max(8*DPR,cellH*0.7); // 70%
+  }
+  window.addEventListener('resize',resize);
+  let blocks,balls,playerPad,cpuPad,playing=false,timer,lastTime,counts={player:50,cpu:50},sliderActive=false, countDownInt=null;
+  function defaultBlocks(){return Array.from({length:ROWS},(_,r)=>Array.from({length:COLS},()=>r<ROWS/2?'cpu':'player'));}
+  function marginPad(){return paddleH/2+8*DPR;}
+  function spawnBall(owner){
+    const r=cellW*0.21; // 150%サイズ
+    const speed=Math.min(W,H)/220;
+    let x,y,vx,vy;
+    if(owner==='cpu'){
+      x=cpuPad.x; y=cpuPad.y+cpuPad.h/2+r+2; vx=(Math.random()<0.5?1:-1)*speed; vy=speed;
+    }else{
+      x=playerPad.x; y=playerPad.y-playerPad.h/2-r-2; vx=(Math.random()<0.5?1:-1)*speed; vy=-speed;
+    }
+    balls.push({x,y,r,vx,vy,owner});
+  }
+  function initGame(){
+    blocks=defaultBlocks();
+    playerPad={w:W*0.22,h:paddleH,x:W/2,y:boardBottom+marginPad()};
+    cpuPad={w:W*0.22,h:paddleH,x:W/2,y:boardTop-marginPad()};
+    balls=[]; spawnBall('cpu'); spawnBall('player');
+    updateCounts();
+  }
+  function drawBlocks(){ctx.lineWidth=1;
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      ctx.fillStyle=blocks[r][c]==='player'?COLOR.player:blocks[r][c]==='cpu'?COLOR.cpu:COLOR.empty;
+      ctx.fillRect(c*cellW+1,blockAreaTop+r*cellH+1,cellW-2,cellH-2);}
+  }
+  function drawPad(p,color){ctx.fillStyle=color;ctx.fillRect(p.x-p.w/2,p.y-p.h/2,p.w,p.h);}
+  function drawBall(b){
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=b.owner==='player'?COLOR.player:COLOR.cpu;ctx.lineWidth=3*DPR;ctx.stroke();
+  }
+  function render(){ctx.clearRect(0,0,W,H);drawBlocks();drawPad(cpuPad,COLOR.cpu);drawPad(playerPad,COLOR.player);balls.forEach(drawBall);}
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  function padCollision(ball,pad,isPlayer){
+    if(ball.y+ball.r>pad.y-pad.h/2&&ball.y-ball.r<pad.y+pad.h/2&&ball.x>pad.x-pad.w/2&&ball.x<pad.x+pad.w/2){
+      if((isPlayer&&ball.vy>0)||(!isPlayer&&ball.vy<0)){
+        const offset=(ball.x-pad.x)/(pad.w/2),sp=Math.hypot(ball.vx,ball.vy),angle=offset*Math.PI/3,dir=isPlayer?-1:1;
+        ball.vx=sp*Math.sin(angle);ball.vy=sp*Math.cos(angle)*dir;ball.owner=isPlayer?'player':'cpu';
       }
     }
-    function getSafeAreaInset(styleProp, fallback = 0) {
-      const val = parseInt(getComputedStyle(document.documentElement).getPropertyValue(styleProp));
-      return isNaN(val) ? fallback : val;
+  }
+  function step(dt){
+    if(sliderActive){playerPad.x=(paddleSlider.value/100)*W;playerPad.x=clamp(playerPad.x,playerPad.w/2,W-playerPad.w/2);}
+    cpuPad.x+=((balls[0].x)-cpuPad.x)*0.12*dt;cpuPad.x=clamp(cpuPad.x,cpuPad.w/2,W-cpuPad.w/2);
+    for(const b of balls){
+      b.x+=b.vx*dt; b.y+=b.vy*dt;
+      if(b.x-b.r<0||b.x+b.r>W){b.vx*=-1; b.x=clamp(b.x,b.r,W-b.r);}
+      padCollision(b,playerPad,true); padCollision(b,cpuPad,false);
+      const c=Math.floor(b.x/cellW), r=Math.floor((b.y-blockAreaTop)/cellH);
+      if(r>=0&&r<ROWS&&c>=0&&c<COLS && (b.y>=blockAreaTop&&b.y<=blockAreaBottom)){
+        const owner=blocks[r][c];
+        if(owner!==b.owner){
+          blocks[r][c]=b.owner; updateCounts();
+          if(b.owner==='player'&&r===0){endGame('Infiltration! You Win');return;}
+          if(b.owner==='cpu'&&r===ROWS-1){endGame('CPU Infiltration!');return;}
+          b.vy*=-1;
+        }
+      }
+      if(b.y-b.r>boardBottom){endGame('Miss! CPU Wins');return;}
+      if(b.y+b.r<boardTop){endGame('CPU Miss! You Win');return;}
     }
-
-    // --- 定数 ---
-    const GRID = 12,
-      BLOCK_P = "#00FFD0", BLOCK_C = "#FF2080", BLOCK_N = "#232338",
-      PADDLE_P = "#FFFFFF", PADDLE_C = "#FFFFFF",
-      BALL_P = "#FFFFFF", BALL_C = "#FFFFFF",
-      BG = "#181824";
-    const PADDLE_WIDTH = 1.8, BALL_R = 0.18, MATCH = 30, FPS = 60;
-    const PADDLE_HALF_HEIGHT = 0.22;
-
-    // --- クラス定義 ---
-    class Block {
-      constructor(x, y) { this.x = x; this.y = y; this.owner = y < GRID / 2 ? 1 : 0; }
-      hit(pid) {
-        if (this.owner === pid) return { action: "none" };
-        const prev = this.owner; this.owner = pid;
-        return { action: "paint", prevOwner: prev };
-      }
-      color() { return this.owner === 0 ? BLOCK_P : this.owner === 1 ? BLOCK_C : BLOCK_N; }
+  }
+  function gameLoop(t){
+    if(!playing)return;
+    const dt=(t-lastTime)/16.666;
+    lastTime=t; step(dt); render();
+    timer-=dt*(1/60); hud.timer.textContent=Math.ceil(timer);
+    if(timer<=0){
+      const {player,cpu}=counts;
+      if(player>cpu)endGame('Time Up! You Win');
+      else if(cpu>player)endGame('Time Up! CPU Wins');
+      else endGame('Draw');
+      return;
     }
-    class Paddle {
-      constructor(y, color) { this.x = GRID / 2; this.y = y; this.color = color; this.w = PADDLE_WIDTH; }
-      moveTo(nx) { this.x = Math.max(this.w / 2, Math.min(GRID - this.w / 2, nx)); }
+    requestAnimationFrame(gameLoop);
+  }
+  function updateCounts(){
+    let p=0,c=0;
+    for(let r=0;r<ROWS;r++)for(let col=0;col<COLS;col++){
+      if(blocks[r][col]==='player')p++;else if(blocks[r][col]==='cpu')c++;
     }
-    class Ball {
-      constructor(pid, color, startY) { this.pid = pid; this.color = color; this.r = BALL_R; this.startY = startY; this.reset(); }
-      reset() {
-        this.x = GRID / 2;
-        this.y = this.startY;
-        this.vx = (Math.random() - 0.5) * 0.045;
-        this.vy = this.pid === 0 ? -0.10 : 0.10;
+    counts={player:p,cpu:c}; hud.player.textContent=p; hud.cpu.textContent=c;
+  }
+  function endGame(msg){
+    playing=false; document.getElementById('resultText').textContent=msg;
+    overlayResult.classList.remove('hidden'); sliderWrap.classList.add('hidden');
+  }
+  let pid=null;
+  paddleSlider.addEventListener('input',()=>{sliderActive=true;});
+  canvas.addEventListener('pointerdown',e=>{if(pid===null)pid=e.pointerId;});
+  canvas.addEventListener('pointermove',e=>{
+    if(e.pointerId!==pid)return;
+    const rect=canvas.getBoundingClientRect();
+    playerPad.x=(e.clientX-rect.left)*DPR;
+    playerPad.x=clamp(playerPad.x,playerPad.w/2,W-playerPad.w/2);
+  });
+  ['pointerup','pointercancel'].forEach(ev=>canvas.addEventListener(ev,e=>{if(e.pointerId===pid)pid=null;}));
+  function startWithCountdown(){
+    let count=3;
+    countText.textContent=count;
+    startBtn.disabled=true;
+    overlayStart.classList.remove('hidden');
+    sliderWrap.classList.add('hidden');
+    countDownInt = setInterval(()=>{
+      count--;
+      if(count>0){countText.textContent=count;}
+      else if(count===0){countText.textContent='GO!';}
+      else{
+        clearInterval(countDownInt);
+        overlayStart.classList.add('hidden');
+        sliderWrap.classList.remove('hidden');
+        startGame();
       }
-      move() { this.x += this.vx; this.y += this.vy; }
-    }
-
-    // --- Gameクラス ---
-    class Game {
-      constructor() {
-        this.canvas = document.getElementById('game');
-        this.ctx = this.canvas.getContext('2d');
-        this.playerScoreEl = document.getElementById("player-score");
-        this.cpuScoreEl = document.getElementById("cpu-score");
-        this.timerEl = document.getElementById("timer");
-        this.blocks = [];
-        this.paddles = [null, null];
-        this.balls = [null, null];
-        this.timer = MATCH;
-        this.state = "wait";
-        this.cpuSkill = 1; // AI難易度可変
-        this.init();
-        this.resize();
-        this.loopBind = this.loop.bind(this);
-        window.addEventListener('resize', () => this.resize());
-      }
-      init() {
-        this.blocks = [];
-        for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) this.blocks.push(new Block(x, y));
-        this.paddles[0] = new Paddle(GRID - 0.5, PADDLE_P);
-        this.paddles[1] = new Paddle(0.5, PADDLE_C);
-        this.balls[0] = new Ball(0, BALL_P, GRID - 1.3);
-        this.balls[1] = new Ball(1, BALL_C, 1.3);
-        this.timer = MATCH;
-        this.state = "playing";
-        this.updateHUD();
-        this.render();
-        this.stopLoop = false;
-        requestAnimationFrame(this.loopBind);
-        document.getElementById("result").style.display = "none";
-        document.getElementById("virtualPad").style.display = "flex";
-      }
-      resize() {
-        const safeTop = getSafeAreaInset('padding-top', 0);
-        const safeBottom = getSafeAreaInset('padding-bottom', 0);
-        const safeLeft = getSafeAreaInset('padding-left', 0);
-        const safeRight = getSafeAreaInset('padding-right', 0);
-        const safeW = window.innerWidth - safeLeft - safeRight;
-        const safeH = window.innerHeight - safeTop - safeBottom;
-        const s = Math.min(safeW * 0.96, safeH * 0.96, 520);
-        this.canvas.width = this.canvas.height = s;
-      }
-      start() {
-        this.state = "playing";
-        this.stopLoop = false;
-        requestAnimationFrame(this.loopBind);
-      }
-      loop() {
-        if (this.state !== "playing" || this.stopLoop) return;
-        this.timer -= 1 / FPS; if (this.timer <= 0) { this.finish("時間切れ"); return; }
-        this.updateHUD();
-
-        // --- CPU AI改良 ---
-        let cpu = this.paddles[1], cpuBall = this.balls[1], playerBall = this.balls[0];
-        let defenseMode = false;
-        // 守備：プレイヤーボールがCPU陣地接近
-        if (playerBall.vy > 0 && playerBall.y < 4) {
-          cpu.moveTo(cpu.x + (playerBall.x - cpu.x) * 0.23 * this.cpuSkill);
-          defenseMode = true;
-        }
-        // 攻撃：自分のボールが攻撃ターン
-        if (!defenseMode && cpuBall.vy > 0) {
-          let predictX = this.predictBallLandingX(cpuBall, cpu.y);
-          cpu.moveTo(cpu.x + (predictX - cpu.x) * 0.15 * this.cpuSkill);
-        }
-        // 中央リセット
-        if (!defenseMode && cpuBall.vy < 0 && playerBall.vy < 0) {
-          cpu.moveTo(cpu.x + ((GRID / 2) - cpu.x) * 0.08);
-        }
-
-        // --- 物理判定・進行 ---
-        for (let pid = 0; pid < 2; pid++) {
-          let b = this.balls[pid], p = this.paddles[pid];
-          b.move();
-          // --- 壁バウンド ---
-          if (b.x - b.r < 0) { b.x = b.r; b.vx *= -1; }
-          if (b.x + b.r > GRID) { b.x = GRID - b.r; b.vx *= -1; }
-          // --- パドル衝突 ---
-          let towardPaddle = (pid === 0 && b.vy < 0) || (pid === 1 && b.vy > 0);
-          let yDist = Math.abs(b.y - p.y), xDist = Math.abs(b.x - p.x);
-          if (towardPaddle && yDist < (PADDLE_HALF_HEIGHT + b.r) && xDist < (p.w / 2 + b.r)) {
-            b.vy *= -1;
-            let offset = (b.x - p.x) / (p.w / 2);
-            b.vx += offset * 0.04;
-            b.vx = Math.max(-0.2, Math.min(0.2, b.vx));
-            const collisionOffset = PADDLE_HALF_HEIGHT + b.r + 0.01;
-            if (pid === 0) b.y = p.y - collisionOffset; else b.y = p.y + collisionOffset;
-            this.se("hit");
-          }
-          // --- ブロック衝突 ---
-          let hitBlock = null;
-          for (const bl of this.blocks) {
-            const blockCenterX = bl.x + 0.5, blockCenterY = bl.y + 0.5;
-            const distXb = Math.abs(b.x - blockCenterX), distYb = Math.abs(b.y - blockCenterY);
-            if (distXb > (0.5 + b.r) || distYb > (0.5 + b.r)) continue;
-            if (distXb <= 0.5 || distYb <= 0.5) { hitBlock = bl; break; }
-            const cornerDistSq = Math.pow(distXb - 0.5, 2) + Math.pow(distYb - 0.5, 2);
-            if (cornerDistSq <= (b.r * b.r)) { hitBlock = bl; break; }
-          }
-          if (hitBlock) {
-            let res = hitBlock.hit(pid);
-            if (res.action === "paint") this.se("paint");
-            let bx_rel = b.x - (hitBlock.x + 0.5);
-            let by_rel = b.y - (hitBlock.y + 0.5);
-            const overlapX = (0.5 + b.r) - Math.abs(bx_rel);
-            const overlapY = (0.5 + b.r) - Math.abs(by_rel);
-            if (overlapY < overlapX && overlapY > 0.001) {
-              b.vy *= -1; b.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-            } else if (overlapX < overlapY && overlapX > 0.001) {
-              b.vx *= -1; b.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-            } else {
-              const blockCenterX = hitBlock.x + 0.5, blockCenterY = hitBlock.y + 0.5;
-              const isCornerRegion = Math.abs(b.x - blockCenterX) > 0.5 && Math.abs(b.y - blockCenterY) > 0.5;
-              if (isCornerRegion && overlapX > 0.001 && overlapY > 0.001) {
-                b.vx *= -1; b.vy *= -1;
-                b.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-                b.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-              } else {
-                if (Math.abs(by_rel) >= Math.abs(bx_rel)) {
-                  b.vy *= -1;
-                  if (overlapY > 0.001) b.y = (hitBlock.y + 0.5) + (by_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-                } else {
-                  b.vx *= -1;
-                  if (overlapX > 0.001) b.x = (hitBlock.x + 0.5) + (bx_rel > 0 ? (0.5 + b.r) : -(0.5 + b.r));
-                }
-              }
-            }
-          }
-          // --- ゴール判定 ---
-          if ((pid === 0 && b.y < -0.4) || (pid === 1 && b.y > GRID + 0.4)) {
-            this.finish(pid === 0 ? "あなたがミスしました" : "CPUがミスしました");
-            this.stopLoop = true;
-            return;
-          }
-        }
-        this.render();
-        if (!this.stopLoop) requestAnimationFrame(this.loopBind);
-      }
-      se(name) {
-        let a = document.getElementById(name);
-        if (a) { a.currentTime = 0; a.play().catch(() => { }); }
-      }
-      finish(reason) {
-        this.state = "result";
-        this.stopLoop = true;
-        document.getElementById("virtualPad").style.display = "none";
-        let winnerText, reasonText = reason || "";
-        let pscore = 0, cscore = 0;
-        for (let bl of this.blocks) {
-          if (bl.owner === 0) pscore++;
-          else if (bl.owner === 1) cscore++;
-        }
-        if (reason && reason.includes("CPUがミス")) {
-          winnerText = "あなたの勝ち！";
-        } else if (reason && reason.includes("あなたがミス")) {
-          winnerText = "CPUの勝ち";
-        } else {
-          if (pscore > cscore) winnerText = "あなたの勝ち！";
-          else if (pscore < cscore) winnerText = "CPUの勝ち";
-          else winnerText = "引き分け！";
-          reasonText = `時間切れ！ あなた: ${pscore} vs CPU: ${cscore}`;
-        }
-        document.getElementById("result").style.display = "flex";
-        document.getElementById("winner").textContent = winnerText;
-        document.getElementById("reason").textContent = reasonText;
-        this.se("win");
-      }
-      render() {
-        const ctx = this.ctx, s = this.canvas.width / GRID;
-        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        ctx.fillStyle = BG; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        for (let bl of this.blocks) {
-          ctx.save();
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = bl.color();
-          ctx.strokeStyle = (bl.y === GRID / 2 - 1 || bl.y === GRID / 2) ? "#FFF" : "#444";
-          ctx.lineWidth = (bl.y === GRID / 2 - 1 || bl.y === GRID / 2) ? 3 : 1.1;
-          ctx.beginPath();
-          ctx.rect((bl.x + 0.03) * s, (bl.y + 0.03) * s, s * 0.93, s * 0.93);
-          ctx.fill(); ctx.stroke(); ctx.restore();
-        }
-        for (let pid = 0; pid < 2; pid++) {
-          let p = this.paddles[pid];
-          ctx.save(); ctx.fillStyle = "#FFFFFF";
-          ctx.shadowColor = pid ? PADDLE_C : PADDLE_P; ctx.shadowBlur = 13;
-          ctx.beginPath();
-          ctx.roundRect((p.x - PADDLE_WIDTH / 2) * s, (p.y - PADDLE_HALF_HEIGHT) * s, s * PADDLE_WIDTH, s * (PADDLE_HALF_HEIGHT * 2), s * 0.18);
-          ctx.fill(); ctx.restore();
-        }
-        for (let pid = 0; pid < 2; pid++) {
-          let b = this.balls[pid];
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(b.x * s, b.y * s, s * BALL_R, 0, 2 * Math.PI);
-          ctx.fillStyle = "#FFFFFF";
-          ctx.shadowColor = pid ? BALL_C : BALL_P;
-          ctx.shadowBlur = 20;
-          ctx.globalAlpha = 0.95;
-          ctx.fill(); ctx.restore();
-        }
-        this.updateHUD();
-      }
-      updateHUD() {
-        let pscore = 0, cscore = 0;
-        for (let bl of this.blocks) {
-          if (bl.owner === 0) pscore++;
-          else if (bl.owner === 1) cscore++;
-        }
-        this.playerScoreEl.textContent = pscore;
-        this.cpuScoreEl.textContent = cscore;
-        this.timerEl.textContent = String(Math.ceil(this.timer));
-      }
-      predictBallLandingX(ball, targetY) {
-        let x = ball.x, y = ball.y, vx = ball.vx, vy = ball.vy;
-        for (let i = 0; i < 180; i++) {
-          x += vx; y += vy;
-          if (x - ball.r < 0) { x = ball.r; vx *= -1; }
-          if (x + ball.r > GRID) { x = GRID - ball.r; vx *= -1; }
-          if ((vy < 0 && y <= targetY) || (vy > 0 && y >= targetY) || y < -GRID || y > GRID * 2) break;
-        }
-        return x;
-      }
-    }
-
-    // --- 仮想パッド ---
-    function setupVirtualPad(gameInstance) {
-      const pad = document.getElementById("virtualPad");
-      const padInner = document.getElementById("padInner");
-      if (!pad || !padInner) return;
-      let padActive = false, padStartX = 0, lastMoveDelta = 0;
-      const PAD_SENSITIVITY = 0.048;
-      function resetPadVisual() {
-        padInner.style.transition = "transform 0.13s";
-        padInner.style.transform = "translateX(0px)";
-        pad.classList.remove("active");
-      }
-      pad.onpointerdown = function (e) {
-        if (!gameInstance || gameInstance.state !== "playing") return;
-        padActive = true; pad.classList.add("active");
-        pad.setPointerCapture(e.pointerId);
-        padStartX = e.clientX;
-        padInner.style.transition = "none";
-        lastMoveDelta = 0;
-      };
-      pad.onpointermove = function (e) {
-        if (!padActive || !gameInstance || gameInstance.state !== "playing") return;
-        const currentDeltaX = e.clientX - padStartX;
-        padInner.style.transform = `translateX(${Math.max(-36, Math.min(36, currentDeltaX))}px)`;
-        const moveAmount = currentDeltaX - lastMoveDelta;
-        // しきい値ほぼなし: 微細な動きも即座に反映
-        gameInstance.paddles[0].moveTo(gameInstance.paddles[0].x + moveAmount * PAD_SENSITIVITY);
-        lastMoveDelta = currentDeltaX;
-      };
-      function endPadInteraction(e) {
-        if (padActive) {
-          padActive = false;
-          resetPadVisual();
-          if (e.pointerId) pad.releasePointerCapture(e.pointerId);
-          lastMoveDelta = 0;
-        }
-      }
-      pad.onpointerup = endPadInteraction;
-      pad.onpointercancel = endPadInteraction;
-      pad.onpointerleave = (e) => {
-        if (padActive && e.pointerType === 'mouse') endPadInteraction(e);
-      };
-    }
-
-    // --- ゲーム管理 ---
-    let currentGame = null;
-    function startCountdownThenPlay() {
-      const cd = document.getElementById("countdown");
-      const start = document.getElementById("start");
-      const result = document.getElementById("result");
-      start.style.display = "none"; result.style.display = "none";
-      cd.style.display = "flex";
-      let count = 3;
-      const countNum = document.getElementById("count-number");
-      countNum.textContent = count;
-      let countdownSE = () => {
-        let a = document.getElementById("startSE");
-        if (a) { a.currentTime = 0; a.play().catch(() => { }); }
-      }
-      countdownSE();
-      let interval = setInterval(() => {
-        count--;
-        if (count > 0) {
-          countNum.textContent = count;
-          countdownSE();
-        } else if (count === 0) {
-          countNum.textContent = "START!";
-          countdownSE();
-        } else {
-          clearInterval(interval);
-          cd.style.display = "none";
-          if (currentGame) currentGame = null; // メモリ解放
-          currentGame = new Game();
-          setupVirtualPad(currentGame);
-          setTimeout(() => currentGame.start(), 100);
-        }
-      }, 800);
-    }
-    document.getElementById("playbtn").onclick = startCountdownThenPlay;
-    document.getElementById("restart-btn").onclick = function () {
-      if (currentGame) currentGame = null;
-      currentGame = new Game();
-      setupVirtualPad(currentGame);
-      setTimeout(() => currentGame.start(), 100);
-    };
-
-    // --- スクロール禁止など（スマホ対応） ---
-    let isPlaying = false;
-    document.addEventListener('touchstart', function (e) { if (isPlaying && !e.target.closest("#virtualPad")) e.preventDefault(); }, { passive: false });
-    document.addEventListener('touchmove', function (e) { if (isPlaying && !e.target.closest("#virtualPad")) e.preventDefault(); }, { passive: false });
-    document.addEventListener('touchend', function (e) { if (isPlaying && !e.target.closest("#virtualPad")) e.preventDefault(); }, { passive: false });
-    document.addEventListener('gesturestart', e => { if (isPlaying) e.preventDefault(); });
-    document.addEventListener('gesturechange', e => { if (isPlaying) e.preventDefault(); });
-    document.addEventListener('gestureend', e => { if (isPlaying) e.preventDefault(); });
-  </script>
+    },1000);
+  }
+  function startGame(){
+    resize();initGame();timer=30;hud.timer.textContent=timer;
+    playing=true;lastTime=performance.now();
+    requestAnimationFrame(gameLoop);
+  }
+  startBtn.addEventListener('click',startWithCountdown);
+  restartBtn.addEventListener('click',()=>{overlayResult.classList.add('hidden');startWithCountdown();});
+  resize();
+})();
+</script>
 </body>
 </html>
