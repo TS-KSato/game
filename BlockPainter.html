@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Territory Breakout Pro</title>
+<title>Territory Breakout Pro</title>
 <style>
 :root {
   --playerColor:#ffd63a;
@@ -30,8 +30,9 @@ html,body{
   justify-content:center;gap:24px;background:rgba(0,0,0,.82);z-index:10;color:#fff;text-align:center;}
 .hidden{display:none!important}
 button{background:var(--playerColor);color:#000;border:none;border-radius:8px;
-  padding:14px 28px;font-size:1.2rem;font-weight:700;}
+  padding:14px 28px;font-size:1.2rem;font-weight:700;cursor:pointer;}
 button:active{background:var(--accent)}
+button:disabled{background:#777;color:#aaa;cursor:default;}
 #sliderWrap{width:92vw;max-width:480px;margin:4vh 0;}
 #paddleSlider{width:100%;-webkit-appearance:none;appearance:none;height:20px;
   border-radius:10px;background:#555;outline:none}
@@ -62,51 +63,77 @@ button:active{background:var(--accent)}
 (()=>{
   const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d');
   const DPR=window.devicePixelRatio||1,ROWS=10,COLS=10;
+
+  // Game constants
+  const GAME_DURATION = 30; // seconds
+  const CPU_PADDLE_SPEED_FACTOR = 0.08; // Speed factor for CPU paddle tracking (adjusted for dt)
+  const BALL_SPEED_DIVISOR = 220; // Lower is faster. Determines initial ball speed relative to canvas size.
+  const MAX_REFLECTION_ANGLE = Math.PI / 3.5; // Max ~51 degrees for paddle reflection
+  const MIN_PADDLE_HEIGHT_DPR = 8 * DPR;
+  const PADDLE_HEIGHT_CELL_RATIO = 0.7;
+  const PADDLE_MARGIN_DPR = 8 * DPR;
+  const BALL_RADIUS_CELL_WIDTH_RATIO = 0.21;
+  const BALL_POSITION_CORRECTION_OFFSET = 0.1 * DPR; // Small offset for ball position correction
+
   const COLOR={player:getCSS('--playerColor'),cpu:getCSS('--cpuColor'),empty:'#111'};
   const hud={timer:document.getElementById('timer'),player:document.getElementById('playerCount'),cpu:document.getElementById('cpuCount')};
   const overlayStart=document.getElementById('overlayStart'),overlayResult=document.getElementById('overlayResult');
   const countText=document.getElementById('countText'),startBtn=document.getElementById('startBtn'),restartBtn=document.getElementById('restartBtn');
   const sliderWrap=document.getElementById('sliderWrap'),paddleSlider=document.getElementById('paddleSlider');
+
   function getCSS(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+
   let W,H,cellW,cellH,boardTop,boardBottom,paddleH,blockAreaTop,blockAreaBottom;
+
   function resize(){
     W=canvas.clientWidth*DPR;H=canvas.clientHeight*DPR;canvas.width=W;canvas.height=H;
     const margin=H*0.12;
     boardTop=margin; boardBottom=H-margin;
-    // ブロックエリア高さを中央寄せで全体の1/2に
-    const blockAreaH = (boardBottom-boardTop)/2;
-    blockAreaTop = (H-blockAreaH)/2;
+    const playableAreaHeight = boardBottom - boardTop;
+    const blockAreaH = playableAreaHeight / 2;
+    blockAreaTop = (H - blockAreaH) / 2;
     blockAreaBottom = blockAreaTop + blockAreaH;
     cellH = blockAreaH/ROWS;
     cellW = W/COLS;
-    paddleH = Math.max(8*DPR,cellH*0.7); // 70%
+    paddleH = Math.max(MIN_PADDLE_HEIGHT_DPR, cellH * PADDLE_HEIGHT_CELL_RATIO);
   }
   window.addEventListener('resize',resize);
-  let blocks,balls,playerPad,cpuPad,playing=false,timer,lastTime,counts={player:50,cpu:50},sliderActive=false, countDownInt=null;
+
+  let blocks,balls,playerPad,cpuPad,playing=false,timer,lastTime,counts={player:0,cpu:0},sliderActive=false, countDownInt=null;
+
   function defaultBlocks(){return Array.from({length:ROWS},(_,r)=>Array.from({length:COLS},()=>r<ROWS/2?'cpu':'player'));}
-  function marginPad(){return paddleH/2+8*DPR;}
+  
+  function marginPad(){return paddleH/2 + PADDLE_MARGIN_DPR;}
+
   function spawnBall(owner){
-    const r=cellW*0.21; // 150%サイズ
-    const speed=Math.min(W,H)/220;
+    const r = cellW * BALL_RADIUS_CELL_WIDTH_RATIO;
+    const initialSpeed = Math.min(W,H) / BALL_SPEED_DIVISOR;
     let x,y,vx,vy;
     if(owner==='cpu'){
-      x=cpuPad.x; y=cpuPad.y+cpuPad.h/2+r+2; vx=(Math.random()<0.5?1:-1)*speed; vy=speed;
+      x=cpuPad.x; y=cpuPad.y+cpuPad.h/2+r+2*DPR; vx=(Math.random()<0.5?1:-1)*initialSpeed; vy=initialSpeed;
     }else{
-      x=playerPad.x; y=playerPad.y-playerPad.h/2-r-2; vx=(Math.random()<0.5?1:-1)*speed; vy=-speed;
+      x=playerPad.x; y=playerPad.y-playerPad.h/2-r-2*DPR; vx=(Math.random()<0.5?1:-1)*initialSpeed; vy=-initialSpeed;
     }
-    balls.push({x,y,r,vx,vy,owner});
+    balls.push({x,y,r,vx,vy,owner, initialSpeed});
   }
+
   function initGame(){
     blocks=defaultBlocks();
     playerPad={w:W*0.22,h:paddleH,x:W/2,y:boardBottom+marginPad()};
     cpuPad={w:W*0.22,h:paddleH,x:W/2,y:boardTop-marginPad()};
-    balls=[]; spawnBall('cpu'); spawnBall('player');
-    updateCounts();
+    balls=[]; 
+    counts={player: (ROWS/2)*COLS, cpu: (ROWS/2)*COLS}; // Initial counts
+    updateCounts(); // Update HUD for initial counts
+    spawnBall('cpu'); spawnBall('player');
   }
-  function drawBlocks(){ctx.lineWidth=1;
+
+  function drawBlocks(){
+    ctx.lineWidth=1*DPR;
+    const lw = ctx.lineWidth;
     for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
       ctx.fillStyle=blocks[r][c]==='player'?COLOR.player:blocks[r][c]==='cpu'?COLOR.cpu:COLOR.empty;
-      ctx.fillRect(c*cellW+1,blockAreaTop+r*cellH+1,cellW-2,cellH-2);}
+      ctx.fillRect(c*cellW + lw/2, blockAreaTop+r*cellH + lw/2, cellW - lw, cellH - lw);
+    }
   }
   function drawPad(p,color){ctx.fillStyle=color;ctx.fillRect(p.x-p.w/2,p.y-p.h/2,p.w,p.h);}
   function drawBall(b){
@@ -114,97 +141,276 @@ button:active{background:var(--accent)}
     ctx.strokeStyle=b.owner==='player'?COLOR.player:COLOR.cpu;ctx.lineWidth=3*DPR;ctx.stroke();
   }
   function render(){ctx.clearRect(0,0,W,H);drawBlocks();drawPad(cpuPad,COLOR.cpu);drawPad(playerPad,COLOR.player);balls.forEach(drawBall);}
+  
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
-  function padCollision(ball,pad,isPlayer){
-    if(ball.y+ball.r>pad.y-pad.h/2&&ball.y-ball.r<pad.y+pad.h/2&&ball.x>pad.x-pad.w/2&&ball.x<pad.x+pad.w/2){
-      if((isPlayer&&ball.vy>0)||(!isPlayer&&ball.vy<0)){
-        const offset=(ball.x-pad.x)/(pad.w/2),sp=Math.hypot(ball.vx,ball.vy),angle=offset*Math.PI/3,dir=isPlayer?-1:1;
-        ball.vx=sp*Math.sin(angle);ball.vy=sp*Math.cos(angle)*dir;ball.owner=isPlayer?'player':'cpu';
+
+  function padCollision(ball, pad, isPlayer) {
+    const ballLeft = ball.x - ball.r;
+    const ballRight = ball.x + ball.r;
+    const ballTop = ball.y - ball.r;
+    const ballBottom = ball.y + ball.r;
+
+    const padLeft = pad.x - pad.w / 2;
+    const padRight = pad.x + pad.w / 2;
+    const padTop = pad.y - pad.h / 2;
+    const padBottom = pad.y + pad.h / 2;
+
+    if (ballRight > padLeft && ballLeft < padRight && ballBottom > padTop && ballTop < padBottom) {
+      const movingTowardsPaddle = (isPlayer && ball.vy > 0) || (!isPlayer && ball.vy < 0);
+      
+      if (movingTowardsPaddle) {
+        if (isPlayer) {
+          ball.y = padTop - ball.r - BALL_POSITION_CORRECTION_OFFSET;
+        } else {
+          ball.y = padBottom + ball.r + BALL_POSITION_CORRECTION_OFFSET;
+        }
+
+        let offsetX = (ball.x - pad.x) / (pad.w / 2);
+        offsetX = clamp(offsetX, -0.95, 0.95); // Clamp offset slightly inside -1 to 1 to prevent extreme flat angles
+
+        const currentSpeedMagnitude = Math.hypot(ball.vx, ball.vy);
+        const effectiveSpeed = Math.max(currentSpeedMagnitude, ball.initialSpeed * 0.8); // Ensure speed doesn't drop too much
+
+        const angle = offsetX * MAX_REFLECTION_ANGLE;
+        const directionY = isPlayer ? -1 : 1;
+
+        ball.vx = effectiveSpeed * Math.sin(angle);
+        ball.vy = effectiveSpeed * Math.cos(angle) * directionY;
+        
+        // Ensure ball always has some Y velocity after paddle hit to avoid getting stuck horizontally
+        if (Math.abs(ball.vy) < ball.initialSpeed * 0.1) {
+            ball.vy = ball.initialSpeed * 0.1 * directionY;
+            // Adjust vx to maintain overall speed (optional, but can make physics feel more consistent)
+            const newVxSquared = effectiveSpeed*effectiveSpeed - ball.vy*ball.vy;
+            ball.vx = (newVxSquared > 0 ? Math.sqrt(newVxSquared) : 0) * Math.sign(ball.vx || offsetX || (Math.random()-0.5));
+
+        }
+
+        ball.owner = isPlayer ? 'player' : 'cpu';
       }
     }
   }
+
   function step(dt){
-    if(sliderActive){playerPad.x=(paddleSlider.value/100)*W;playerPad.x=clamp(playerPad.x,playerPad.w/2,W-playerPad.w/2);}
-    cpuPad.x+=((balls[0].x)-cpuPad.x)*0.12*dt;cpuPad.x=clamp(cpuPad.x,cpuPad.w/2,W-cpuPad.w/2);
-    for(const b of balls){
+    if(sliderActive && paddleSlider){
+        playerPad.x=(parseInt(paddleSlider.value)/100)*W;
+        playerPad.x=clamp(playerPad.x,playerPad.w/2,W-playerPad.w/2);
+    }
+    
+    if (balls.length > 0) {
+        let targetBall = null;
+        let minDistanceY = Infinity;
+        balls.forEach(b => {
+            if (b.vy < 0) { // Ball moving towards CPU
+                const distanceY = Math.abs(b.y - (cpuPad.y + cpuPad.h/2)); // Distance to front of CPU paddle
+                if (distanceY < minDistanceY) {
+                    minDistanceY = distanceY;
+                    targetBall = b;
+                }
+            }
+        });
+        if (!targetBall) targetBall = balls.find(b => b.y < H/2) || balls[0]; // Fallback target
+
+        if (targetBall) {
+            cpuPad.x += (targetBall.x - cpuPad.x) * CPU_PADDLE_SPEED_FACTOR * dt;
+        }
+    }
+    cpuPad.x=clamp(cpuPad.x,cpuPad.w/2,W-cpuPad.w/2);
+
+    for(let i = balls.length - 1; i >= 0; i--){
+      const b = balls[i];
       b.x+=b.vx*dt; b.y+=b.vy*dt;
-      if(b.x-b.r<0||b.x+b.r>W){b.vx*=-1; b.x=clamp(b.x,b.r,W-b.r);}
-      padCollision(b,playerPad,true); padCollision(b,cpuPad,false);
+
+      if(b.x-b.r<0){ b.vx*=-1; b.x = b.r + BALL_POSITION_CORRECTION_OFFSET; }
+      if(b.x+b.r>W){ b.vx*=-1; b.x = W - b.r - BALL_POSITION_CORRECTION_OFFSET; }
+
+      padCollision(b,playerPad,true); 
+      padCollision(b,cpuPad,false);
+      
       const c=Math.floor(b.x/cellW), r=Math.floor((b.y-blockAreaTop)/cellH);
-      if(r>=0&&r<ROWS&&c>=0&&c<COLS && (b.y>=blockAreaTop&&b.y<=blockAreaBottom)){
-        const owner=blocks[r][c];
-        if(owner!==b.owner){
+      if(r>=0&&r<ROWS&&c>=0&&c<COLS && (b.y >= blockAreaTop && b.y <= blockAreaBottom)){
+        const currentBlockOwner=blocks[r][c];
+        if(currentBlockOwner !== 'empty' && currentBlockOwner !== b.owner){
           blocks[r][c]=b.owner; updateCounts();
+          
           if(b.owner==='player'&&r===0){endGame('Infiltration! You Win');return;}
           if(b.owner==='cpu'&&r===ROWS-1){endGame('CPU Infiltration!');return;}
+          
+          // Position correction and reflection from block
+          const hitFromTop = b.vy > 0 && b.y - b.vy*dt < blockAreaTop + r * cellH + cellH / 2; // Approximation
+          const hitFromBottom = b.vy < 0 && b.y - b.vy*dt > blockAreaTop + r * cellH + cellH / 2; // Approximation
+
+          if (hitFromTop) { // Hit top surface of block or entered from top
+             b.y = blockAreaTop + r * cellH - b.r - BALL_POSITION_CORRECTION_OFFSET;
+          } else if (hitFromBottom) { // Hit bottom surface or entered from bottom
+             b.y = blockAreaTop + (r + 1) * cellH + b.r + BALL_POSITION_CORRECTION_OFFSET;
+          }
+          // TODO: Add X-axis collision check with blocks for more robust reflection
           b.vy*=-1;
         }
       }
-      if(b.y-b.r>boardBottom){endGame('Miss! CPU Wins');return;}
-      if(b.y+b.r<boardTop){endGame('CPU Miss! You Win');return;}
+
+      const missBuffer = paddleH; // Allow ball to go slightly past paddle line before counting as miss
+      if(b.y - b.r > boardBottom + missBuffer){
+          const message = b.owner === 'player' ? 'Miss! CPU Wins' : 'CPU Miss! You Win';
+          endGame(message);
+          balls.splice(i, 1);
+          if (balls.length === 0 && playing) { spawnBall('cpu'); spawnBall('player'); }
+          continue;
+      }
+      if(b.y + b.r < boardTop - missBuffer){
+          const message = b.owner === 'cpu' ? 'CPU Miss! You Win' : 'Miss! CPU Wins';
+          endGame(message);
+          balls.splice(i, 1);
+          if (balls.length === 0 && playing) { spawnBall('cpu'); spawnBall('player'); }
+          continue;
+      }
     }
   }
+
   function gameLoop(t){
     if(!playing)return;
-    const dt=(t-lastTime)/16.666;
-    lastTime=t; step(dt); render();
-    timer-=dt*(1/60); hud.timer.textContent=Math.ceil(timer);
+    const elapsed = t - lastTime;
+    lastTime=t; 
+    // Cap dt to prevent physics glitches if tab is inactive for a long time
+    const dt = Math.min(elapsed / 16.666, 3.0); // Cap at equiv of ~3 frames skip
+    
+    step(dt); 
+    render();
+
+    timer -= elapsed / 1000;
+    hud.timer.textContent=Math.max(0, Math.ceil(timer));
+
     if(timer<=0){
       const {player,cpu}=counts;
       if(player>cpu)endGame('Time Up! You Win');
       else if(cpu>player)endGame('Time Up! CPU Wins');
-      else endGame('Draw');
+      else endGame('Time Up! Draw');
       return;
     }
     requestAnimationFrame(gameLoop);
   }
+
   function updateCounts(){
     let p=0,c=0;
     for(let r=0;r<ROWS;r++)for(let col=0;col<COLS;col++){
       if(blocks[r][col]==='player')p++;else if(blocks[r][col]==='cpu')c++;
     }
-    counts={player:p,cpu:c}; hud.player.textContent=p; hud.cpu.textContent=c;
+    counts={player:p,cpu:c}; 
+    hud.player.textContent=p; 
+    hud.cpu.textContent=c;
+    if (playing) {
+        if (p > 0 && c === 0 && p === ROWS*COLS) endGame('All Blocks Yours! You Win!');
+        else if (c > 0 && p === 0 && c === ROWS*COLS) endGame('All Blocks CPU\'s! CPU Wins!');
+    }
   }
+
   function endGame(msg){
-    playing=false; document.getElementById('resultText').textContent=msg;
-    overlayResult.classList.remove('hidden'); sliderWrap.classList.add('hidden');
+    if (!playing && !msg.startsWith("Time Up!")) return; // Allow Time Up! to override other endgame messages if it happens concurrently
+    playing=false; 
+    clearInterval(countDownInt); 
+    countDownInt = null;
+    document.getElementById('resultText').textContent=msg;
+    overlayResult.classList.remove('hidden'); 
+    sliderWrap.classList.add('hidden');
   }
+
   let pid=null;
-  paddleSlider.addEventListener('input',()=>{sliderActive=true;});
-  canvas.addEventListener('pointerdown',e=>{if(pid===null)pid=e.pointerId;});
+  if (paddleSlider) {
+    paddleSlider.addEventListener('input',()=>{sliderActive=true;});
+  }
+  
+  canvas.addEventListener('pointerdown',e=>{
+    e.preventDefault(); 
+    if(pid===null) {
+        pid=e.pointerId;
+        sliderActive = false;
+        // If game not started, and click is on canvas, treat as start
+        if (!playing && overlayStart.classList.contains('hidden') === false && startBtn.disabled === false) {
+            startWithCountdown();
+        }
+    }
+  });
   canvas.addEventListener('pointermove',e=>{
-    if(e.pointerId!==pid)return;
+    if(e.pointerId!==pid || sliderActive)return; 
+    e.preventDefault();
     const rect=canvas.getBoundingClientRect();
-    playerPad.x=(e.clientX-rect.left)*DPR;
+    let eventX = e.clientX;
+    // For touch, ensure we use the correct touch point if e.clientX is not set for touchmove
+    if (e.touches && e.touches.length > 0) {
+        eventX = e.touches[0].clientX;
+    } else if (e.changedTouches && e.changedTouches.length > 0) { // For pointerup like events on touch
+        eventX = e.changedTouches[0].clientX;
+    }
+    playerPad.x=(eventX-rect.left)*DPR; // Apply DPR scaling to map screen coord to canvas coord
     playerPad.x=clamp(playerPad.x,playerPad.w/2,W-playerPad.w/2);
   });
-  ['pointerup','pointercancel'].forEach(ev=>canvas.addEventListener(ev,e=>{if(e.pointerId===pid)pid=null;}));
+  const endPointer = (e) => {
+    if(e.pointerId===pid){
+        pid=null;
+        // sliderActive remains false unless slider is interacted with again
+    }
+  };
+  canvas.addEventListener('pointerup',endPointer);
+  canvas.addEventListener('pointercancel',endPointer);
+  canvas.addEventListener('pointerleave', endPointer);
+
   function startWithCountdown(){
+    if (playing) return; // Don't start if already playing
+    clearInterval(countDownInt); 
+    countDownInt = null;
+
     let count=3;
     countText.textContent=count;
-    startBtn.disabled=true;
+    startBtn.disabled=true; 
     overlayStart.classList.remove('hidden');
-    sliderWrap.classList.add('hidden');
+    overlayResult.classList.add('hidden'); 
+    if (sliderWrap) sliderWrap.classList.add('hidden');
+
     countDownInt = setInterval(()=>{
       count--;
       if(count>0){countText.textContent=count;}
       else if(count===0){countText.textContent='GO!';}
       else{
         clearInterval(countDownInt);
+        countDownInt = null;
         overlayStart.classList.add('hidden');
-        sliderWrap.classList.remove('hidden');
+        if (sliderWrap) sliderWrap.classList.remove('hidden');
         startGame();
+        // startBtn.disabled=false; // Keep disabled until game ends and restart is chosen
       }
     },1000);
   }
+
   function startGame(){
-    resize();initGame();timer=30;hud.timer.textContent=timer;
+    resize();initGame();timer=GAME_DURATION;hud.timer.textContent=Math.ceil(timer);
     playing=true;lastTime=performance.now();
+    sliderActive = !!(paddleSlider && !sliderWrap.classList.contains('hidden')); 
+    if (sliderActive && paddleSlider) { 
+        playerPad.x=(parseInt(paddleSlider.value)/100)*W;
+        playerPad.x=clamp(playerPad.x,playerPad.w/2,W-playerPad.w/2);
+    }
     requestAnimationFrame(gameLoop);
   }
+
   startBtn.addEventListener('click',startWithCountdown);
-  restartBtn.addEventListener('click',()=>{overlayResult.classList.add('hidden');startWithCountdown();});
-  resize();
+  restartBtn.addEventListener('click',()=>{
+    overlayResult.classList.add('hidden');
+    startBtn.disabled = false; // Re-enable start button for next game session via overlay
+    countText.textContent = 'START'; // Reset count text for main start screen
+    overlayStart.classList.remove('hidden'); // Show start overlay again
+    // startWithCountdown(); // Option: directly start countdown for restart
+  });
+  
+  resize(); 
+  overlayStart.classList.remove('hidden');
+  overlayResult.classList.add('hidden');
+  countText.textContent='START';
+  startBtn.disabled = false;
+  // Initialize counts on HUD for the very first display before game starts
+  hud.player.textContent = (ROWS/2)*COLS;
+  hud.cpu.textContent = (ROWS/2)*COLS;
+
 })();
 </script>
 </body>
