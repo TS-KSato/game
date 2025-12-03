@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="シンプルで楽しい迷路ゲーム。スマートフォンでも快適にプレイできます。">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
+    
+    <!-- Open Graph Protocol -->
+    <meta property="og:title" content="迷路ゲーム">
+    <meta property="og:description" content="シンプルで楽しい迷路ゲーム。スマートフォンでも快適にプレイできます。">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="迷路ゲーム">
+    <meta name="twitter:description" content="シンプルで楽しい迷路ゲーム。スマートフォンでも快適にプレイできます。">
+    
+    <title>迷路ゲーム</title>
+    <style>
+        /* ============================================
+           MAZE GAME - Namespaced CSS
+           All classes prefixed with 'mzg-' to avoid conflicts
+           ============================================ */
+        
+        .mzg-root {
+            /* Theme Variables - Overridable by parent */
+            --mzg-primary: #F38181;
+            --mzg-secondary: #FCE38A;
+            --mzg-background: #EAFFD0;
+            --mzg-accent: #95E1D3;
+            --mzg-text: #333333;
+            --mzg-text-light: #777777;
+            --mzg-surface: #FFFFFF;
+            --mzg-shadow: rgba(0, 0, 0, 0.1);
+            --mzg-radius: 10px;
+            --mzg-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .mzg-root,
+        .mzg-root *,
+        .mzg-root *::before,
+        .mzg-root *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            font-family: var(--mzg-font);
+        }
+        
+        .mzg-root {
+            background-color: var(--mzg-background);
+            color: var(--mzg-text);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+        
+        .mzg-sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        
+        .mzg-container {
+            position: relative;
+            width: 92vw;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .mzg-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .mzg-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--mzg-primary);
+        }
+        
+        .mzg-stats {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .mzg-stat-item {
+            flex: 1;
+            margin: 0 5px;
+            background-color: var(--mzg-surface);
+            border-radius: var(--mzg-radius);
+            padding: 10px;
+            box-shadow: 0 2px 5px var(--mzg-shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .mzg-stat-label {
+            font-size: 12px;
+            color: var(--mzg-text-light);
+            margin-bottom: 5px;
+        }
+        
+        .mzg-stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--mzg-primary);
+        }
+        
+        .mzg-canvas-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            margin-bottom: 15px;
+            border-radius: var(--mzg-radius);
+            overflow: hidden;
+            box-shadow: 0 4px 8px var(--mzg-shadow);
+            background-color: var(--mzg-surface);
+        }
+        
+        .mzg-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .mzg-nav {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .mzg-nav-btn {
+            padding: 8px 15px;
+            border-radius: 15px;
+            border: none;
+            background-color: var(--mzg-surface);
+            color: var(--mzg-text-light);
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px var(--mzg-shadow);
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        
+        .mzg-nav-btn:hover,
+        .mzg-nav-btn:focus {
+            background-color: #f5f5f5;
+            outline: 2px solid var(--mzg-accent);
+        }
+        
+        .mzg-nav-btn:active {
+            transform: scale(0.97);
+            box-shadow: 0 1px 3px var(--mzg-shadow);
+        }
+        
+        .mzg-controls {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .mzg-dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .mzg-dpad-btn {
+            aspect-ratio: 1 / 1;
+            border-radius: var(--mzg-radius);
+            border: none;
+            background-color: var(--mzg-surface);
+            color: var(--mzg-accent);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px var(--mzg-shadow);
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+        }
+        
+        .mzg-dpad-btn:hover,
+        .mzg-dpad-btn:focus {
+            background-color: #f5f5f5;
+            outline: 2px solid var(--mzg-accent);
+        }
+        
+        .mzg-dpad-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 1px 3px var(--mzg-shadow);
+        }
+        
+        .mzg-dpad-btn svg {
+            width: 40%;
+            height: 40%;
+            fill: var(--mzg-accent);
+        }
+        
+        .mzg-dpad-btn.mzg-hidden {
+            visibility: hidden;
+        }
+        
+        .mzg-actions {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .mzg-btn {
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: none;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px var(--mzg-shadow);
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+        }
+        
+        .mzg-btn:hover,
+        .mzg-btn:focus {
+            outline: 2px solid var(--mzg-accent);
+        }
+        
+        .mzg-btn:active {
+            transform: scale(0.97);
+            box-shadow: 0 1px 3px var(--mzg-shadow);
+        }
+        
+        .mzg-btn-primary {
+            background-color: var(--mzg-primary);
+            color: var(--mzg-surface);
+        }
+        
+        .mzg-btn-primary:hover,
+        .mzg-btn-primary:focus {
+            background-color: #e77676;
+        }
+        
+        .mzg-btn-secondary {
+            background-color: var(--mzg-surface);
+            color: var(--mzg-accent);
+        }
+        
+        .mzg-btn-secondary:hover,
+        .mzg-btn-secondary:focus {
+            background-color: #f5f5f5;
+        }
+        
+        /* Modal Styles */
+        .mzg-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .mzg-modal-overlay.mzg-show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .mzg-modal {
+            background-color: var(--mzg-surface);
+            border-radius: 15px;
+            padding: 20px;
+            width: 85%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            text-align: center;
+        }
+        
+        .mzg-modal-overlay.mzg-show .mzg-modal {
+            transform: translateY(0);
+        }
+        
+        .mzg-modal-header {
+            margin-bottom: 20px;
+        }
+        
+        .mzg-modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--mzg-primary);
+            margin-bottom: 10px;
+        }
+        
+        .mzg-modal-subtitle {
+            font-size: 16px;
+            color: var(--mzg-text-light);
+            line-height: 1.5;
+        }
+        
+        .mzg-difficulty-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .mzg-difficulty-item {
+            position: relative;
+            background-color: #f9f9f9;
+            border-radius: var(--mzg-radius);
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            border: 2px solid transparent;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        
+        .mzg-difficulty-item:hover,
+        .mzg-difficulty-item:focus {
+            background-color: #f0f0f0;
+            outline: none;
+        }
+        
+        .mzg-difficulty-item.mzg-selected {
+            border-color: var(--mzg-accent);
+            background-color: rgba(149, 225, 211, 0.1);
+        }
+        
+        .mzg-difficulty-name {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .mzg-result-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        
+        .mzg-result-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .mzg-result-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--mzg-primary);
+            margin-bottom: 5px;
+        }
+        
+        .mzg-result-label {
+            font-size: 14px;
+            color: var(--mzg-text-light);
+        }
+        
+        .mzg-stars {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .mzg-star {
+            width: 35px;
+            height: 35px;
+            color: #ddd;
+            transition: color 0.3s;
+        }
+        
+        .mzg-star.mzg-filled {
+            color: var(--mzg-secondary);
+        }
+        
+        .mzg-help-content {
+            text-align: left;
+            margin: 20px 0;
+        }
+        
+        .mzg-help-item {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .mzg-help-label {
+            color: var(--mzg-primary);
+            font-weight: 700;
+        }
+        
+        /* Ad Slot Placeholder */
+        .mzg-ad-slot {
+            width: 100%;
+            min-height: 50px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: var(--mzg-radius);
+            margin: 10px 0;
+            font-size: 12px;
+            color: var(--mzg-text-light);
+        }
+        
+        .mzg-ad-slot.mzg-active {
+            display: flex;
+        }
+
+        /* Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            .mzg-root *,
+            .mzg-root *::before,
+            .mzg-root *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mzg-root" id="mzg-root">
+        <main class="mzg-container">
+            <!-- Ad Slot: Top Banner -->
+            <div class="mzg-ad-slot" id="mzg-ad-top" data-slot="top"></div>
+            
+            <header class="mzg-header">
+                <h1 class="mzg-title" id="mzg-title">迷路ゲーム</h1>
+            </header>
+            
+            <section class="mzg-stats" aria-label="ゲーム状態">
+                <div class="mzg-stat-item">
+                    <div class="mzg-stat-label" id="mzg-steps-label">ステップ</div>
+                    <div class="mzg-stat-value" id="mzg-steps" aria-labelledby="mzg-steps-label">0</div>
+                </div>
+                <div class="mzg-stat-item">
+                    <div class="mzg-stat-label" id="mzg-time-label">タイム</div>
+                    <div class="mzg-stat-value" id="mzg-time" aria-labelledby="mzg-time-label">0:00</div>
+                </div>
+            </section>
+            
+            <nav class="mzg-nav" aria-label="ゲームコントロール">
+                <button class="mzg-nav-btn" id="mzg-help-btn" aria-label="ヘルプを表示">ヘルプ</button>
+                <button class="mzg-nav-btn" id="mzg-hint-btn" aria-label="ヒントを表示">ヒント</button>
+                <button class="mzg-nav-btn" id="mzg-restart-btn" aria-label="ゲームをリスタート">リスタート</button>
+            </nav>
+            
+            <div class="mzg-canvas-wrap">
+                <canvas class="mzg-canvas" id="mzg-canvas" aria-label="迷路ゲーム画面。キーボードの矢印キーでも操作できます。"></canvas>
+                <div class="mzg-sr-only" aria-live="polite" id="mzg-status">
+                    迷路ゲームが始まりました。左上のスタート地点から右下のゴールまで移動しましょう。
+                </div>
+            </div>
+            
+            <section class="mzg-controls" aria-label="操作方法">
+                <div class="mzg-dpad">
+                    <div class="mzg-dpad-btn mzg-hidden"></div>
+                    <button class="mzg-dpad-btn" id="mzg-btn-up" aria-label="上へ移動">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l-8 8h6v8h4v-8h6z"></path></svg>
+                    </button>
+                    <div class="mzg-dpad-btn mzg-hidden"></div>
+                    
+                    <button class="mzg-dpad-btn" id="mzg-btn-left" aria-label="左へ移動">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l8-8v6h8v4h-8v6z"></path></svg>
+                    </button>
+                    
+                    <div class="mzg-dpad-btn mzg-hidden"></div>
+                    
+                    <button class="mzg-dpad-btn" id="mzg-btn-right" aria-label="右へ移動">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12l-8-8v6h-8v4h8v6z"></path></svg>
+                    </button>
+                    
+                    <div class="mzg-dpad-btn mzg-hidden"></div>
+                    <button class="mzg-dpad-btn" id="mzg-btn-down" aria-label="下へ移動">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20l8-8h-6v-8h-4v8h-6z"></path></svg>
+                    </button>
+                    <div class="mzg-dpad-btn mzg-hidden"></div>
+                </div>
+                
+                <div class="mzg-actions">
+                    <button class="mzg-btn mzg-btn-primary" id="mzg-new-btn">新しい迷路</button>
+                </div>
+            </section>
+            
+            <!-- Ad Slot: Bottom Banner -->
+            <div class="mzg-ad-slot" id="mzg-ad-bottom" data-slot="bottom"></div>
+        </main>
+        
+        <!-- Start Modal -->
+        <div class="mzg-modal-overlay" id="mzg-start-modal" role="dialog" aria-modal="true" aria-labelledby="mzg-start-title">
+            <article class="mzg-modal">
+                <header class="mzg-modal-header">
+                    <h2 class="mzg-modal-title" id="mzg-start-title">迷路ゲーム</h2>
+                    <p class="mzg-modal-subtitle" id="mzg-start-subtitle">難易度を選んでスタート</p>
+                </header>
+                
+                <div class="mzg-difficulty-list">
+                    <div class="mzg-difficulty-item mzg-selected" data-difficulty="easy" tabindex="0" role="radio" aria-checked="true">
+                        <div class="mzg-difficulty-name" id="mzg-diff-easy">初級 (7×7)</div>
+                    </div>
+                    <div class="mzg-difficulty-item" data-difficulty="medium" tabindex="0" role="radio" aria-checked="false">
+                        <div class="mzg-difficulty-name" id="mzg-diff-medium">中級 (11×11)</div>
+                    </div>
+                    <div class="mzg-difficulty-item" data-difficulty="hard" tabindex="0" role="radio" aria-checked="false">
+                        <div class="mzg-difficulty-name" id="mzg-diff-hard">上級 (15×15)</div>
+                    </div>
+                </div>
+                
+                <button class="mzg-btn mzg-btn-primary" id="mzg-start-btn">スタート</button>
+            </article>
+        </div>
+        
+        <!-- Clear Modal -->
+        <div class="mzg-modal-overlay" id="mzg-clear-modal" role="dialog" aria-modal="true" aria-labelledby="mzg-clear-title">
+            <article class="mzg-modal">
+                <!-- Ad Slot: Interstitial -->
+                <div class="mzg-ad-slot" id="mzg-ad-interstitial" data-slot="interstitial"></div>
+                
+                <header class="mzg-modal-header">
+                    <h2 class="mzg-modal-title" id="mzg-clear-title">クリア！</h2>
+                    <p class="mzg-modal-subtitle" id="mzg-clear-subtitle">おめでとうございます！</p>
+                </header>
+                
+                <div class="mzg-result-stats">
+                    <div class="mzg-result-item">
+                        <div class="mzg-result-value" id="mzg-result-steps">0</div>
+                        <div class="mzg-result-label" id="mzg-result-steps-label">ステップ</div>
+                    </div>
+                    <div class="mzg-result-item">
+                        <div class="mzg-result-value" id="mzg-result-time">0:00</div>
+                        <div class="mzg-result-label" id="mzg-result-time-label">タイム</div>
+                    </div>
+                </div>
+                
+                <div class="mzg-stars" aria-label="評価">
+                    <svg class="mzg-star" viewBox="0 0 24 24" id="mzg-star-1" aria-hidden="true">
+                        <path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                    </svg>
+                    <svg class="mzg-star" viewBox="0 0 24 24" id="mzg-star-2" aria-hidden="true">
+                        <path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                    </svg>
+                    <svg class="mzg-star" viewBox="0 0 24 24" id="mzg-star-3" aria-hidden="true">
+                        <path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+                    </svg>
+                    <span class="mzg-sr-only" id="mzg-star-text">3つ星のうち<span id="mzg-star-count">0</span>つ獲得</span>
+                </div>
+                
+                <div class="mzg-actions">
+                    <button class="mzg-btn mzg-btn-secondary" id="mzg-back-btn">メニューへ</button>
+                    <button class="mzg-btn mzg-btn-primary" id="mzg-next-btn">次の迷路</button>
+                </div>
+            </article>
+        </div>
+        
+        <!-- Help Modal -->
+        <div class="mzg-modal-overlay" id="mzg-help-modal" role="dialog" aria-modal="true" aria-labelledby="mzg-help-title">
+            <article class="mzg-modal">
+                <header class="mzg-modal-header">
+                    <h2 class="mzg-modal-title" id="mzg-help-title">遊び方</h2>
+                </header>
+                
+                <div class="mzg-help-content">
+                    <p class="mzg-help-item">
+                        <span class="mzg-help-label" id="mzg-help-goal-label">目的:</span>
+                        <span id="mzg-help-goal-text">スタート地点(左上)からゴール(右下)まで到達しましょう。</span>
+                    </p>
+                    <p class="mzg-help-item">
+                        <span class="mzg-help-label" id="mzg-help-control-label">操作:</span>
+                        <span id="mzg-help-control-text">矢印ボタンか、画面をスワイプして移動できます。</span>
+                    </p>
+                    <p class="mzg-help-item">
+                        <span class="mzg-help-label" id="mzg-help-hint-label">ヒント:</span>
+                        <span id="mzg-help-hint-text">「ヒント」ボタンで次の一手を表示します。</span>
+                    </p>
+                </div>
+                
+                <button class="mzg-btn mzg-btn-primary" id="mzg-close-help-btn">閉じる</button>
+            </article>
+        </div>
+    </div>
+    
+    <script>
+    /**
+     * MazeGame - Embeddable Maze Game Module
+     * Version: 1.0.0
+     * 
+     * Features:
+     * - Namespace isolation (no global pollution)
+     * - PostMessage API for parent communication
+     * - Configurable theme, locale, and difficulty
+     * - Event callbacks for ad integration
+     * - Accessible (ARIA, keyboard, screen reader support)
+     */
+    (function(global) {
+        'use strict';
+        
+        // ============================================
+        // DEFAULT CONFIGURATION
+        // ============================================
+        const DEFAULT_CONFIG = {
+            // Container selector or element
+            container: '#mzg-root',
+            
+            // Theme colors (CSS variable overrides)
+            theme: {
+                primary: null,
+                secondary: null,
+                background: null,
+                accent: null,
+                text: null,
+                textLight: null,
+                surface: null
+            },
+            
+            // Locale strings
+            locale: {
+                title: '迷路ゲーム',
+                steps: 'ステップ',
+                time: 'タイム',
+                help: 'ヘルプ',
+                hint: 'ヒント',
+                restart: 'リスタート',
+                newGame: '新しい迷路',
+                start: 'スタート',
+                clear: 'クリア！',
+                congrats: 'おめでとうございます！',
+                selectDifficulty: '難易度を選んでスタート',
+                backToMenu: 'メニューへ',
+                nextMaze: '次の迷路',
+                close: '閉じる',
+                howToPlay: '遊び方',
+                goal: '目的:',
+                goalText: 'スタート地点(左上)からゴール(右下)まで到達しましょう。',
+                control: '操作:',
+                controlText: '矢印ボタンか、画面をスワイプして移動できます。',
+                hintLabel: 'ヒント:',
+                hintText: '「ヒント」ボタンで次の一手を表示します。',
+                easy: '初級 (7×7)',
+                medium: '中級 (11×11)',
+                hard: '上級 (15×15)',
+                hintUp: '上',
+                hintRight: '右',
+                hintDown: '下',
+                hintLeft: '左',
+                hintDirection: 'ヒント: {direction}に進むと良いでしょう。'
+            },
+            
+            // Initial difficulty
+            difficulty: 'easy',
+            
+            // Difficulty definitions
+            difficulties: {
+                easy: { width: 7, height: 7 },
+                medium: { width: 11, height: 11 },
+                hard: { width: 15, height: 15 }
+            },
+            
+            // Star rating thresholds (time in seconds)
+            starThresholds: {
+                easy: { perfect: 10, good: 20, ok: 30 },
+                medium: { perfect: 20, good: 40, ok: 60 },
+                hard: { perfect: 40, good: 80, ok: 120 }
+            },
+            
+            // Ad slots to activate
+            adSlots: [],
+            
+            // Event callbacks
+            onInit: null,
+            onGameStart: null,
+            onGameClear: null,
+            onGameRestart: null,
+            onMove: null,
+            onModalOpen: null,
+            onModalClose: null,
+            onRequestAd: null,
+            onError: null,
+            
+            // PostMessage configuration
+            postMessage: {
+                enabled: false,
+                targetOrigin: '*'
+            }
+        };
+        
+        // ============================================
+        // MAZE GAME CLASS
+        // ============================================
+        class MazeGame {
+            constructor(userConfig = {}) {
+                this.config = this._mergeConfig(DEFAULT_CONFIG, userConfig);
+                this.state = {
+                    maze: [],
+                    cellSize: 0,
+                    playerX: 0,
+                    playerY: 0,
+                    goalX: 0,
+                    goalY: 0,
+                    mazeWidth: 0,
+                    mazeHeight: 0,
+                    steps: 0,
+                    startTime: 0,
+                    timerInterval: null,
+                    gameActive: false,
+                    currentDifficulty: this.config.difficulty,
+                    solutionPath: [],
+                    showingSolution: false,
+                    bestSolutionLength: 0,
+                    initialized: false
+                };
+                this.elements = {};
+                this.ctx = null;
+            }
+            
+            // Deep merge configuration
+            _mergeConfig(defaults, overrides) {
+                const result = { ...defaults };
+                for (const key in overrides) {
+                    if (overrides[key] !== null && typeof overrides[key] === 'object' && !Array.isArray(overrides[key])) {
+                        result[key] = this._mergeConfig(defaults[key] || {}, overrides[key]);
+                    } else if (overrides[key] !== undefined) {
+                        result[key] = overrides[key];
+                    }
+                }
+                return result;
+            }
+            
+            // Initialize the game
+            init() {
+                try {
+                    this._cacheElements();
+                    this._applyTheme();
+                    this._applyLocale();
+                    this._activateAdSlots();
+                    this._setupEventListeners();
+                    this._setupPostMessage();
+                    this._resizeCanvas();
+                    
+                    window.addEventListener('resize', () => this._resizeCanvas());
+                    
+                    this._showModal('start');
+                    this.state.initialized = true;
+                    
+                    this._emit('onInit', { success: true });
+                    this._postMessage('init', { success: true });
+                    
+                } catch (error) {
+                    this._handleError('init', error);
+                }
+            }
+            
+            // Cache DOM elements
+            _cacheElements() {
+                const root = typeof this.config.container === 'string' 
+                    ? document.querySelector(this.config.container)
+                    : this.config.container;
+                    
+                if (!root) {
+                    throw new Error('Container element not found');
+                }
+                
+                this.elements = {
+                    root: root,
+                    canvas: root.querySelector('#mzg-canvas'),
+                    steps: root.querySelector('#mzg-steps'),
+                    time: root.querySelector('#mzg-time'),
+                    status: root.querySelector('#mzg-status'),
+                    startModal: root.querySelector('#mzg-start-modal'),
+                    clearModal: root.querySelector('#mzg-clear-modal'),
+                    helpModal: root.querySelector('#mzg-help-modal'),
+                    resultSteps: root.querySelector('#mzg-result-steps'),
+                    resultTime: root.querySelector('#mzg-result-time'),
+                    starCount: root.querySelector('#mzg-star-count'),
+                    title: root.querySelector('#mzg-title'),
+                    adSlots: {
+                        top: root.querySelector('#mzg-ad-top'),
+                        bottom: root.querySelector('#mzg-ad-bottom'),
+                        interstitial: root.querySelector('#mzg-ad-interstitial')
+                    }
+                };
+                
+                this.ctx = this.elements.canvas.getContext('2d');
+            }
+            
+            // Apply theme colors
+            _applyTheme() {
+                const theme = this.config.theme;
+                const root = this.elements.root;
+                
+                if (theme.primary) root.style.setProperty('--mzg-primary', theme.primary);
+                if (theme.secondary) root.style.setProperty('--mzg-secondary', theme.secondary);
+                if (theme.background) root.style.setProperty('--mzg-background', theme.background);
+                if (theme.accent) root.style.setProperty('--mzg-accent', theme.accent);
+                if (theme.text) root.style.setProperty('--mzg-text', theme.text);
+                if (theme.textLight) root.style.setProperty('--mzg-text-light', theme.textLight);
+                if (theme.surface) root.style.setProperty('--mzg-surface', theme.surface);
+            }
+            
+            // Apply locale strings
+            _applyLocale() {
+                const locale = this.config.locale;
+                const root = this.elements.root;
+                
+                const mappings = {
+                    '#mzg-title': 'title',
+                    '#mzg-steps-label': 'steps',
+                    '#mzg-time-label': 'time',
+                    '#mzg-help-btn': 'help',
+                    '#mzg-hint-btn': 'hint',
+                    '#mzg-restart-btn': 'restart',
+                    '#mzg-new-btn': 'newGame',
+                    '#mzg-start-btn': 'start',
+                    '#mzg-start-title': 'title',
+                    '#mzg-start-subtitle': 'selectDifficulty',
+                    '#mzg-clear-title': 'clear',
+                    '#mzg-clear-subtitle': 'congrats',
+                    '#mzg-back-btn': 'backToMenu',
+                    '#mzg-next-btn': 'nextMaze',
+                    '#mzg-close-help-btn': 'close',
+                    '#mzg-help-title': 'howToPlay',
+                    '#mzg-help-goal-label': 'goal',
+                    '#mzg-help-goal-text': 'goalText',
+                    '#mzg-help-control-label': 'control',
+                    '#mzg-help-control-text': 'controlText',
+                    '#mzg-help-hint-label': 'hintLabel',
+                    '#mzg-help-hint-text': 'hintText',
+                    '#mzg-diff-easy': 'easy',
+                    '#mzg-diff-medium': 'medium',
+                    '#mzg-diff-hard': 'hard',
+                    '#mzg-result-steps-label': 'steps',
+                    '#mzg-result-time-label': 'time'
+                };
+                
+                for (const [selector, key] of Object.entries(mappings)) {
+                    const el = root.querySelector(selector);
+                    if (el && locale[key]) {
+                        el.textContent = locale[key];
+                    }
+                }
+            }
+            
+            // Activate ad slots
+            _activateAdSlots() {
+                const slots = this.config.adSlots;
+                for (const slotName of slots) {
+                    const slot = this.elements.adSlots[slotName];
+                    if (slot) {
+                        slot.classList.add('mzg-active');
+                    }
+                }
+            }
+            
+            // Setup event listeners
+            _setupEventListeners() {
+                const root = this.elements.root;
+                
+                // Difficulty selection
+                root.querySelectorAll('.mzg-difficulty-item').forEach(option => {
+                    option.addEventListener('click', () => this._selectDifficulty(option));
+                    option.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            this._selectDifficulty(option);
+                        }
+                    });
+                });
+                
+                // Button handlers
+                root.querySelector('#mzg-start-btn').addEventListener('click', () => {
+                    this._hideModal('start');
+                    this.start();
+                });
+                
+                root.querySelector('#mzg-new-btn').addEventListener('click', () => {
+                    this._showModal('start');
+                });
+                
+                root.querySelector('#mzg-next-btn').addEventListener('click', () => {
+                    this._hideModal('clear');
+                    this.start();
+                });
+                
+                root.querySelector('#mzg-back-btn').addEventListener('click', () => {
+                    this._hideModal('clear');
+                    this._showModal('start');
+                });
+                
+                root.querySelector('#mzg-hint-btn').addEventListener('click', () => this._showHint());
+                root.querySelector('#mzg-help-btn').addEventListener('click', () => this._showModal('help'));
+                root.querySelector('#mzg-close-help-btn').addEventListener('click', () => this._hideModal('help'));
+                root.querySelector('#mzg-restart-btn').addEventListener('click', () => this.restart());
+                
+                // Direction controls
+                root.querySelector('#mzg-btn-up').addEventListener('click', () => this.move(0, -1));
+                root.querySelector('#mzg-btn-right').addEventListener('click', () => this.move(1, 0));
+                root.querySelector('#mzg-btn-down').addEventListener('click', () => this.move(0, 1));
+                root.querySelector('#mzg-btn-left').addEventListener('click', () => this.move(-1, 0));
+                
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    if (!this.state.gameActive) return;
+                    const moves = {
+                        'ArrowUp': [0, -1],
+                        'ArrowRight': [1, 0],
+                        'ArrowDown': [0, 1],
+                        'ArrowLeft': [-1, 0]
+                    };
+                    if (moves[e.key]) {
+                        this.move(...moves[e.key]);
+                    }
+                });
+                
+                // Touch controls
+                let touchStartX = 0;
+                let touchStartY = 0;
+                
+                this.elements.canvas.addEventListener('touchstart', (e) => {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    e.preventDefault();
+                }, { passive: false });
+                
+                this.elements.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+                
+                this.elements.canvas.addEventListener('touchend', (e) => {
+                    if (!this.state.gameActive) return;
+                    
+                    const deltaX = e.changedTouches[0].clientX - touchStartX;
+                    const deltaY = e.changedTouches[0].clientY - touchStartY;
+                    
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        if (deltaX > 20) this.move(1, 0);
+                        else if (deltaX < -20) this.move(-1, 0);
+                    } else {
+                        if (deltaY > 20) this.move(0, 1);
+                        else if (deltaY < -20) this.move(0, -1);
+                    }
+                    
+                    e.preventDefault();
+                }, { passive: false });
+                
+                // Focus trap for modals
+                this._setupFocusTrap('start');
+                this._setupFocusTrap('clear');
+                this._setupFocusTrap('help');
+            }
+            
+            // Setup focus trap for modal
+            _setupFocusTrap(modalName) {
+                const modal = this.elements[modalName + 'Modal'];
+                if (!modal) return;
+                
+                modal.addEventListener('keydown', (e) => {
+                    if (e.key === 'Tab') {
+                        const focusable = modal.querySelectorAll('button, [tabindex]:not([tabindex="-1"])');
+                        const first = focusable[0];
+                        const last = focusable[focusable.length - 1];
+                        
+                        if (e.shiftKey && document.activeElement === first) {
+                            e.preventDefault();
+                            last.focus();
+                        } else if (!e.shiftKey && document.activeElement === last) {
+                            e.preventDefault();
+                            first.focus();
+                        }
+                    } else if (e.key === 'Escape') {
+                        if (modalName === 'help') {
+                            this._hideModal('help');
+                        }
+                    }
+                });
+            }
+            
+            // Setup PostMessage communication
+            _setupPostMessage() {
+                if (!this.config.postMessage.enabled) return;
+                
+                window.addEventListener('message', (event) => {
+                    try {
+                        const data = event.data;
+                        if (data.type !== 'MazeGame') return;
+                        
+                        switch (data.action) {
+                            case 'start':
+                                this.start();
+                                break;
+                            case 'restart':
+                                this.restart();
+                                break;
+                            case 'setDifficulty':
+                                this.setDifficulty(data.difficulty);
+                                break;
+                            case 'setTheme':
+                                this.setTheme(data.theme);
+                                break;
+                        }
+                    } catch (error) {
+                        this._handleError('postMessage', error);
+                    }
+                });
+            }
+            
+            // Send PostMessage to parent
+            _postMessage(action, data = {}) {
+                if (!this.config.postMessage.enabled) return;
+                
+                const message = {
+                    type: 'MazeGame',
+                    action: action,
+                    ...data
+                };
+                
+                if (window.parent !== window) {
+                    window.parent.postMessage(message, this.config.postMessage.targetOrigin);
+                }
+            }
+            
+            // Select difficulty
+            _selectDifficulty(option) {
+                const root = this.elements.root;
+                root.querySelectorAll('.mzg-difficulty-item').forEach(opt => {
+                    opt.classList.remove('mzg-selected');
+                    opt.setAttribute('aria-checked', 'false');
+                });
+                option.classList.add('mzg-selected');
+                option.setAttribute('aria-checked', 'true');
+                this.state.currentDifficulty = option.getAttribute('data-difficulty');
+            }
+            
+            // Show modal
+            _showModal(name) {
+                const modal = this.elements[name + 'Modal'];
+                if (modal) {
+                    modal.classList.add('mzg-show');
+                    setTimeout(() => {
+                        const btn = modal.querySelector('button');
+                        if (btn) btn.focus();
+                    }, 100);
+                    
+                    this._emit('onModalOpen', { modal: name });
+                    this._postMessage('modalOpen', { modal: name });
+                }
+            }
+            
+            // Hide modal
+            _hideModal(name) {
+                const modal = this.elements[name + 'Modal'];
+                if (modal) {
+                    modal.classList.remove('mzg-show');
+                    this._emit('onModalClose', { modal: name });
+                    this._postMessage('modalClose', { modal: name });
+                }
+            }
+            
+            // Emit callback event
+            _emit(eventName, data) {
+                const callback = this.config[eventName];
+                if (typeof callback === 'function') {
+                    try {
+                        callback(data);
+                    } catch (error) {
+                        console.error(`MazeGame: Error in ${eventName} callback:`, error);
+                    }
+                }
+            }
+            
+            // Handle error
+            _handleError(context, error) {
+                console.error(`MazeGame: Error in ${context}:`, error);
+                this._emit('onError', { context, error: error.message });
+                this._postMessage('error', { context, error: error.message });
+            }
+            
+            // Resize canvas
+            _resizeCanvas() {
+                const container = this.elements.canvas.parentElement;
+                this.elements.canvas.width = container.clientWidth;
+                this.elements.canvas.height = container.clientHeight;
+                
+                if (this.state.gameActive) {
+                    this._drawMaze();
+                }
+            }
+            
+            // Start game
+            start() {
+                try {
+                    const difficulty = this.config.difficulties[this.state.currentDifficulty];
+                    this.state.mazeWidth = difficulty.width;
+                    this.state.mazeHeight = difficulty.height;
+                    
+                    this._generateMaze();
+                    
+                    this.state.playerX = 0;
+                    this.state.playerY = 0;
+                    this.state.goalX = this.state.mazeWidth - 1;
+                    this.state.goalY = this.state.mazeHeight - 1;
+                    
+                    this._findSolution();
+                    
+                    this.state.steps = 0;
+                    this.elements.steps.textContent = '0';
+                    this.state.startTime = Date.now();
+                    this.state.showingSolution = false;
+                    
+                    if (this.state.timerInterval) {
+                        clearInterval(this.state.timerInterval);
+                    }
+                    this.state.timerInterval = setInterval(() => this._updateTimer(), 1000);
+                    this.state.gameActive = true;
+                    
+                    this._resizeCanvas();
+                    this._drawMaze();
+                    
+                    const eventData = {
+                        difficulty: this.state.currentDifficulty,
+                        mazeSize: { width: this.state.mazeWidth, height: this.state.mazeHeight },
+                        optimalSteps: this.state.bestSolutionLength
+                    };
+                    
+                    this._emit('onGameStart', eventData);
+                    this._postMessage('gameStart', eventData);
+                    
+                } catch (error) {
+                    this._handleError('start', error);
+                }
+            }
+            
+            // Restart game
+            restart() {
+                try {
+                    this.state.playerX = 0;
+                    this.state.playerY = 0;
+                    this.state.steps = 0;
+                    this.elements.steps.textContent = '0';
+                    this.state.startTime = Date.now();
+                    this.state.showingSolution = false;
+                    
+                    if (this.state.timerInterval) {
+                        clearInterval(this.state.timerInterval);
+                    }
+                    this.state.timerInterval = setInterval(() => this._updateTimer(), 1000);
+                    this.state.gameActive = true;
+                    
+                    this._drawMaze();
+                    
+                    this._emit('onGameRestart', {});
+                    this._postMessage('gameRestart', {});
+                    
+                } catch (error) {
+                    this._handleError('restart', error);
+                }
+            }
+            
+            // Move player
+            move(dx, dy) {
+                try {
+                    if (!this.state.gameActive) return;
+                    
+                    const newX = this.state.playerX + dx;
+                    const newY = this.state.playerY + dy;
+                    
+                    if (newX < 0 || newX >= this.state.mazeWidth || newY < 0 || newY >= this.state.mazeHeight) {
+                        return;
+                    }
+                    
+                    const walls = this.state.maze[this.state.playerY][this.state.playerX].walls;
+                    if (dx === 1 && walls[1]) return;
+                    if (dx === -1 && walls[3]) return;
+                    if (dy === 1 && walls[2]) return;
+                    if (dy === -1 && walls[0]) return;
+                    
+                    this.state.playerX = newX;
+                    this.state.playerY = newY;
+                    this.state.steps++;
+                    this.elements.steps.textContent = this.state.steps;
+                    
+                    this._drawMaze();
+                    
+                    const moveData = {
+                        x: newX,
+                        y: newY,
+                        steps: this.state.steps
+                    };
+                    this._emit('onMove', moveData);
+                    this._postMessage('move', moveData);
+                    
+                    if (this.state.playerX === this.state.goalX && this.state.playerY === this.state.goalY) {
+                        this._gameWin();
+                    }
+                    
+                } catch (error) {
+                    this._handleError('move', error);
+                }
+            }
+            
+            // Set difficulty programmatically
+            setDifficulty(difficulty) {
+                if (this.config.difficulties[difficulty]) {
+                    this.state.currentDifficulty = difficulty;
+                    
+                    const root = this.elements.root;
+                    root.querySelectorAll('.mzg-difficulty-item').forEach(opt => {
+                        const isSelected = opt.getAttribute('data-difficulty') === difficulty;
+                        opt.classList.toggle('mzg-selected', isSelected);
+                        opt.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+                    });
+                }
+            }
+            
+            // Set theme programmatically
+            setTheme(theme) {
+                this.config.theme = { ...this.config.theme, ...theme };
+                this._applyTheme();
+            }
+            
+            // Update timer
+            _updateTimer() {
+                const elapsed = Math.floor((Date.now() - this.state.startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                this.elements.time.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            // Generate maze (iterative DFS to avoid stack overflow)
+            _generateMaze() {
+                const width = this.state.mazeWidth;
+                const height = this.state.mazeHeight;
+                
+                // Initialize maze
+                this.state.maze = [];
+                for (let y = 0; y < height; y++) {
+                    const row = [];
+                    for (let x = 0; x < width; x++) {
+                        row.push({ visited: false, walls: [true, true, true, true] });
+                    }
+                    this.state.maze.push(row);
+                }
+                
+                // Iterative DFS with explicit stack
+                const stack = [{ x: 0, y: 0 }];
+                this.state.maze[0][0].visited = true;
+                
+                while (stack.length > 0) {
+                    const current = stack[stack.length - 1];
+                    const { x, y } = current;
+                    
+                    // Find unvisited neighbors
+                    const neighbors = [];
+                    const directions = [
+                        { dx: 0, dy: -1, dir: 0 },
+                        { dx: 1, dy: 0, dir: 1 },
+                        { dx: 0, dy: 1, dir: 2 },
+                        { dx: -1, dy: 0, dir: 3 }
+                    ];
+                    
+                    for (const { dx, dy, dir } of directions) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height && !this.state.maze[ny][nx].visited) {
+                            neighbors.push({ nx, ny, dir });
+                        }
+                    }
+                    
+                    if (neighbors.length > 0) {
+                        // Choose random neighbor
+                        const { nx, ny, dir } = neighbors[Math.floor(Math.random() * neighbors.length)];
+                        
+                        // Remove walls
+                        this.state.maze[y][x].walls[dir] = false;
+                        this.state.maze[ny][nx].walls[(dir + 2) % 4] = false;
+                        
+                        // Mark visited and push to stack
+                        this.state.maze[ny][nx].visited = true;
+                        stack.push({ x: nx, y: ny });
+                    } else {
+                        // Backtrack
+                        stack.pop();
+                    }
+                }
+                
+                // Reset visited flags
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        this.state.maze[y][x].visited = false;
+                    }
+                }
+            }
+            
+            // Find solution (BFS)
+            _findSolution() {
+                const queue = [{ x: 0, y: 0, path: [] }];
+                const visited = Array.from({ length: this.state.mazeHeight }, () => 
+                    new Array(this.state.mazeWidth).fill(false)
+                );
+                visited[0][0] = true;
+                
+                while (queue.length > 0) {
+                    const { x, y, path } = queue.shift();
+                    
+                    if (x === this.state.goalX && y === this.state.goalY) {
+                        this.state.solutionPath = path;
+                        this.state.bestSolutionLength = path.length;
+                        return;
+                    }
+                    
+                    const directions = [
+                        { dx: 0, dy: -1, dir: 0 },
+                        { dx: 1, dy: 0, dir: 1 },
+                        { dx: 0, dy: 1, dir: 2 },
+                        { dx: -1, dy: 0, dir: 3 }
+                    ];
+                    
+                    for (const { dx, dy, dir } of directions) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        
+                        if (nx >= 0 && nx < this.state.mazeWidth && 
+                            ny >= 0 && ny < this.state.mazeHeight && 
+                            !visited[ny][nx] && 
+                            !this.state.maze[y][x].walls[dir]) {
+                            visited[ny][nx] = true;
+                            queue.push({ x: nx, y: ny, path: [...path, { x: nx, y: ny }] });
+                        }
+                    }
+                }
+                
+                this.state.solutionPath = [];
+                this.state.bestSolutionLength = 0;
+            }
+            
+            // Find path from current position
+            _findPathFromCurrent() {
+                const queue = [{ x: this.state.playerX, y: this.state.playerY, path: [] }];
+                const visited = Array.from({ length: this.state.mazeHeight }, () => 
+                    new Array(this.state.mazeWidth).fill(false)
+                );
+                visited[this.state.playerY][this.state.playerX] = true;
+                
+                while (queue.length > 0) {
+                    const { x, y, path } = queue.shift();
+                    
+                    if (x === this.state.goalX && y === this.state.goalY) {
+                        return path;
+                    }
+                    
+                    const directions = [
+                        { dx: 0, dy: -1, dir: 0 },
+                        { dx: 1, dy: 0, dir: 1 },
+                        { dx: 0, dy: 1, dir: 2 },
+                        { dx: -1, dy: 0, dir: 3 }
+                    ];
+                    
+                    for (const { dx, dy, dir } of directions) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        
+                        if (nx >= 0 && nx < this.state.mazeWidth && 
+                            ny >= 0 && ny < this.state.mazeHeight && 
+                            !visited[ny][nx] && 
+                            !this.state.maze[y][x].walls[dir]) {
+                            visited[ny][nx] = true;
+                            queue.push({ x: nx, y: ny, path: [...path, { x: nx, y: ny }] });
+                        }
+                    }
+                }
+                
+                return [];
+            }
+            
+            // Show hint
+            _showHint() {
+                if (!this.state.gameActive || this.state.showingSolution) return;
+                
+                this.state.showingSolution = true;
+                const path = this._findPathFromCurrent();
+                
+                if (path.length > 0) {
+                    const nextStep = path[0];
+                    const ctx = this.ctx;
+                    
+                    const offsetX = (this.elements.canvas.width - this.state.cellSize * this.state.mazeWidth) / 2;
+                    const offsetY = (this.elements.canvas.height - this.state.cellSize * this.state.mazeHeight) / 2;
+                    
+                    ctx.fillStyle = 'rgba(252, 227, 138, 0.7)';
+                    ctx.beginPath();
+                    ctx.arc(
+                        offsetX + nextStep.x * this.state.cellSize + this.state.cellSize / 2,
+                        offsetY + nextStep.y * this.state.cellSize + this.state.cellSize / 2,
+                        this.state.cellSize / 3,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    
+                    // Screen reader hint
+                    const locale = this.config.locale;
+                    let direction = '';
+                    if (nextStep.x > this.state.playerX) direction = locale.hintRight;
+                    else if (nextStep.x < this.state.playerX) direction = locale.hintLeft;
+                    else if (nextStep.y > this.state.playerY) direction = locale.hintDown;
+                    else if (nextStep.y < this.state.playerY) direction = locale.hintUp;
+                    
+                    this.elements.status.textContent = locale.hintDirection.replace('{direction}', direction);
+                    
+                    setTimeout(() => {
+                        this.state.showingSolution = false;
+                        this._drawMaze();
+                    }, 1000);
+                }
+            }
+            
+            // Draw maze
+            _drawMaze() {
+                const ctx = this.ctx;
+                const canvas = this.elements.canvas;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                this.state.cellSize = Math.min(
+                    canvas.width / this.state.mazeWidth,
+                    canvas.height / this.state.mazeHeight
+                );
+                
+                const offsetX = (canvas.width - this.state.cellSize * this.state.mazeWidth) / 2;
+                const offsetY = (canvas.height - this.state.cellSize * this.state.mazeHeight) / 2;
+                
+                // Background
+                ctx.fillStyle = getComputedStyle(this.elements.root).getPropertyValue('--mzg-surface').trim() || '#FFFFFF';
+                ctx.fillRect(offsetX, offsetY, this.state.cellSize * this.state.mazeWidth, this.state.cellSize * this.state.mazeHeight);
+                
+                // Walls
+                const accentColor = getComputedStyle(this.elements.root).getPropertyValue('--mzg-accent').trim() || '#95E1D3';
+                ctx.strokeStyle = accentColor;
+                ctx.lineWidth = 2;
+                
+                for (let y = 0; y < this.state.mazeHeight; y++) {
+                    for (let x = 0; x < this.state.mazeWidth; x++) {
+                        const cell = this.state.maze[y][x];
+                        const cellX = offsetX + x * this.state.cellSize;
+                        const cellY = offsetY + y * this.state.cellSize;
+                        
+                        if (cell.walls[0]) {
+                            ctx.beginPath();
+                            ctx.moveTo(cellX, cellY);
+                            ctx.lineTo(cellX + this.state.cellSize, cellY);
+                            ctx.stroke();
+                        }
+                        if (cell.walls[1]) {
+                            ctx.beginPath();
+                            ctx.moveTo(cellX + this.state.cellSize, cellY);
+                            ctx.lineTo(cellX + this.state.cellSize, cellY + this.state.cellSize);
+                            ctx.stroke();
+                        }
+                        if (cell.walls[2]) {
+                            ctx.beginPath();
+                            ctx.moveTo(cellX, cellY + this.state.cellSize);
+                            ctx.lineTo(cellX + this.state.cellSize, cellY + this.state.cellSize);
+                            ctx.stroke();
+                        }
+                        if (cell.walls[3]) {
+                            ctx.beginPath();
+                            ctx.moveTo(cellX, cellY);
+                            ctx.lineTo(cellX, cellY + this.state.cellSize);
+                            ctx.stroke();
+                        }
+                    }
+                }
+                
+                // Start marker
+                ctx.fillStyle = 'rgba(149, 225, 211, 0.5)';
+                ctx.fillRect(offsetX, offsetY, this.state.cellSize, this.state.cellSize);
+                
+                // Goal
+                const secondaryColor = getComputedStyle(this.elements.root).getPropertyValue('--mzg-secondary').trim() || '#FCE38A';
+                ctx.fillStyle = secondaryColor;
+                ctx.beginPath();
+                ctx.arc(
+                    offsetX + this.state.goalX * this.state.cellSize + this.state.cellSize / 2,
+                    offsetY + this.state.goalY * this.state.cellSize + this.state.cellSize / 2,
+                    this.state.cellSize * 0.3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Player
+                const primaryColor = getComputedStyle(this.elements.root).getPropertyValue('--mzg-primary').trim() || '#F38181';
+                ctx.fillStyle = primaryColor;
+                ctx.beginPath();
+                ctx.arc(
+                    offsetX + this.state.playerX * this.state.cellSize + this.state.cellSize / 2,
+                    offsetY + this.state.playerY * this.state.cellSize + this.state.cellSize / 2,
+                    this.state.cellSize * 0.3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+            
+            // Game win
+            _gameWin() {
+                this.state.gameActive = false;
+                clearInterval(this.state.timerInterval);
+                
+                const elapsed = Math.floor((Date.now() - this.state.startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                this.elements.resultSteps.textContent = this.state.steps;
+                this.elements.resultTime.textContent = timeString;
+                
+                // Calculate stars
+                const stars = this._calculateStars(this.state.steps, elapsed);
+                
+                // Update stars display
+                for (let i = 1; i <= 3; i++) {
+                    const star = this.elements.root.querySelector(`#mzg-star-${i}`);
+                    if (star) {
+                        star.classList.toggle('mzg-filled', i <= stars);
+                    }
+                }
+                this.elements.starCount.textContent = stars;
+                
+                // Request interstitial ad
+                this._emit('onRequestAd', { slot: 'interstitial' });
+                this._postMessage('requestAd', { slot: 'interstitial' });
+                
+                // Event data
+                const eventData = {
+                    difficulty: this.state.currentDifficulty,
+                    steps: this.state.steps,
+                    time: elapsed,
+                    timeString: timeString,
+                    stars: stars,
+                    optimalSteps: this.state.bestSolutionLength
+                };
+                
+                this._emit('onGameClear', eventData);
+                this._postMessage('gameClear', eventData);
+                
+                // Show modal
+                setTimeout(() => {
+                    this._showModal('clear');
+                }, 500);
+            }
+            
+            // Calculate stars
+            _calculateStars(steps, time) {
+                const stepsRatio = this.state.bestSolutionLength > 0 
+                    ? steps / this.state.bestSolutionLength 
+                    : 1;
+                
+                const thresholds = this.config.starThresholds[this.state.currentDifficulty];
+                
+                if (stepsRatio <= 1.1 && time <= thresholds.perfect) return 3;
+                if (stepsRatio <= 1.3 && time <= thresholds.good) return 2;
+                return 1;
+            }
+            
+            // Get current state (for external access)
+            getState() {
+                return {
+                    initialized: this.state.initialized,
+                    gameActive: this.state.gameActive,
+                    difficulty: this.state.currentDifficulty,
+                    steps: this.state.steps,
+                    playerPosition: { x: this.state.playerX, y: this.state.playerY },
+                    mazeSize: { width: this.state.mazeWidth, height: this.state.mazeHeight }
+                };
+            }
+            
+            // Destroy instance
+            destroy() {
+                if (this.state.timerInterval) {
+                    clearInterval(this.state.timerInterval);
+                }
+                this.state.gameActive = false;
+                this.state.initialized = false;
+            }
+        }
+        
+        // ============================================
+        // EXPORT
+        // ============================================
+        global.MazeGame = MazeGame;
+        
+        // Auto-init if no module system detected
+        if (typeof module === 'undefined' && typeof define === 'undefined') {
+            document.addEventListener('DOMContentLoaded', () => {
+                // Check for inline config
+                const configScript = document.querySelector('script[data-maze-config]');
+                let config = {};
+                
+                if (configScript) {
+                    try {
+                        config = JSON.parse(configScript.textContent);
+                    } catch (e) {
+                        console.warn('MazeGame: Invalid inline config');
+                    }
+                }
+                
+                // Check URL parameters for iframe config
+                const params = new URLSearchParams(window.location.search);
+                if (params.has('postMessage')) {
+                    config.postMessage = { enabled: true, targetOrigin: params.get('origin') || '*' };
+                }
+                if (params.has('difficulty')) {
+                    config.difficulty = params.get('difficulty');
+                }
+                
+                const game = new MazeGame(config);
+                game.init();
+                
+                // Expose instance globally for debugging
+                global.mazeGameInstance = game;
+            });
+        }
+        
+    })(typeof window !== 'undefined' ? window : this);
+    </script>
+</body>
+</html>
