@@ -1,0 +1,568 @@
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06070c">
+<meta name="description" content="外部依存ゼロ、二重振子のカオス運動と物理音響シンセシス。">
+<title>CHAOS PENDULUM — カオスの振り子</title>
+<style>
+:root{
+  --bg:#06070c;
+  --panel:rgba(14,16,28,.78);
+  --panel2:rgba(24,28,48,.82);
+  --line:rgba(255,255,255,.12);
+  --text:#f0f4ff;
+  --dim:#8491bd;
+  --a:#ff6b8b;
+  --b:#70a5ff;
+  --c:#ffd25f;
+  --d:#5fffb3;
+  --ok:#5fffb3;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+body{
+  position:fixed;inset:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Segoe UI",sans-serif;
+  color:var(--text);
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  touch-action:none;
+}
+#stage{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+  background:#06070c;
+  touch-action:none;
+}
+#app{
+  position:absolute;inset:0;pointer-events:none;
+  padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px);
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+header{
+  pointer-events:none;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;
+}
+.brand{
+  background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:12px 16px;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 12px 40px rgba(0,0,0,.3);
+}
+.brand b{
+  display:block;font-size:15px;letter-spacing:.18em;font-weight:850;
+  background:linear-gradient(90deg,var(--a),var(--b),var(--c));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.brand span{
+  display:block;margin-top:4px;font-size:9px;letter-spacing:.24em;color:var(--dim);
+}
+#stats{
+  pointer-events:none;
+  display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;
+  max-width:180px;
+}
+.pill{
+  min-width:54px;text-align:center;
+  padding:8px 10px;border-radius:999px;border:1px solid var(--line);
+  background:rgba(10,12,20,.65);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  font-size:9.5px;letter-spacing:.08em;color:var(--dim);
+  box-shadow:0 8px 28px rgba(0,0,0,.25);
+}
+.pill b{
+  display:block;color:var(--text);font-size:13px;line-height:1.1;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;
+}
+#hint{
+  align-self:center;
+  max-width:92%;
+  text-align:center;
+  pointer-events:none;
+  opacity:0;transform:translateY(12px);
+  transition:.4s ease;
+  padding:12px 20px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(6,7,12,.65);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  color:rgba(240,244,255,.95);
+  font-size:11.5px;letter-spacing:.08em;line-height:1.5;
+  box-shadow:0 10px 36px rgba(0,0,0,.35);
+}
+#hint.show{opacity:1;transform:translateY(0)}
+
+#controlPanel{
+  pointer-events:auto;
+  background:rgba(8,10,18,.75);
+  border:1px solid var(--line);
+  padding:16px;border-radius:28px;
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:0 20px 60px rgba(0,0,0,.45);
+  display:flex;flex-direction:column;gap:14px;
+}
+.sliders{display:flex;flex-direction:column;gap:10px;}
+.sRow{display:flex;align-items:center;gap:10px;}
+.sRow label{
+  width:64px;flex:0 0 auto;font-size:9.5px;font-weight:800;
+  letter-spacing:.12em;color:var(--dim);
+}
+.sRow input{
+  flex:1;-webkit-appearance:none;appearance:none;height:6px;
+  border-radius:3px;background:rgba(255,255,255,.08);outline:none;
+}
+.sRow input::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:20px;height:20px;
+  border-radius:50%;background:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.4);
+}
+.sRow output{
+  width:42px;flex:0 0 auto;text-align:right;font-size:11px;
+  font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;color:var(--dim);
+}
+
+#toolbar{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+}
+.btn{
+  height:48px;border:0;border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+  color:var(--text);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-size:9.5px;letter-spacing:.06em;font-weight:700;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+  touch-action:manipulation;
+}
+.btn svg{width:20px;height:20px;fill:currentColor}
+.btn:active{transform:scale(.94);filter:brightness(1.15)}
+.btn.on{
+  color:#06070c;
+  background:linear-gradient(135deg,var(--a),var(--b));
+  box-shadow:0 0 20px rgba(255,107,139,.25);
+}
+.btn.accent{
+  background:linear-gradient(135deg,var(--c),var(--a));color:#06070c;
+}
+
+#palette{
+  position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 190px);
+  display:grid;grid-template-columns:repeat(5,1fr);gap:8px;
+  padding:8px;border-radius:20px;
+  background:rgba(8,10,18,.85);border:1px solid var(--line);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  transform:translateY(16px);opacity:0;pointer-events:none;
+  transition:.28s ease;box-shadow:0 20px 60px rgba(0,0,0,.4);
+}
+#palette.show{transform:translateY(0);opacity:1;pointer-events:auto}
+.swatch{
+  height:40px;border:0;border-radius:12px;position:relative;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.2),0 6px 16px rgba(0,0,0,.3);
+}
+.swatch.cur:after{
+  content:"";position:absolute;inset:6px;border-radius:8px;
+  border:2px solid #fff;
+}
+
+#sheet{
+  position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  background:
+    radial-gradient(circle at 40% 30%,rgba(255,107,139,.18),transparent 45%),
+    radial-gradient(circle at 60% 70%,rgba(112,165,255,.15),transparent 55%),
+    rgba(4,5,10,.82);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  transition:opacity .5s ease;
+}
+#sheet.hidden{opacity:0;pointer-events:none}
+.card{
+  width:min(100%,360px);
+  border:1px solid rgba(255,255,255,.15);
+  background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+  border-radius:32px;padding:28px 24px 24px;
+  box-shadow:0 30px 100px rgba(0,0,0,.6);text-align:center;
+}
+.eyebrow{color:var(--a);font-size:9.5px;letter-spacing:.32em;margin-bottom:14px;}
+h1{
+  font-size:38px;line-height:1;letter-spacing:.06em;font-weight:250;
+  text-shadow:0 0 30px rgba(255,107,139,.3);
+}
+h1 span{
+  display:block;font-size:13px;letter-spacing:.42em;text-indent:.42em;margin-top:10px;color:var(--dim);
+}
+.card p{
+  margin:22px 0;color:rgba(240,244,255,.78);
+  font-size:12.5px;line-height:1.8;letter-spacing:.06em;
+}
+.start{
+  width:100%;height:54px;border:0;border-radius:18px;
+  background:linear-gradient(135deg,var(--a),var(--b));
+  color:#06070c;font-size:13.5px;font-weight:900;letter-spacing:.2em;
+  box-shadow:0 0 34px rgba(255,107,139,.25);
+}
+.guide{margin-top:14px;color:var(--dim);font-size:10px;line-height:1.6;letter-spacing:.06em;}
+
+#toast{
+  position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 88px);
+  transform:translate(-50%,-8px);
+  max-width:88%;padding:10px 16px;border-radius:999px;
+  color:var(--text);background:rgba(8,10,18,.8);border:1px solid var(--line);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  font-size:11.5px;letter-spacing:.08em;line-height:1.4;text-align:center;
+  opacity:0;transition:.25s ease;pointer-events:none;z-index:12;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-height:720px){
+  #controlPanel{gap:10px;padding:12px;border-radius:22px;}
+  .btn{height:42px;border-radius:12px}
+  #palette{bottom:calc(env(safe-area-inset-bottom) + 150px)}
+  h1{font-size:32px}
+  .card p{margin:14px 0}
+}
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="二重振子シミュレーションキャンバス"></canvas>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <b>CHAOS PENDULUM</b>
+      <span>DOUBLE PENDULUM SIMULATOR</span>
+    </div>
+    <div id="stats">
+      <div class="pill"><b id="energyPill">0.00</b>ENERGY</div>
+      <div class="pill"><b id="trailPill">0</b>TRAIL/PARTICLES</div>
+    </div>
+  </header>
+
+  <div id="hint">画面タップで外力を加える。長押しで軌跡リセット。</div>
+
+  <div id="controlPanel">
+    <div class="sliders">
+      <div class="sRow">
+        <label>LENGTH 1</label>
+        <input type="range" id="l1Input" min="50" max="200" value="120">
+        <output id="l1Out">120</output>
+      </div>
+      <div class="sRow">
+        <label>LENGTH 2</label>
+        <input type="range" id="l2Input" min="50" max="200" value="100">
+        <output id="l2Out">100</output>
+      </div>
+      <div class="sRow">
+        <label>MASS 1</label>
+        <input type="range" id="m1Input" min="10" max="100" value="40">
+        <output id="m1Out">40</output>
+      </div>
+      <div class="sRow">
+        <label>MASS 2</label>
+        <input type="range" id="m2Input" min="10" max="100" value="30">
+        <output id="m2Out">30</output>
+      </div>
+    </div>
+    <div id="toolbar">
+      <button class="btn on" id="playBtn" aria-label="再生">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        再生
+      </button>
+      <button class="btn" id="trailBtn" aria-label="軌跡">
+        <svg viewBox="0 0 24 24"><path d="M12 2.5a5.5 5.5 0 0 0-3.096 10.124A7.001 7.001 0 0 0 2 19.5V21h20v-1.5a7.001 7.001 0 0 0-6.904-6.876A5.5 5.5 0 0 0 12 2.5zm0 2a3.5 3.5 0 0 1 3.5 3.5c0 1.905-1.423 3.477-3.266 3.66l-.234.016A3.5 3.5 0 0 1 8.5 8.5c0-1.933 1.567-3.5 3.5-3.5z"/></svg>
+        軌跡表示
+      </button>
+      <button class="btn accent" id="colorBtn" aria-label="カラー">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.35a6.01 6.01 0 0 1-5.65 4.35 6 6 0 0 1-5.06-2.82A6 6 0 0 1 6 12a6 6 0 0 1 3.2-5.32A8.93 8.93 0 0 0 12 3z"/></svg>
+        色彩
+      </button>
+      <button class="btn" id="soundBtn" aria-label="サウンド">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.74 2.5-2.26 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        音響
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="palette">
+  <button class="swatch cur" data-p="0" style="background:linear-gradient(135deg,#ff6b8b,#70a5ff)"></button>
+  <button class="swatch" data-p="1" style="background:linear-gradient(135deg,#70a5ff,#5fffb3)"></button>
+  <button class="swatch" data-p="2" style="background:linear-gradient(135deg,#ffd25f,#ff6b8b)"></button>
+  <button class="swatch" data-p="3" style="background:linear-gradient(135deg,#5fffb3,#ffd25f)"></button>
+  <button class="swatch" data-p="4" style="background:linear-gradient(135deg,#ffffff,#8491bd)"></button>
+</div>
+
+<div id="sheet">
+  <div class="card">
+    <div class="eyebrow">CHAOS & SOUND LAB</div>
+    <h1>CHAOS<br>PENDULUM<span>カオスの振り子</span></h1>
+    <p>
+      二重振子の物理方程式（Runge-Kutta法）をリアルタイム演算。<br>
+      カオスの軌跡と、運動エネルギーに呼応するサイン・ウェーブの共鳴をお楽しみください。
+    </p>
+    <button class="start" id="startBtn">はじめる</button>
+    <div class="guide">タップ：外力追加 ／ 長押し：軌跡リセット ／ 色彩：カラーテーマ変更</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(()=>{"use strict";
+
+const $=id=>document.getElementById(id);
+const canvas=$("stage");
+const ctx=canvas.getContext("2d",{alpha:false});
+
+let W=0,H=0,DPR=1;
+let G=9.81;
+let l1=120,l2=100,m1=40,m2=30;
+let theta1=Math.PI/2,theta2=Math.PI/2;
+let omega1=0,omega2=0;
+let playing=true,showTrail=true,soundOn=true;
+let colorTheme=0;
+let trail=[];
+const maxTrail=800;
+let originX=0,originY=0;
+let audio=null,lastSoundEnergy=0;
+let pressTimer=null;
+
+const themes=[
+  ["#ff6b8b","#70a5ff"],
+  ["#70a5ff","#5fffb3"],
+  ["#ffd25f","#ff6b8b"],
+  ["#5fffb3","#ffd25f"],
+  ["#ffffff","#8491bd"]
+];
+
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  W=innerWidth;H=innerHeight;
+  canvas.width=Math.round(W*DPR);
+  canvas.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  originX=W/2;
+  originY=H*0.42;
+}
+addEventListener("resize",()=>{setTimeout(resize,80)},{passive:true});
+resize();
+
+function initAudio(){
+  if(audio)return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    audio=new AC();
+    audio.gain=audio.createGain();
+    audio.gain.gain.value=0.08;
+    audio.gain.connect(audio.destination);
+  }catch(e){}
+}
+function playTone(freq,dur=0.1){
+  if(!soundOn || !audio)return;
+  try{
+    if(audio.state==="suspended")audio.resume();
+    const osc=audio.createOscillator();
+    osc.type="sine";
+    osc.frequency.setValueAtTime(freq,audio.currentTime);
+    osc.connect(audio.gain);
+    osc.start(audio.currentTime);
+    osc.stop(audio.currentTime+dur);
+  }catch(e){}
+}
+
+function derivs(t1, t2, w1, w2){
+  const num1 = -G * (2 * m1 + m2) * Math.sin(t1) - m2 * G * Math.sin(t1 - 2 * t2) - 2 * Math.sin(t1 - t2) * m2 * (w2 * w2 * l2 + w1 * w1 * l1 * Math.cos(t1 - t2));
+  const den1 = l1 * (2 * m1 + m2 - m2 * Math.cos(2 * t1 - 2 * t2));
+  const alpha1 = num1 / den1;
+
+  const num2 = 2 * Math.sin(t1 - t2) * (w1 * w1 * l1 * (m1 + m2) + G * (m1 + m2) * Math.cos(t1) + w2 * w2 * l2 * m2 * Math.cos(t1 - t2));
+  const den2 = l2 * (2 * m1 + m2 - m2 * Math.cos(2 * t1 - 2 * t2));
+  const alpha2 = num2 / den2;
+
+  return [w1, alpha1, w2, alpha2];
+}
+
+function rk4Step(dt){
+  const [dw1_1, dw2_1, dw4_1, dw4_2] = derivs(theta1, theta2, omega1, omega2);
+  
+  const t1_2 = theta1 + dw1_1 * dt/2;
+  const t2_2 = theta2 + dw2_1 * dt/2;
+  const w1_2 = omega1 + dw4_1 * dt/2;
+  const w2_2 = omega2 + dw4_2 * dt/2;
+  
+  const [dw1_2, dw2_2, dw4_3, dw4_4] = derivs(t1_2, t2_2, w1_2, w2_2);
+  
+  const t1_3 = theta1 + dw1_2 * dt/2;
+  const t2_3 = theta2 + dw2_2 * dt/2;
+  const w1_3 = omega1 + dw4_3 * dt/2;
+  const w2_3 = omega2 + dw4_4 * dt/2;
+  
+  const [dw1_3, dw2_3, dw4_5, dw4_6] = derivs(t1_3, t2_3, w1_3, w2_3);
+  
+  const t1_4 = theta1 + dw1_3 * dt;
+  const t2_4 = theta2 + dw2_3 * dt;
+  const w1_4 = omega1 + dw4_5 * dt;
+  const w2_4 = omega2 + dw4_6 * dt;
+  
+  const [dw1_4, dw2_4, dw4_7, dw4_8] = derivs(t1_4, t2_4, w1_4, w2_4);
+  
+  theta1 += (dw1_1 + 2*dw1_2 + 2*dw1_3 + dw1_4) * dt/6;
+  theta2 += (dw2_1 + 2*dw2_2 + 2*dw2_3 + dw2_4) * dt/6;
+  omega1 += (dw4_1 + 2*dw4_3 + 2*dw4_5 + dw4_7) * dt/6;
+  omega2 += (dw4_2 + 2*dw4_4 + 2*dw4_6 + dw4_8) * dt/6;
+}
+
+function updatePhysics(){
+  if(!playing)return;
+  for(let i=0;i<3;i++){
+    rk4Step(0.012/3);
+  }
+
+  const x1 = originX + l1 * Math.sin(theta1);
+  const y1 = originY + l1 * Math.cos(theta1);
+  const x2 = x1 + l2 * Math.sin(theta2);
+  const y2 = y1 + l2 * Math.cos(theta2);
+
+  if(showTrail){
+    trail.push({x:x2,y:y2});
+    if(trail.length>maxTrail)trail.shift();
+  }else{
+    trail=[];
+  }
+
+  const v1 = Math.hypot(omega1*l1, 0);
+  const v2 = Math.hypot(omega1*l1*Math.cos(theta1)+omega2*l2*Math.cos(theta2), -omega1*l1*Math.sin(theta1)-omega2*l2*Math.sin(theta2));
+  const energy = 0.5 * m1 * v1*v1 + 0.5 * m2 * v2*v2 + m1 * G * (l1 - l1*Math.cos(theta1)) + m2 * G * (l1 + l2 - l1*Math.cos(theta1) - l2*Math.cos(theta2));
+
+  if(soundOn && Math.abs(omega2)>0.2){
+    const eNorm = Math.min(1, energy/25000);
+    if(Math.abs(eNorm-lastSoundEnergy)>0.05){
+      playTone(110 + eNorm*440, 0.08);
+      lastSoundEnergy=eNorm;
+    }
+  }
+
+  $("energyPill").textContent=(energy/1000).toFixed(2);
+  $("trailPill").textContent=trail.length;
+}
+
+function render(){
+  ctx.fillStyle="#06070c";
+  ctx.fillRect(0,0,W,H);
+
+  if(showTrail && trail.length>1){
+    ctx.beginPath();
+    ctx.moveTo(trail[0].x,trail[0].y);
+    for(let i=1;i<trail.length;i++){
+      ctx.lineTo(trail[i].x,trail[i].y);
+    }
+    ctx.strokeStyle=themes[colorTheme][0];
+    ctx.lineWidth=1.5;
+    ctx.globalAlpha=0.4;
+    ctx.stroke();
+    ctx.globalAlpha=1.0;
+  }
+
+  const x1 = originX + l1 * Math.sin(theta1);
+  const y1 = originY + l1 * Math.cos(theta1);
+  const x2 = x1 + l2 * Math.sin(theta2);
+  const y2 = y1 + l2 * Math.cos(theta2);
+
+  ctx.strokeStyle="rgba(255,255,255,.3)";
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(originX,originY);ctx.lineTo(x1,y1);
+  ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+  ctx.stroke();
+
+  ctx.fillStyle=themes[colorTheme][0];
+  ctx.beginPath();ctx.arc(originX,originY,4,0,Math.PI*2);ctx.fill();
+
+  ctx.fillStyle=themes[colorTheme][1];
+  ctx.beginPath();ctx.arc(x1,y1,m1*0.18,0,Math.PI*2);ctx.fill();
+
+  ctx.fillStyle=themes[colorTheme][0];
+  ctx.beginPath();ctx.arc(x2,y2,m2*0.18,0,Math.PI*2);ctx.fill();
+}
+
+function loop(){
+  updatePhysics();
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function getXY(e){
+  const r=canvas.getBoundingClientRect();
+  return {x:e.clientX-r.left,y:e.clientY-r.top};
+}
+
+addEventListener("pointerdown",e=>{
+  if(e.clientY > innerHeight*0.75)return;
+  initAudio();
+  const {x,y}=getXY(e);
+  const dx=x-originX,dy=y-originY;
+  omega1 += dx*0.0005;
+  omega2 += dy*0.0005;
+
+  clearTimeout(pressTimer);
+  pressTimer=setTimeout(()=>{
+    trail=[];
+    toast("軌跡をリセットしました");
+  },600);
+});
+addEventListener("pointerup",()=>{clearTimeout(pressTimer)});
+addEventListener("pointercancel",()=>{clearTimeout(pressTimer)});
+
+function bindRange(id,prop,maxVal){
+  const el=$(id);
+  el.oninput=()=>{
+    const v=+el.value;
+    $(id+"Out").textContent=v;
+    if(prop==='l1')l1=v;
+    if(prop==='l2')l2=v;
+    if(prop==='m1')m1=v;
+    if(prop==='m2')m2=v;
+  };
+}
+bindRange("#l1Input",'l1');
+bindRange("#l2Input",'l2');
+bindRange("#m1Input",'m1');
+bindRange("#m2Input",'m2');
+
+$("playBtn").onclick=()=>{
+  playing=!playing;
+  $("playBtn").classList.toggle("on",playing);
+  $("playBtn").innerHTML=playing?'<svg viewBox="0 0 24 24"><path d="M6 5h3.6v14H6zM13.4 5H17v14h-3.6z"/></svg> 再生':'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> 停止';
+  if(!playing)toast("シミュレーションを一時停止しました");
+  else toast("シミュレーションを再開しました");
+};
+$("trailBtn").onclick=()=>{
+  showTrail=!showTrail;
+  $("trailBtn").classList.toggle("on",showTrail);
+  if(!showTrail)trail=[];
+  toast(`軌跡表示を ${showTrail?'オン':'オフ'} にしました`);
+};
+$("colorBtn").onclick=()=>{
+  colorTheme=(colorTheme+1)%themes.length;
+  toast(`カラーテーマ ${colorTheme+1} に変更`);
+};
+$("soundBtn").onclick=()=>{
+  soundOn=!soundOn;
+  initAudio();
+  $("soundBtn").classList.toggle("on",soundOn);
+  toast(`音響共鳴を ${soundOn?'オン':'オフ'} にしました`);
+};
+$("startBtn").onclick=()=>{
+  $("sheet").classList.add("hidden");
+  initAudio();
+  toast("カオスシミュレーション開始",2000);
+};
+
+function toast(text,time=1500){
+  const t=$("toast");t.textContent=text;t.classList.add("show");
+  clearTimeout(t.timer);t.timer=setTimeout(()=>t.classList.remove("show"),time);
+}
+
+})();
+</script>
+</body>
+</html>
