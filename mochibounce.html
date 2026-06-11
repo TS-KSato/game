@@ -158,7 +158,6 @@ const AudioSys = (() => {
     bgmGain.gain.value = 0.08;
     bgmGain.connect(masterGain);
     
-    // Simple procedural arpeggio
     const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
     let step = 0;
     
@@ -178,7 +177,7 @@ const AudioSys = (() => {
       osc.stop(t + 0.2);
       
       step++;
-      setTimeout(playNext, 200); // 16th notes at roughly 150 BPM
+      setTimeout(playNext, 200); 
     };
     playNext();
   };
@@ -238,7 +237,7 @@ const Game = (() => {
   const MAX_DRAW_DIST = 250;
   
   // Entities
-  let player;
+  let player = null;
   let lines = [];
   let stars = [];
   let enemies = [];
@@ -300,7 +299,6 @@ const Game = (() => {
       if (this.x > W - this.radius) { this.x = W - this.radius; this.vx *= -0.8; }
     }
     draw(ctx) {
-      // Squash and stretch based on velocity
       const speed = Math.hypot(this.vx, this.vy);
       const angle = Math.atan2(this.vy, this.vx);
       
@@ -323,12 +321,11 @@ const Game = (() => {
       ctx.lineWidth = 2;
       ctx.stroke();
       
-      // Eyes (looking towards velocity, un-rotate first to keep them horizontal-ish relative to world, 
-      // or just let them rotate for cartoon effect. Let's let them rotate but shift pupil)
-      ctx.rotate(-angle); // Reset rotation for face
+      // Eyes (Reset rotation to keep face horizontal)
+      ctx.rotate(-angle); 
       
       const lookX = (this.vx / 10) * 3;
-      const lookY = Math.min((this.vy / 10) * 3, 5); // Don't look too far down
+      const lookY = Math.min((this.vy / 10) * 3, 5);
       
       // Whites
       ctx.fillStyle = '#fff';
@@ -373,7 +370,7 @@ const Game = (() => {
 
   const initGame = () => {
     player = new Player(W/2, H/2 - 100);
-    player.vy = -8; // initial pop
+    player.vy = -8; 
     cameraY = 0;
     score = 0;
     lines = [];
@@ -383,7 +380,6 @@ const Game = (() => {
     ptr.active = false;
     ptr.drawEnergy = 1.0;
     
-    // Initial spawn
     for(let i=0; i<5; i++) {
       stars.push({ x: Math.random()*(W-40)+20, y: H/2 - i*150, radius: 10, collected: false });
     }
@@ -429,7 +425,7 @@ const Game = (() => {
     if (state !== 'PLAYING') return;
     const p = getPointerPos(e);
     ptr.active = true;
-    ptr.startX = p.x; ptr.startY = p.y + cameraY; // Store in world coordinates
+    ptr.startX = p.x; ptr.startY = p.y + cameraY;
     ptr.x = p.x; ptr.y = p.y + cameraY;
     AudioSys.playDraw();
   };
@@ -439,7 +435,6 @@ const Game = (() => {
     const p = getPointerPos(e);
     ptr.x = p.x; ptr.y = p.y + cameraY;
     
-    // Calculate length and limit it
     const dx = ptr.x - ptr.startX;
     const dy = ptr.y - ptr.startY;
     const dist = Math.hypot(dx, dy);
@@ -460,16 +455,13 @@ const Game = (() => {
     const dist = Math.hypot(dx, dy);
     
     if (dist > 20) {
-      // Create line
       lines.push({
         x1: ptr.startX, y1: ptr.startY,
         x2: ptr.x, y2: ptr.y,
-        life: 1.0 // Fades out over time
+        life: 1.0
       });
-      // Keep only last 3 lines
       if (lines.length > 3) lines.shift();
       
-      // Consume energy
       ptr.drawEnergy = Math.max(0, ptr.drawEnergy - (dist / MAX_DRAW_DIST));
       spawnParticles(ptr.x, ptr.y - cameraY, '#00f5d4', 5, 2, 2);
     }
@@ -484,16 +476,14 @@ const Game = (() => {
 
   // --- World Generation ---
   const generateWorld = () => {
-    // Generate chunks ahead of camera
     const highestEntityY = Math.min(
       stars.length > 0 ? stars[stars.length-1].y : 0,
       enemies.length > 0 ? enemies[enemies.length-1].y : 0
     );
     
     if (highestEntityY > cameraY - H - 500) {
-      // Spawn new stuff
       const spawnY = highestEntityY - (Math.random() * 100 + 100);
-      const isEnemy = Math.random() < Math.min(0.3 + (score / 5000), 0.7); // Difficulty scaling
+      const isEnemy = Math.random() < Math.min(0.3 + (score / 5000), 0.7); 
       
       if (isEnemy && score > 200) {
         enemies.push({ x: Math.random()*(W-60)+30, y: spawnY, radius: 15, rot: 0 });
@@ -502,21 +492,18 @@ const Game = (() => {
       }
     }
     
-    // Cleanup off-screen (below screen)
     stars = stars.filter(s => s.y < cameraY + H + 100 && !s.collected);
     enemies = enemies.filter(e => e.y < cameraY + H + 100);
   };
 
   // --- Collision Math ---
   const lineCircleCollide = (line, circle) => {
-    // Vector from line start to end
     const ldx = line.x2 - line.x1;
     const ldy = line.y2 - line.y1;
     const lenSq = ldx*ldx + ldy*ldy;
     
-    // Project circle center onto line
     let t = ((circle.x - line.x1)*ldx + (circle.y - line.y1)*ldy) / lenSq;
-    t = Math.max(0, Math.min(1, t)); // Clamp to segment
+    t = Math.max(0, Math.min(1, t)); 
     
     const closestX = line.x1 + t * ldx;
     const closestY = line.y1 + t * ldy;
@@ -539,41 +526,36 @@ const Game = (() => {
       return;
     }
 
-    // Energy recharge
     if (!ptr.active) {
       ptr.drawEnergy = Math.min(1.0, ptr.drawEnergy + dt * 0.4);
     }
     uiEnergyBar.style.transform = `scaleX(${ptr.drawEnergy})`;
 
-    player.update(dt);
+    if(player) player.update(dt);
     
-    // Update Lines & Collision
     for (let i = lines.length - 1; i >= 0; i--) {
       let l = lines[i];
-      l.life -= dt * 0.5; // lines fade over 2 seconds
+      l.life -= dt * 0.5; 
       if (l.life <= 0) {
         lines.splice(i, 1);
         continue;
       }
       
+      if (!player) continue;
+
       const col = lineCircleCollide(l, player);
-      // Only bounce if moving downwards relative to normal
       const dotProduct = player.vx * col.nx + player.vy * col.ny;
       
       if (col.hit && dotProduct < 0) {
-        // Resolve position
         player.x += col.nx * col.overlap;
         player.y += col.ny * col.overlap;
         
-        // Reflect velocity and add bounce impulse
-        const bounceForce = 12; // Base bounce upward
+        const bounceForce = 12; 
         player.vx = player.vx - 2 * dotProduct * col.nx;
         player.vy = player.vy - 2 * dotProduct * col.ny;
         
-        // Ensure upward momentum
         player.vy -= bounceForce * Math.abs(col.ny);
         
-        // Cap speed
         const speed = Math.hypot(player.vx, player.vy);
         if (speed > 20) {
           player.vx = (player.vx / speed) * 20;
@@ -582,61 +564,53 @@ const Game = (() => {
 
         AudioSys.playBounce();
         spawnParticles(col.cx, col.cy - cameraY, '#ffffff', 8, 4, 3);
-        
-        // Visual feedback on line
         l.hitGlow = 1.0;
-        // Optional: consume line upon hard bounce
-        // l.life = 0; 
       }
     }
 
-    // Star Collision
-    stars.forEach(s => {
-      if(s.collected) return;
-      const dx = player.x - s.x;
-      const dy = player.y - s.y;
-      if (dx*dx + dy*dy < (player.radius + s.radius)**2) {
-        s.collected = true;
-        ptr.drawEnergy = Math.min(1.0, ptr.drawEnergy + 0.3); // refill energy
-        score += 10;
+    if(player) {
+      stars.forEach(s => {
+        if(s.collected) return;
+        const dx = player.x - s.x;
+        const dy = player.y - s.y;
+        if (dx*dx + dy*dy < (player.radius + s.radius)**2) {
+          s.collected = true;
+          ptr.drawEnergy = Math.min(1.0, ptr.drawEnergy + 0.3); 
+          score += 10;
+          uiScore.textContent = score;
+          AudioSys.playCoin();
+          spawnParticles(s.x, s.y - cameraY, '#ffd166', 12, 5, 4);
+        }
+      });
+
+      enemies.forEach(e => {
+        e.rot += dt * 2;
+        const dx = player.x - e.x;
+        const dy = player.y - e.y;
+        if (dx*dx + dy*dy < (player.radius + e.radius - 4)**2) {
+          triggerGameOver();
+          spawnParticles(player.x, player.y - cameraY, '#ef233c', 20, 8, 5);
+        }
+      });
+
+      const targetCamY = player.y - H * 0.6; 
+      if (targetCamY < cameraY) {
+        cameraY += (targetCamY - cameraY) * (dt * 5);
+      }
+      
+      const heightScore = Math.floor(Math.max(0, -player.y / 10));
+      if (heightScore > score) {
+        score = heightScore;
         uiScore.textContent = score;
-        AudioSys.playCoin();
-        spawnParticles(s.x, s.y - cameraY, '#ffd166', 12, 5, 4);
       }
-    });
 
-    // Enemy Collision
-    enemies.forEach(e => {
-      e.rot += dt * 2;
-      const dx = player.x - e.x;
-      const dy = player.y - e.y;
-      if (dx*dx + dy*dy < (player.radius + e.radius - 4)**2) {
+      if (player.y > cameraY + H + 50) {
         triggerGameOver();
-        spawnParticles(player.x, player.y - cameraY, '#ef233c', 20, 8, 5);
       }
-    });
-
-    // Camera follow (Lerp)
-    const targetCamY = player.y - H * 0.6; // Keep player lower on screen
-    if (targetCamY < cameraY) {
-      cameraY += (targetCamY - cameraY) * (dt * 5);
-    }
-    
-    // Score based on height
-    const heightScore = Math.floor(Math.max(0, -player.y / 10));
-    if (heightScore > score) {
-      score = heightScore;
-      uiScore.textContent = score;
-    }
-
-    // Death zone (fall off bottom)
-    if (player.y > cameraY + H + 50) {
-      triggerGameOver();
     }
 
     generateWorld();
 
-    // Particles update
     for (let i = particles.length - 1; i >= 0; i--) {
       particles[i].update(dt);
       if (particles[i].life <= 0) particles.splice(i, 1);
@@ -644,13 +618,7 @@ const Game = (() => {
   };
 
   const draw = () => {
-    // Dynamic Background based on score
     const t = Math.min(1.0, score / 3000);
-    // Interpolate between themes
-    const themeIdx = Math.min(themes.length - 2, Math.floor(t * (themes.length - 1)));
-    const localT = (t * (themes.length - 1)) % 1;
-    
-    // Simple gradient for performance
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#111827');
     grad.addColorStop(1, '#374151');
@@ -659,13 +627,11 @@ const Game = (() => {
 
     ctx.save();
     
-    // Screen shake
     if (shakeTime > 0) {
       const mag = shakeTime * 20;
       ctx.translate((Math.random()-0.5)*mag, (Math.random()-0.5)*mag);
     }
 
-    // Draw active drawing line
     if (ptr.active) {
       const dx = ptr.x - ptr.startX;
       const dy = ptr.y - ptr.startY;
@@ -683,21 +649,18 @@ const Game = (() => {
         const angle = Math.atan2(dy, dx);
         endX = ptr.startX + Math.cos(angle) * maxD;
         endY = ptr.startY + Math.sin(angle) * maxD;
-        ctx.strokeStyle = `rgba(239, 35, 60, 0.6)`; // Turn red if stretched to limit
+        ctx.strokeStyle = `rgba(239, 35, 60, 0.6)`; 
       }
       ctx.lineTo(endX, endY - cameraY);
       ctx.stroke();
       ctx.setLineDash([]);
     }
 
-    // Apply Camera translation for world objects
     ctx.translate(0, -cameraY);
 
-    // Draw Lines
     lines.forEach(l => {
       ctx.lineCap = 'round';
       
-      // Base line
       ctx.strokeStyle = `rgba(0, 245, 212, ${l.life})`;
       ctx.lineWidth = 6;
       ctx.beginPath();
@@ -705,7 +668,6 @@ const Game = (() => {
       ctx.lineTo(l.x2, l.y2);
       ctx.stroke();
       
-      // Hit flash
       if (l.hitGlow > 0) {
         ctx.strokeStyle = `rgba(255, 255, 255, ${l.hitGlow * l.life})`;
         ctx.lineWidth = 12;
@@ -714,7 +676,6 @@ const Game = (() => {
       }
     });
 
-    // Draw Stars
     stars.forEach(s => {
       if(s.collected) return;
       ctx.fillStyle = '#ffd166';
@@ -722,7 +683,6 @@ const Game = (() => {
       ctx.translate(s.x, s.y);
       ctx.rotate(performance.now() * 0.002);
       
-      // Draw 5-point star
       ctx.beginPath();
       for(let i=0; i<5; i++) {
         ctx.lineTo(Math.cos((18 + i*72)*Math.PI/180)*s.radius, -Math.sin((18 + i*72)*Math.PI/180)*s.radius);
@@ -733,17 +693,14 @@ const Game = (() => {
       ctx.restore();
     });
 
-    // Draw Enemies (Spiky balls)
     enemies.forEach(e => {
       ctx.save();
       ctx.translate(e.x, e.y);
       ctx.rotate(e.rot);
       
-      // Core
       ctx.fillStyle = '#2b2d42';
       ctx.beginPath(); ctx.arc(0, 0, e.radius, 0, Math.PI*2); ctx.fill();
       
-      // Spikes
       ctx.fillStyle = '#ef233c';
       for(let i=0; i<8; i++) {
         const a = (i/8) * Math.PI*2;
@@ -756,20 +713,19 @@ const Game = (() => {
       ctx.restore();
     });
 
-    // Draw Player
-    if (state !== 'GAMEOVER') {
+    // プレイヤーが存在し、プレイ中の場合のみ描画する（バグ修正箇所）
+    if (player && state === 'PLAYING') {
       player.draw(ctx);
     }
 
-    ctx.restore(); // Undo camera translation to draw screen-space particles
+    ctx.restore(); 
 
-    // Draw Particles (in screen space for simplicity of translation logic above)
     particles.forEach(p => p.draw(ctx));
   };
 
   const loop = (timestamp) => {
     let dt = (timestamp - lastTime) / 1000;
-    if (dt > 0.1) dt = 0.016; // Cap dt for lag spikes
+    if (dt > 0.1) dt = 0.016; 
     lastTime = timestamp;
 
     update(dt);
@@ -778,7 +734,6 @@ const Game = (() => {
     requestAnimationFrame(loop);
   };
 
-  // Setup Event Listeners for UI
   document.getElementById('btn-start').addEventListener('click', initGame);
   document.getElementById('btn-retry').addEventListener('click', initGame);
 
@@ -791,7 +746,6 @@ const Game = (() => {
   };
 })();
 
-// Boot
 window.onload = Game.start;
 
 </script>
