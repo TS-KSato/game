@@ -29,7 +29,7 @@
   h1 span { display: block; font-size: 16px; color: var(--star); letter-spacing: 4px; margin-top: 4px; }
   .subtitle { color: #edf2f4; font-size: 14px; margin-bottom: 40px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); text-align: center; line-height: 1.5; }
   
-  .btn { pointer-events: auto; background: linear-gradient(135deg, var(--star), #ffb703); border: none; padding: 16px 40px; border-radius: 99px; color: #854d0e; font-size: 20px; font-weight: 900; box-shadow: 0 8px 0 #d97706, 0 15px 20px rgba(0,0,0,0.3); transition: transform 0.1s, box-shadow 0.1s; display: flex; align-items: center; gap: 8px; }
+  .btn { pointer-events: auto; background: linear-gradient(135deg, var(--star), #ffb703); border: none; padding: 16px 40px; border-radius: 99px; color: #854d0e; font-size: 20px; font-weight: 900; box-shadow: 0 8px 0 #d97706, 0 15px 20px rgba(0,0,0,0.3); transition: transform 0.1s, box-shadow 0.1s; display: flex; align-items: center; gap: 8px; cursor: pointer; }
   .btn:active { transform: translateY(8px); box-shadow: 0 0px 0 #d97706, 0 5px 10px rgba(0,0,0,0.3); }
   .btn svg { width: 24px; height: 24px; fill: currentColor; }
 
@@ -82,7 +82,7 @@
 
   <div id="title-screen" class="screen active">
     <h1>MOCHI<br>BOUNCE<span>もちバウンス</span></h1>
-    <p class="subtitle">画面をなぞって線を引こう<br>トランポリンで空高く弾ませろ！</p>
+    <p class="subtitle">画面をなぞってトランポリンを描き<br>空高くジャンプさせよう！</p>
     <button class="btn" id="btn-start">
       <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
       PLAY
@@ -118,7 +118,6 @@ const AudioSys = (() => {
   let ctx;
   let masterGain;
   let isMuted = false;
-  let bgmOsc = null;
   let bgmGain = null;
 
   const init = () => {
@@ -158,7 +157,7 @@ const AudioSys = (() => {
     bgmGain.gain.value = 0.08;
     bgmGain.connect(masterGain);
     
-    const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+    const notes = [261.63, 329.63, 392.00, 523.25];
     let step = 0;
     
     const playNext = () => {
@@ -223,7 +222,7 @@ const Game = (() => {
   const uiEnergyBar = document.getElementById('energy-bar');
   
   // Game State
-  let state = 'TITLE'; // TITLE, PLAYING, GAMEOVER
+  let state = 'TITLE';
   let lastTime = 0;
   let score = 0;
   let bestScore = parseInt(localStorage.getItem('mochiBest')) || 0;
@@ -242,13 +241,6 @@ const Game = (() => {
   let stars = [];
   let enemies = [];
   let particles = [];
-  
-  // Colors & Themes based on height
-  const themes = [
-    { bgTop: '#2a1b3d', bgBot: '#44318d' }, // Space
-    { bgTop: '#1a2a6c', bgBot: '#b21f1f' }, // Sunset
-    { bgTop: '#000000', bgBot: '#434343' }  // Deep space
-  ];
 
   class Particle {
     constructor(x, y, color, speed, size) {
@@ -281,13 +273,12 @@ const Game = (() => {
     constructor(x, y) {
       this.x = x; this.y = y;
       this.vx = 0; this.vy = 0;
-      this.radius = 18;
+      this.radius = 20; // すり抜け防止のため少し大きめに設定
       this.color = '#ff99cc';
       this.gravity = 0.4;
-      this.terminalVelocity = 15;
+      this.terminalVelocity = 18;
     }
     update(dt) {
-      // Physics
       this.vy += this.gravity * (dt * 60);
       if (this.vy > this.terminalVelocity) this.vy = this.terminalVelocity;
       
@@ -316,31 +307,30 @@ const Game = (() => {
       ctx.arc(0, 0, this.radius, 0, Math.PI*2);
       ctx.fill();
       
-      // Outer glow
+      // Glow
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.stroke();
       
-      // Eyes (Reset rotation to keep face horizontal)
-      ctx.rotate(-angle); 
+      ctx.rotate(-angle); // 目を水平に保つ
       
       const lookX = (this.vx / 10) * 3;
       const lookY = Math.min((this.vy / 10) * 3, 5);
       
-      // Whites
+      // Eyes
       ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(-6, -4, 5, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(6, -4, 5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(-7, -5, 6, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(7, -5, 6, 0, Math.PI*2); ctx.fill();
       
       // Pupils
       ctx.fillStyle = '#2b2d42';
-      ctx.beginPath(); ctx.arc(-6 + lookX, -4 + lookY, 2.5, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(6 + lookX, -4 + lookY, 2.5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(-7 + lookX, -5 + lookY, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(7 + lookX, -5 + lookY, 3, 0, Math.PI*2); ctx.fill();
       
       // Blush
       ctx.fillStyle = 'rgba(255,0,100,0.3)';
-      ctx.beginPath(); ctx.arc(-10, 2, 3, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(10, 2, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(-12, 3, 4, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(12, 3, 4, 0, Math.PI*2); ctx.fill();
 
       ctx.restore();
     }
@@ -370,7 +360,7 @@ const Game = (() => {
 
   const initGame = () => {
     player = new Player(W/2, H/2 - 100);
-    player.vy = -8; 
+    player.vy = -6; 
     cameraY = 0;
     score = 0;
     lines = [];
@@ -380,6 +370,14 @@ const Game = (() => {
     ptr.active = false;
     ptr.drawEnergy = 1.0;
     
+    // 【改善点2】開始時の安全確保（暗黙のチュートリアルトランポリン）
+    lines.push({
+      x1: W/2 - 90, y1: H/2 + 80,
+      x2: W/2 + 90, y2: H/2 + 80,
+      life: 3.5,
+      hitGlow: 0
+    });
+
     for(let i=0; i<5; i++) {
       stars.push({ x: Math.random()*(W-40)+20, y: H/2 - i*150, radius: 10, collected: false });
     }
@@ -458,7 +456,8 @@ const Game = (() => {
       lines.push({
         x1: ptr.startX, y1: ptr.startY,
         x2: ptr.x, y2: ptr.y,
-        life: 1.0
+        life: 1.5,
+        hitGlow: 0
       });
       if (lines.length > 3) lines.shift();
       
@@ -482,13 +481,13 @@ const Game = (() => {
     );
     
     if (highestEntityY > cameraY - H - 500) {
-      const spawnY = highestEntityY - (Math.random() * 100 + 100);
-      const isEnemy = Math.random() < Math.min(0.3 + (score / 5000), 0.7); 
+      const spawnY = highestEntityY - (Math.random() * 120 + 100);
+      const isEnemy = Math.random() < Math.min(0.2 + (score / 4000), 0.6); 
       
       if (isEnemy && score > 200) {
-        enemies.push({ x: Math.random()*(W-60)+30, y: spawnY, radius: 15, rot: 0 });
+        enemies.push({ x: Math.random()*(W-60)+30, y: spawnY, radius: 16, rot: 0 });
       } else {
-        stars.push({ x: Math.random()*(W-40)+20, y: spawnY, radius: 10, collected: false });
+        stars.push({ x: Math.random()*(W-40)+20, y: spawnY, radius: 12, collected: false });
       }
     }
     
@@ -512,8 +511,9 @@ const Game = (() => {
     const dy = circle.y - closestY;
     const distSq = dx*dx + dy*dy;
     
-    if (distSq < circle.radius * circle.radius) {
+    if (distSq <= circle.radius * circle.radius) {
       const dist = Math.sqrt(distSq);
+      if (dist === 0) return { hit: true, nx: 0, ny: -1, overlap: circle.radius, cx: closestX, cy: closestY };
       return { hit: true, nx: dx/dist, ny: dy/dist, overlap: circle.radius - dist, cx: closestX, cy: closestY };
     }
     return { hit: false };
@@ -526,8 +526,9 @@ const Game = (() => {
       return;
     }
 
+    // 【改善点3】エネルギー回復速度を少し早めて遊びやすく調整
     if (!ptr.active) {
-      ptr.drawEnergy = Math.min(1.0, ptr.drawEnergy + dt * 0.4);
+      ptr.drawEnergy = Math.min(1.0, ptr.drawEnergy + dt * 0.8);
     }
     uiEnergyBar.style.transform = `scaleX(${ptr.drawEnergy})`;
 
@@ -535,7 +536,7 @@ const Game = (() => {
     
     for (let i = lines.length - 1; i >= 0; i--) {
       let l = lines[i];
-      l.life -= dt * 0.5; 
+      l.life -= dt * 0.4; 
       if (l.life <= 0) {
         lines.splice(i, 1);
         continue;
@@ -544,27 +545,43 @@ const Game = (() => {
       if (!player) continue;
 
       const col = lineCircleCollide(l, player);
-      const dotProduct = player.vx * col.nx + player.vy * col.ny;
       
-      if (col.hit && dotProduct < 0) {
-        player.x += col.nx * col.overlap;
-        player.y += col.ny * col.overlap;
+      if (col.hit) {
+        // 【改善点1】すり抜け・トンネリング防止処理の抜本的見直し
+        // 線が引かれた向きに関わらず、必ず「上向き」の法線を計算する
+        const lineDx = l.x2 - l.x1;
+        const lineDy = l.y2 - l.y1;
+        const lineLen = Math.hypot(lineDx, lineDy);
+        let normalX = -lineDy / lineLen;
+        let normalY = lineDx / lineLen;
         
-        const bounceForce = 12; 
-        player.vx = player.vx - 2 * dotProduct * col.nx;
-        player.vy = player.vy - 2 * dotProduct * col.ny;
-        
-        player.vy -= bounceForce * Math.abs(col.ny);
-        
-        const speed = Math.hypot(player.vx, player.vy);
-        if (speed > 20) {
-          player.vx = (player.vx / speed) * 20;
-          player.vy = (player.vy / speed) * 20;
+        // 常に上（Y軸マイナス方向）を向くように法線を反転
+        if (normalY > 0) {
+          normalX = -normalX;
+          normalY = -normalY;
         }
+        
+        // プレイヤーが落下中（vy >= -2 は少しの猶予）であればバウンドを許可
+        if (player.vy >= -2) {
+          // 食い込みの解消
+          player.x += normalX * col.overlap;
+          player.y += normalY * col.overlap;
+          
+          // 固定のバウンド力 + 落下速度に応じた追加パワーで物理演算を安定させる
+          const bounceForce = 13 + (Math.abs(player.vy) * 0.15);
+          
+          // 速度の反射適用
+          player.vx = (player.vx * 0.5) + (normalX * 8);
+          player.vy = -bounceForce * Math.abs(normalY); // 上向きのベクトルに乗算
+          
+          // 爆発防止の速度制限
+          player.vx = Math.max(-16, Math.min(16, player.vx));
+          player.vy = Math.max(-24, Math.min(24, player.vy));
 
-        AudioSys.playBounce();
-        spawnParticles(col.cx, col.cy - cameraY, '#ffffff', 8, 4, 3);
-        l.hitGlow = 1.0;
+          AudioSys.playBounce();
+          spawnParticles(col.cx, col.cy - cameraY, '#ffffff', 10, 4, 3);
+          l.hitGlow = 1.0;
+        }
       }
     }
 
@@ -587,9 +604,9 @@ const Game = (() => {
         e.rot += dt * 2;
         const dx = player.x - e.x;
         const dy = player.y - e.y;
-        if (dx*dx + dy*dy < (player.radius + e.radius - 4)**2) {
+        if (dx*dx + dy*dy < (player.radius + e.radius - 6)**2) {
           triggerGameOver();
-          spawnParticles(player.x, player.y - cameraY, '#ef233c', 20, 8, 5);
+          spawnParticles(player.x, player.y - cameraY, '#ef233c', 25, 8, 5);
         }
       });
 
@@ -618,7 +635,6 @@ const Game = (() => {
   };
 
   const draw = () => {
-    const t = Math.min(1.0, score / 3000);
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#111827');
     grad.addColorStop(1, '#374151');
@@ -661,7 +677,7 @@ const Game = (() => {
     lines.forEach(l => {
       ctx.lineCap = 'round';
       
-      ctx.strokeStyle = `rgba(0, 245, 212, ${l.life})`;
+      ctx.strokeStyle = `rgba(0, 245, 212, ${Math.min(1.0, l.life)})`;
       ctx.lineWidth = 6;
       ctx.beginPath();
       ctx.moveTo(l.x1, l.y1);
@@ -670,7 +686,7 @@ const Game = (() => {
       
       if (l.hitGlow > 0) {
         ctx.strokeStyle = `rgba(255, 255, 255, ${l.hitGlow * l.life})`;
-        ctx.lineWidth = 12;
+        ctx.lineWidth = 14;
         ctx.stroke();
         l.hitGlow -= 0.05;
       }
@@ -713,7 +729,6 @@ const Game = (() => {
       ctx.restore();
     });
 
-    // プレイヤーが存在し、プレイ中の場合のみ描画する（バグ修正箇所）
     if (player && state === 'PLAYING') {
       player.draw(ctx);
     }
