@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="指でなぞって元素を生み出す、落下粒子シミュレーション。砂・水・火・溶岩・酸が互いに反応する小さな世界。">
+<title>ELEMENTS — 元素サンドボックス</title>
+<style>
+:root{
+  --bg:#0c0f16;          /* 深い夜のインク色 */
+  --panel:#141927;       /* パネル */
+  --panel-2:#1b2133;
+  --line:#262e44;
+  --text:#e8ecf6;
+  --text-dim:#8b93ab;
+  --sand:#deba62;
+  --water:#3a78e8;
+  --fire:#ff7a2f;
+  --plant:#46b25a;
+  --acid:#9ce03c;
+  --lava:#ef5a28;
+  --oil:#9c7a3e;
+  --wall:#6b7280;
+  --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,sans-serif;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  touch-action:manipulation;
+  display:flex;flex-direction:column;
+}
+/* ───── ヘッダー ───── */
+header{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:calc(8px + env(safe-area-inset-top)) 14px 8px;
+  background:linear-gradient(180deg,#10141f 0%,#0c0f16 100%);
+  border-bottom:1px solid var(--line);
+  z-index:5;
+}
+.brand{min-width:0}
+.brand h1{
+  font-size:15px;font-weight:800;letter-spacing:.22em;line-height:1.1;
+}
+.brand h1 .jp{font-size:10px;font-weight:600;letter-spacing:.14em;color:var(--text-dim);margin-left:6px}
+.stats{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:10px;color:var(--text-dim);margin-top:2px;letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;
+}
+.hbtns{display:flex;gap:6px;flex-shrink:0}
+.icon-btn{
+  width:40px;height:40px;border-radius:12px;border:1px solid var(--line);
+  background:var(--panel);color:var(--text);font-size:17px;line-height:1;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:transform .12s,background .12s;
+}
+.icon-btn:active{transform:scale(.92);background:var(--panel-2)}
+.icon-btn[aria-pressed="true"]{background:#26304d;border-color:#3a4a78}
+/* ───── キャンバス ───── */
+#stage{position:relative;flex:1;min-height:0;background:var(--bg)}
+#sim{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+  image-rendering:pixelated;image-rendering:crisp-edges;
+  touch-action:none;
+}
+#stage::after{ /* 静かなビネット */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 35%,transparent 60%,rgba(0,0,0,.35) 100%);
+}
+#toast{
+  position:absolute;left:50%;bottom:14px;transform:translateX(-50%) translateY(8px);
+  background:rgba(16,20,32,.92);border:1px solid var(--line);border-radius:999px;
+  padding:7px 16px;font-size:12px;color:var(--text);opacity:0;
+  transition:opacity .25s,transform .25s;pointer-events:none;white-space:nowrap;z-index:4;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ───── 下部コントロール ───── */
+#controls{
+  background:linear-gradient(180deg,#0c0f16 0%,#10141f 100%);
+  border-top:1px solid var(--line);
+  padding:10px 0 calc(10px + env(safe-area-inset-bottom));
+  z-index:5;
+}
+#chips{
+  display:flex;gap:8px;overflow-x:auto;padding:2px 14px 10px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+#chips::-webkit-scrollbar{display:none}
+.chip{
+  flex:0 0 auto;min-width:62px;height:58px;border-radius:var(--radius);
+  border:1px solid var(--line);background:var(--panel);color:var(--text);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-size:11px;font-weight:600;cursor:pointer;
+  transition:transform .12s,border-color .12s,box-shadow .12s,background .12s;
+}
+.chip .dot{width:14px;height:14px;border-radius:50%;background:var(--c)}
+.chip[aria-pressed="true"]{
+  border-color:var(--c);background:var(--panel-2);
+  box-shadow:0 0 0 1px var(--c),0 0 14px color-mix(in srgb,var(--c) 45%,transparent);
+}
+.chip:active{transform:scale(.94)}
+#brush-row{display:flex;align-items:center;gap:12px;padding:0 16px}
+#brush-row label{font-size:11px;color:var(--text-dim);font-weight:600;flex-shrink:0}
+#brush{
+  flex:1;-webkit-appearance:none;appearance:none;height:30px;background:transparent;
+}
+#brush::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:var(--line)}
+#brush::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:50%;
+  background:var(--text);border:5px solid var(--panel);margin-top:-11px;
+  box-shadow:0 1px 4px rgba(0,0,0,.5);
+}
+#brush::-moz-range-track{height:6px;border-radius:3px;background:var(--line)}
+#brush::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--text);border:none}
+#brush-size{
+  font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--text-dim);
+  min-width:2.4em;text-align:right;font-variant-numeric:tabular-nums;
+}
+/* ───── ヘルプオーバーレイ ───── */
+#help{
+  position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+  background:rgba(6,8,13,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  opacity:1;transition:opacity .3s;padding:20px;
+}
+#help.hidden{opacity:0;pointer-events:none}
+.help-card{
+  width:min(92vw,360px);background:var(--panel);border:1px solid var(--line);
+  border-radius:20px;padding:24px 22px;text-align:center;
+  box-shadow:0 18px 50px rgba(0,0,0,.55);
+}
+.help-card h2{font-size:20px;font-weight:800;letter-spacing:.18em}
+.help-card .sub{font-size:12px;color:var(--text-dim);margin:6px 0 16px}
+.rules{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px;text-align:left;
+}
+.rule{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+  padding:9px 10px;font-size:12px;line-height:1.45;
+}
+.rule b{display:block;font-size:13px;margin-bottom:1px}
+#start-btn{
+  width:100%;height:50px;border:none;border-radius:14px;cursor:pointer;
+  background:linear-gradient(135deg,var(--fire),#ffae3d);color:#1a0d00;
+  font-size:16px;font-weight:800;letter-spacing:.1em;
+  box-shadow:0 6px 20px rgba(255,122,47,.35);transition:transform .12s;
+}
+#start-btn:active{transform:scale(.96)}
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>ELEMENTS<span class="jp">元素サンドボックス</span></h1>
+    <div class="stats" id="stats" aria-live="off">— fps · — 粒子</div>
+  </div>
+  <div class="hbtns">
+    <button class="icon-btn" id="btn-pause" aria-label="一時停止 / 再開" aria-pressed="false">⏸</button>
+    <button class="icon-btn" id="btn-clear" aria-label="全消去">🗑</button>
+    <button class="icon-btn" id="btn-shot"  aria-label="画像として保存">📷</button>
+    <button class="icon-btn" id="btn-help"  aria-label="あそびかた">？</button>
+  </div>
+</header>
+
+<div id="stage">
+  <canvas id="sim" aria-label="粒子シミュレーション画面。指でなぞると選択中の元素が現れます。"></canvas>
+  <div id="toast" role="status"></div>
+</div>
+
+<div id="controls">
+  <div id="chips" role="radiogroup" aria-label="元素の選択"></div>
+  <div id="brush-row">
+    <label for="brush">ふで</label>
+    <input type="range" id="brush" min="1" max="14" value="4" aria-label="ブラシの太さ">
+    <span id="brush-size">4</span>
+  </div>
+</div>
+
+<div id="help">
+  <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <h2 id="help-title">ELEMENTS</h2>
+    <p class="sub">指でなぞって元素を描こう。元素どうしは勝手に反応する。</p>
+    <div class="rules">
+      <div class="rule"><b>🔥 × 🛢</b>油はよく燃える</div>
+      <div class="rule"><b>🔥 × 💧</b>火は蒸気になる</div>
+      <div class="rule"><b>🌋 × 💧</b>冷えて石になる</div>
+      <div class="rule"><b>🧪 酸</b>砂や石を溶かす</div>
+      <div class="rule"><b>🌱 × 💧</b>水を吸って育つ</div>
+      <div class="rule"><b>👆 二本指</b>同時に描ける</div>
+    </div>
+    <button id="start-btn">あそぶ</button>
+  </div>
+</div>
+
+<script>
+(()=>{ 'use strict';
+/* ============================================================
+   ELEMENTS — 落下粒子シミュレーション
+   単一ファイル / 外部依存ゼロ / セルオートマトン物理
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const canvas = $('#sim'), ctx = canvas.getContext('2d');
+
+/* ---- 元素定義 ---------------------------------------------- */
+const E=0, WALL=1, SAND=2, WATER=3, OIL=4, FIRE=5,
+      PLANT=6, ACID=7, LAVA=8, STONE=9, STEAM=10, SMOKE=11;
+
+/* 液体の密度（0 = 液体ではない）大きいほど沈む */
+const DENS = new Float32Array(12);
+DENS[WATER]=2; DENS[ACID]=2; DENS[OIL]=1; DENS[LAVA]=3;
+/* 横方向の流動性（何セルまで滑るか） */
+const DISP = new Uint8Array(12);
+DISP[WATER]=5; DISP[ACID]=4; DISP[OIL]=3; DISP[LAVA]=1;
+
+const rnd = n => (Math.random()*n)|0;
+const initLife = t =>
+  t===FIRE  ? 50+rnd(50)  :
+  t===STEAM ? 120+rnd(80) :
+  t===SMOKE ? 70+rnd(50)  : 0;
+
+/* ---- グリッド ---------------------------------------------- */
+const SCALE = 3;                 // 1セル = 3css px(ピクセルアート風)
+let W=0,H=0, cells,life,shade,updated, img,px32;
+let f=0, stamp=0;                // フレーム番号と更新スタンプ
+
+function allocGrid(){
+  const r = $('#stage').getBoundingClientRect();
+  W = Math.max(60, Math.floor(r.width /SCALE));
+  H = Math.max(80, Math.floor(r.height/SCALE));
+  canvas.width = W; canvas.height = H;
+  const n = W*H;
+  cells   = new Uint8Array(n);
+  life    = new Uint8Array(n);
+  shade   = new Uint8Array(n);
+  updated = new Uint8Array(n);
+  for(let i=0;i<n;i++) shade[i]=rnd(256);
+  img  = ctx.createImageData(W,H);
+  px32 = new Uint32Array(img.data.buffer);
+}
+
+function put(x,y,t){               // シーン構築用(スタンプ無視)
+  if(x<0||x>=W||y<0||y>=H) return;
+  const i=y*W+x;
+  cells[i]=t; life[i]=initLife(t); shade[i]=rnd(256);
+}
+
+/* 起動時のデモシーン：石の堰・水たまり・砂山・水際の草 */
+function buildScene(){
+  const xb = Math.floor(W*0.52);
+  for(let y=H-18;y<H;y++){ put(xb,y,STONE); put(xb+1,y,STONE); }      // 堰
+  for(let y=H-12;y<H-1;y++)                                            // 水
+    for(let x=2;x<xb;x++) if(Math.random()<0.92) put(x,y,WATER);
+  const cx=Math.floor(W*0.78), cy=H-22;                                // 砂山(落下して堆積)
+  for(let dy=-13;dy<=13;dy++)for(let dx=-13;dx<=13;dx++)
+    if(dx*dx+dy*dy<=169 && Math.random()<0.9) put(cx+dx,cy+dy,SAND);
+  for(let k=0;k<5;k++) put(3+k,H-13,PLANT);                            // 草の種
+  put(xb,H-19,PLANT); put(xb+1,H-19,PLANT);
+}
+
+/* ---- セル操作 ---------------------------------------------- */
+function set(i,t,l){
+  cells[i]=t; life[i]=l|0; shade[i]=rnd(256); updated[i]=stamp;
+}
+function swap(i,j){
+  let t=cells[i]; cells[i]=cells[j]; cells[j]=t;
+  t=life[i];  life[i]=life[j];   life[j]=t;
+  t=shade[i]; shade[i]=shade[j]; shade[j]=t;
+  updated[i]=updated[j]=stamp;
+}
+
+/* ---- 各元素の挙動 ------------------------------------------ */
+function stepSand(i,x,y){
+  if(y+1>=H) return;
+  const d=i+W, b=cells[d];
+  if(b===E||b===WATER||b===OIL||b===ACID){ swap(i,d); return; }
+  const dir = Math.random()<.5?-1:1;
+  for(let s=0;s<2;s++){
+    const dx = s===0?dir:-dir, nx=x+dx;
+    if(nx<0||nx>=W) continue;
+    const j=d+dx, c=cells[j];
+    if(c===E||c===WATER||c===OIL||c===ACID){ swap(i,j); return; }
+  }
+}
+
+function stepLiquid(i,x,y,t){
+  /* --- 反応 --- */
+  if(t===LAVA){
+    for(let k=0;k<4;k++){
+      const j = k===0? i-W : k===1? i+W : k===2? i-1 : i+1;
+      if(k===2&&x===0||k===3&&x===W-1||k===0&&y===0||k===1&&y===H-1) continue;
+      const c=cells[j];
+      if(c===WATER){ set(i,STONE,0); set(j,STEAM,140+rnd(60)); return; }
+      if(c===OIL){ set(j,FIRE,90); }
+      else if(c===PLANT&&Math.random()<.4){ set(j,FIRE,70); }
+    }
+    if(Math.random()<.6) return;          // 粘性：動かないことが多い
+  }else if(t===ACID){
+    for(let k=0;k<4;k++){
+      const j = k===0? i-W : k===1? i+W : k===2? i-1 : i+1;
+      if(k===2&&x===0||k===3&&x===W-1||k===0&&y===0||k===1&&y===H-1) continue;
+      const c=cells[j];
+      if((c===SAND||c===PLANT||c===STONE||c===OIL)&&Math.random()<.08){
+        set(j, Math.random()<.18?SMOKE:E, 60+rnd(30));
+        if(Math.random()<.35){ set(i,E,0); return; }   // 酸も消耗する
+      }
+    }
+  }
+  /* --- 移動 --- */
+  const dens=DENS[t];
+  if(y+1<H){
+    const d=i+W, b=cells[d];
+    if(b===E){ swap(i,d); return; }
+    if(b!==t && DENS[b]>0 && DENS[b]<dens && Math.random()<.7){ swap(i,d); return; }
+    const dir = Math.random()<.5?-1:1;
+    for(let s=0;s<2;s++){
+      const dx=s===0?dir:-dir, nx=x+dx;
+      if(nx<0||nx>=W) continue;
+      const j=d+dx, c=cells[j];
+      if(c===E||(c!==t&&DENS[c]>0&&DENS[c]<dens)){ swap(i,j); return; }
+    }
+  }
+  /* 横滑り（水面の平坦化） */
+  const dir = Math.random()<.5?-1:1;
+  let j=i, nx=x;
+  for(let s=0;s<DISP[t];s++){
+    nx+=dir; if(nx<0||nx>=W) break;
+    if(cells[j+dir]!==E) break;
+    j+=dir;
+  }
+  if(j!==i) swap(i,j);
+}
+
+function stepFire(i,x,y){
+  for(let k=0;k<4;k++){
+    const j = k===0? i-W : k===1? i+W : k===2? i-1 : i+1;
+    if(k===2&&x===0||k===3&&x===W-1||k===0&&y===0||k===1&&y===H-1) continue;
+    const c=cells[j];
+    if(c===WATER){ set(i,STEAM,120+rnd(60)); return; }   // 鎮火 → 蒸気
+    if(c===OIL){ set(j,FIRE,90); }
+    else if(c===PLANT&&Math.random()<.3){ set(j,FIRE,70); }
+  }
+  if(--life[i]===0){
+    Math.random()<.45 ? set(i,SMOKE,70+rnd(40)) : set(i,E,0);
+    return;
+  }
+  if(y>0&&cells[i-W]===E){
+    if(Math.random()<.04){ set(i-W,SMOKE,60+rnd(40)); }
+    else if(Math.random()<.2){ swap(i,i-W); return; }
+  }
+}
+
+function stepGas(i,x,y,t){
+  if(--life[i]===0){
+    (t===STEAM&&Math.random()<.35) ? set(i,WATER,0) : set(i,E,0);
+    return;
+  }
+  if(y===0){                                 // 天井：蒸気は時々凝結
+    if(t===STEAM&&Math.random()<.02) set(i,WATER,0);
+    return;
+  }
+  const u=i-W, cu=cells[u];
+  if(cu===E&&Math.random()<.85){ swap(i,u); return; }
+  if(cu===WATER&&Math.random()<.4){ swap(i,u); return; }   // 水中を泡として上昇
+  const dir=Math.random()<.5?-1:1, nx=x+dir;
+  if(nx>=0&&nx<W){
+    if(cells[u+dir]===E&&Math.random()<.5){ swap(i,u+dir); return; }
+    if(cells[i+dir]===E&&Math.random()<.4){ swap(i,i+dir); return; }
+  }
+}
+
+function stepPlant(i,x,y){
+  if(Math.random()<.06){
+    const k=rnd(4);
+    const j = k===0? i-W : k===1? i+W : k===2? i-1 : i+1;
+    if(k===2&&x===0||k===3&&x===W-1||k===0&&y===0||k===1&&y===H-1) return;
+    if(cells[j]===WATER) set(j,PLANT,0);     // 水を吸収して成長
+  }
+}
+
+/* ---- シミュレーション 1ステップ ----------------------------- */
+function step(){
+  f++; stamp=f&255;
+  for(let y=H-1;y>=0;y--){
+    const ltr=(f+y)&1, row=y*W;
+    for(let k=0;k<W;k++){
+      const x = ltr? k : W-1-k;
+      const i = row+x, t=cells[i];
+      if(t===E||t===WALL||t===STONE) continue;
+      if(updated[i]===stamp) continue;
+      switch(t){
+        case SAND:  stepSand(i,x,y); break;
+        case WATER: case OIL: case ACID: case LAVA: stepLiquid(i,x,y,t); break;
+        case FIRE:  stepFire(i,x,y); break;
+        case STEAM: case SMOKE: stepGas(i,x,y,t); break;
+        case PLANT: stepPlant(i,x,y); break;
+      }
+    }
+  }
+}
+
+/* ---- 描画 --------------------------------------------------- */
+const BG = 0xff000000 | (0x16<<16) | (0x0f<<8) | 0x0c;   // #0c0f16
+const rgb=(r,g,b)=> 0xff000000 | (b<<16) | (g<<8) | r;
+let particleCount=0;
+
+function render(){
+  let cnt=0;
+  const n=W*H;
+  for(let i=0;i<n;i++){
+    const t=cells[i];
+    if(t===E){ px32[i]=BG; continue; }
+    cnt++;
+    const s=shade[i];
+    let c;
+    switch(t){
+      case SAND:{ const v=(s&31)-16; c=rgb(222+v,186+v,98+(v>>1)); break; }
+      case WATER:{ const v=(s&15)-8; c=rgb(46+v,116+v,228+v); break; }
+      case OIL:{ const v=(s&15)-8; c=rgb(108+v,84+v,46+(v>>1)); break; }
+      case FIRE:{ const l=life[i]; const g=Math.min(220,70+l*3+(s&15)); c=rgb(255,g,28+(s&15)); break; }
+      case PLANT:{ const v=(s&31)-16; c=rgb(58+(v>>1),168+v,72+(v>>1)); break; }
+      case ACID:{ const v=((s+f*2)&31)-16; c=rgb(146+v,226+(v>>1),52); break; }
+      case LAVA:{ const fl=(s+f*3)&63; c=rgb(206+(fl>>1),66+(fl>>2),22); break; }
+      case STONE:{ const v=(s&15)-8; c=rgb(116+v,114+v,122+v); break; }
+      case WALL:{ const v=(s&7)-4; c=rgb(100+v,106+v,120+v); break; }
+      case STEAM:{ const v=s&15; c=rgb(186+v,198+v,212+v); break; }
+      case SMOKE:{
+        const k=Math.min(1,life[i]/70);    // 寿命に応じて背景へ溶ける
+        c=rgb(12+(72*k)|0, 15+(70*k)|0, 22+(66*k)|0); break;
+      }
+      default: c=BG;
+    }
+    px32[i]=c;
+  }
+  particleCount=cnt;
+  ctx.putImageData(img,0,0);
+}
+
+/* ---- ブラシ / 入力 ------------------------------------------ */
+let selected=SAND, brushR=4;
+const pointers=new Map();    // pointerId → {x,y} グリッド座標
+
+function toGrid(e){
+  const r=canvas.getBoundingClientRect();
+  return { x:(e.clientX-r.left)/r.width*W, y:(e.clientY-r.top)/r.height*H };
+}
+function paintProb(t){
+  return (t===FIRE)?0.35 : (DENS[t]>0)?0.85 : (t===SAND)?0.9 : 1;
+}
+function paintAt(gx,gy){
+  const t=selected, p=paintProb(t), r=brushR, r2=r*r;
+  const x0=Math.round(gx), y0=Math.round(gy);
+  for(let dy=-r;dy<=r;dy++){
+    const y=y0+dy; if(y<0||y>=H) continue;
+    for(let dx=-r;dx<=r;dx++){
+      if(dx*dx+dy*dy>r2) continue;
+      const x=x0+dx; if(x<0||x>=W) continue;
+      const i=y*W+x, c=cells[i];
+      if(t===E){ if(c!==E){cells[i]=E;life[i]=0;} continue; }       // 消しゴム
+      if(Math.random()>p) continue;
+      if(c===E){ cells[i]=t; life[i]=initLife(t); shade[i]=rnd(256); }
+      else if(t===WALL && c!==WALL){ cells[i]=WALL; life[i]=0; }     // 壁は上書き可
+      else if(t===FIRE && (c===OIL||c===PLANT)){ cells[i]=FIRE; life[i]=initLife(FIRE); }
+    }
+  }
+}
+function paintLine(a,b){
+  const dx=b.x-a.x, dy=b.y-a.y, len=Math.max(1,Math.hypot(dx,dy));
+  const steps=Math.ceil(len);
+  for(let s=0;s<=steps;s++) paintAt(a.x+dx*s/steps, a.y+dy*s/steps);
+}
+
+canvas.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  const g=toGrid(e);
+  pointers.set(e.pointerId,g);
+  paintAt(g.x,g.y);
+},{passive:false});
+canvas.addEventListener('pointermove',e=>{
+  if(!pointers.has(e.pointerId)) return;
+  e.preventDefault();
+  const prev=pointers.get(e.pointerId), g=toGrid(e);
+  paintLine(prev,g);
+  pointers.set(e.pointerId,g);
+},{passive:false});
+const release=e=>pointers.delete(e.pointerId);
+['pointerup','pointercancel','pointerleave'].forEach(ev=>canvas.addEventListener(ev,release));
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ---- メインループ ------------------------------------------- */
+let paused=false, last=performance.now(), acc=0;
+const STEP_MS=1000/60;
+let fps=60, fpsT=0, fpsN=0;
+
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(100, now-last); last=now;
+  fpsN++; fpsT+=dt;
+  if(fpsT>=500){ fps=Math.round(fpsN*1000/fpsT); fpsN=0; fpsT=0; updateStats(); }
+
+  for(const g of pointers.values()) paintAt(g.x,g.y);   // 押しっぱなしで注ぎ続ける
+
+  if(!paused){
+    acc+=dt;
+    let n=0;
+    while(acc>=STEP_MS && n<3){ step(); acc-=STEP_MS; n++; }
+    if(acc>=STEP_MS) acc=0;
+  }
+  render();
+}
+
+function updateStats(){
+  $('#stats').textContent =
+    `${fps}fps · ${particleCount.toLocaleString('ja-JP')} 粒子` + (paused?' · 停止中':'');
+}
+
+/* ---- UI ------------------------------------------------------ */
+const ELEMENTS=[
+  {t:SAND, icon:'🟡', name:'砂',   c:'var(--sand)'},
+  {t:WATER,icon:'💧', name:'水',   c:'var(--water)'},
+  {t:OIL,  icon:'🛢', name:'油',   c:'var(--oil)'},
+  {t:FIRE, icon:'🔥', name:'火',   c:'var(--fire)'},
+  {t:PLANT,icon:'🌱', name:'草',   c:'var(--plant)'},
+  {t:ACID, icon:'🧪', name:'酸',   c:'var(--acid)'},
+  {t:LAVA, icon:'🌋', name:'溶岩', c:'var(--lava)'},
+  {t:WALL, icon:'🧱', name:'壁',   c:'var(--wall)'},
+  {t:E,    icon:'⌫', name:'消す', c:'#454c63'},
+];
+const chipsEl=$('#chips');
+ELEMENTS.forEach(el=>{
+  const b=document.createElement('button');
+  b.className='chip'; b.style.setProperty('--c',el.c);
+  b.setAttribute('role','radio');
+  b.setAttribute('aria-pressed', el.t===selected ? 'true':'false');
+  b.setAttribute('aria-label', el.name);
+  b.innerHTML=`<span class="dot" aria-hidden="true"></span><span>${el.icon} ${el.name}</span>`;
+  b.addEventListener('click',()=>{
+    selected=el.t;
+    chipsEl.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    try{ navigator.vibrate && navigator.vibrate(8); }catch(_){}
+    toast(`${el.icon} ${el.name} をえらんだ`);
+  });
+  chipsEl.appendChild(b);
+});
+
+const brushEl=$('#brush');
+brushEl.addEventListener('input',()=>{
+  brushR=parseInt(brushEl.value,10);
+  $('#brush-size').textContent=brushR;
+});
+
+let toastT=null;
+function toast(msg){
+  const t=$('#toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>t.classList.remove('show'),1200);
+}
+
+$('#btn-pause').addEventListener('click',e=>{
+  paused=!paused;
+  e.currentTarget.textContent = paused?'▶':'⏸';
+  e.currentTarget.setAttribute('aria-pressed', paused?'true':'false');
+  toast(paused?'時間を止めた（描くのは自由）':'時間が動きだした');
+  updateStats();
+});
+$('#btn-clear').addEventListener('click',()=>{
+  cells.fill(E); life.fill(0);
+  toast('まっさらな世界');
+});
+$('#btn-shot').addEventListener('click',()=>{
+  try{
+    const oc=document.createElement('canvas');
+    oc.width=W*4; oc.height=H*4;
+    const o=oc.getContext('2d');
+    o.imageSmoothingEnabled=false;
+    o.drawImage(canvas,0,0,oc.width,oc.height);
+    const a=document.createElement('a');
+    a.href=oc.toDataURL('image/png');
+    a.download=`elements-${Date.now()}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('スクリーンショットを保存');
+  }catch(_){ toast('保存に失敗しました'); }
+});
+$('#btn-help').addEventListener('click',()=>$('#help').classList.remove('hidden'));
+$('#start-btn').addEventListener('click',()=>$('#help').classList.add('hidden'));
+
+document.addEventListener('visibilitychange',()=>{       // バッテリー配慮
+  if(document.hidden && !paused){ paused=true; $('#btn-pause').textContent='▶';
+    $('#btn-pause').setAttribute('aria-pressed','true'); updateStats(); }
+});
+
+/* 画面回転などで大きくサイズが変わったら作り直す */
+let lastW=0,lastH=0;
+function maybeRebuild(){
+  const r=$('#stage').getBoundingClientRect();
+  if(Math.abs(r.width-lastW)>40 || Math.abs(r.height-lastH)>40){
+    lastW=r.width; lastH=r.height;
+    allocGrid(); buildScene();
+  }
+}
+window.addEventListener('resize',()=>setTimeout(maybeRebuild,150));
+
+/* ---- 起動 ---------------------------------------------------- */
+allocGrid(); buildScene();
+{ const r=$('#stage').getBoundingClientRect(); lastW=r.width; lastH=r.height; }
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
