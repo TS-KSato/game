@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="同じ星をくっつけて、太陽を目指せ。オリジナル素材のマージパズル『プラネットマージ』。">
+<title>PLANET MERGE — 惑星をくっつけよう</title>
+<style>
+:root{
+  --bg:#0a0c1a;
+  --panel:#151a30;
+  --panel-2:#1d2342;
+  --line:#2b3258;
+  --text:#eef0fb;
+  --text-dim:#8e95b8;
+  --accent:#ffb02e;   /* 太陽色 */
+  --danger:#ff5a6e;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,sans-serif;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  touch-action:manipulation;
+  display:flex;flex-direction:column;
+}
+/* ───── ヘッダー ───── */
+header{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:calc(8px + env(safe-area-inset-top)) 14px 8px;
+  background:linear-gradient(180deg,#10142a 0%,#0a0c1a 100%);
+  border-bottom:1px solid var(--line);z-index:5;
+}
+.brand h1{font-size:13px;font-weight:800;letter-spacing:.18em;line-height:1.15}
+.brand .best{
+  font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--text-dim);
+  margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:.05em;
+}
+#score{
+  font-family:ui-monospace,Menlo,monospace;font-size:26px;font-weight:800;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;
+  text-shadow:0 0 18px rgba(255,176,46,.35);
+}
+.hbtns{display:flex;gap:6px}
+.icon-btn{
+  width:40px;height:40px;border-radius:12px;border:1px solid var(--line);
+  background:var(--panel);color:var(--text);font-size:17px;line-height:1;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:transform .12s,background .12s;
+}
+.icon-btn:active{transform:scale(.92);background:var(--panel-2)}
+.icon-btn[aria-pressed="true"]{background:#3a2a14;border-color:#7a5a22}
+/* ───── ステージ ───── */
+#stage{position:relative;flex:1;min-height:0}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#next-box{
+  position:absolute;top:10px;right:10px;z-index:3;pointer-events:none;
+  background:rgba(16,20,42,.85);border:1px solid var(--line);border-radius:14px;
+  padding:6px 10px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+#next-box span{font-size:10px;font-weight:700;color:var(--text-dim);letter-spacing:.15em}
+#next-canvas{width:44px;height:44px;display:block}
+/* ───── 進化チャート(フッター) ───── */
+footer{
+  background:linear-gradient(180deg,#0a0c1a 0%,#10142a 100%);
+  border-top:1px solid var(--line);
+  padding:8px 12px calc(10px + env(safe-area-inset-bottom));z-index:5;
+}
+#chain{display:flex;align-items:center;justify-content:center;gap:4px}
+#chain .orb{border-radius:50%;flex-shrink:0;background:var(--g)}
+#chain .arrow{color:#3a4270;font-size:9px;flex-shrink:0}
+footer .hint{
+  text-align:center;font-size:10px;color:var(--text-dim);margin-top:6px;letter-spacing:.06em;
+}
+/* ───── オーバーレイ ───── */
+.overlay{
+  position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,6,14,.8);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  opacity:1;transition:opacity .3s;padding:20px;
+}
+.overlay.hidden{opacity:0;pointer-events:none}
+.card{
+  width:min(92vw,360px);background:var(--panel);border:1px solid var(--line);
+  border-radius:20px;padding:24px 22px;text-align:center;
+  box-shadow:0 18px 50px rgba(0,0,0,.6);
+}
+.card h2{font-size:20px;font-weight:800;letter-spacing:.16em}
+.card .sub{font-size:12px;color:var(--text-dim);margin:6px 0 16px;line-height:1.7}
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;text-align:left}
+.rule{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+  padding:9px 10px;font-size:12px;line-height:1.5;
+}
+.rule b{display:block;font-size:13px;margin-bottom:1px}
+.big-btn{
+  width:100%;height:50px;border:none;border-radius:14px;cursor:pointer;
+  background:linear-gradient(135deg,#ffb02e,#ff7a3d);color:#241000;
+  font-size:16px;font-weight:800;letter-spacing:.1em;
+  box-shadow:0 6px 20px rgba(255,150,46,.35);transition:transform .12s;
+}
+.big-btn:active{transform:scale(.96)}
+#over-score{
+  font-family:ui-monospace,Menlo,monospace;font-size:44px;font-weight:800;
+  font-variant-numeric:tabular-nums;margin:4px 0 2px;color:var(--accent);
+  text-shadow:0 0 24px rgba(255,176,46,.4);
+}
+#over-best{font-size:12px;color:var(--text-dim);margin-bottom:18px}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>PLANET<br>MERGE</h1>
+    <div class="best">BEST <span id="best">0</span></div>
+  </div>
+  <div id="score" aria-live="off">0</div>
+  <div class="hbtns">
+    <button class="icon-btn" id="btn-mute" aria-label="サウンド切替" aria-pressed="false">🔊</button>
+    <button class="icon-btn" id="btn-restart" aria-label="はじめから">↻</button>
+    <button class="icon-btn" id="btn-help" aria-label="あそびかた">？</button>
+  </div>
+</header>
+
+<div id="stage">
+  <canvas id="game" aria-label="プラネットマージのプレイ画面。指を左右に動かし、はなすと星を落とします。"></canvas>
+  <div id="next-box"><span>つぎ</span><canvas id="next-canvas" width="88" height="88"></canvas></div>
+</div>
+
+<footer>
+  <div id="chain" aria-label="星の進化順"></div>
+  <div class="hint">指でうごかして、はなして落とす。おなじ星はくっついて大きくなる。</div>
+</footer>
+
+<div class="overlay" id="help">
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <h2 id="help-title">PLANET MERGE</h2>
+    <p class="sub">おなじ星どうしをぶつけると、ひとつ上の星に進化。<br>めざすは太陽。あふれたらおしまい。</p>
+    <div class="rules">
+      <div class="rule"><b>👆 そうさ</b>左右にねらって、はなすと落下</div>
+      <div class="rule"><b>🪐 しんか</b>いん石 → … → 木星 → 太陽</div>
+      <div class="rule"><b>☀️ ひみつ</b>太陽どうしは大爆発ボーナス</div>
+      <div class="rule"><b>⚠️ ライン</b>赤い線を越えたままだと終了</div>
+    </div>
+    <button class="big-btn" id="start-btn">あそぶ</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="gameover">
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="over-title">
+    <h2 id="over-title">うちゅうのおわり</h2>
+    <div id="over-score">0</div>
+    <div id="over-best">BEST 0</div>
+    <button class="big-btn" id="retry-btn">もういちど</button>
+  </div>
+</div>
+
+<script>
+(()=>{ 'use strict';
+/* ============================================================
+   PLANET MERGE — 落ちもの合体パズル
+   独自実装の2D円形剛体物理(重力・衝突・積層) / 外部依存ゼロ
+   名称・グラフィック・サウンドはすべてオリジナル素材
+   ============================================================ */
+const $=s=>document.querySelector(s);
+const canvas=$('#game'), ctx=canvas.getContext('2d');
+const DPR=Math.min(2,window.devicePixelRatio||1);
+
+/* ---- 星の定義(半径は論理px / 幅360基準) ---------------------- */
+const LV=[null,
+ {r:13, name:'いん石', c1:'#c2c8d2', c2:'#6e7480', kind:'rock'},
+ {r:18, name:'月',     c1:'#f2eedd', c2:'#a8a290', kind:'moon'},
+ {r:24, name:'水星',   c1:'#d6b89a', c2:'#8a6a4e', kind:'mercury'},
+ {r:31, name:'火星',   c1:'#f08a5a', c2:'#a83c22', kind:'mars'},
+ {r:39, name:'金星',   c1:'#ffe2a8', c2:'#cf9a4e', kind:'venus'},
+ {r:48, name:'地球',   c1:'#7ec3ff', c2:'#1f5fb8', kind:'earth'},
+ {r:58, name:'海王星', c1:'#7a96ff', c2:'#2638a8', kind:'neptune'},
+ {r:70, name:'天王星', c1:'#bdf2f6', c2:'#4aa8c0', kind:'uranus'},
+ {r:84, name:'土星',   c1:'#ffe0a0', c2:'#c08a48', kind:'saturn'},
+ {r:100,name:'木星',   c1:'#f0c090', c2:'#a05c34', kind:'jupiter'},
+ {r:118,name:'太陽',   c1:'#fff2a8', c2:'#ff8c1e', kind:'sun'},
+];
+const MAXLV=11;
+const MERGE_PTS=[0,0,3,6,10,15,21,28,36,45,55,66];   // 生成レベル別スコア
+const SUN_BONUS=100;
+
+/* ---- 物理定数(論理座標系: 幅 LW 固定) ------------------------ */
+const LW=360;
+const GRAV=2300, REST=0.12, SLOP=0.4, CORR=0.85, ITER=6, SUB=3;
+
+/* ---- 状態 ---------------------------------------------------- */
+let LH=600, PXS=1;            // 論理高さ / 論理→css倍率
+let lineY=100, spawnY=46;
+let bodies=[], particles=[], texts=[];
+let score=0, best=0, gameOver=false;
+let holding=null, nextLv=1, aimX=LW/2;
+let dropTime=-9999, droppedBody=null;
+let shake=0, dangerGlow=0;
+let idSeq=1;
+
+try{ best=parseInt(localStorage.getItem('planet-merge-best')||'0',10)||0; }catch(_){}
+$('#best').textContent=best;
+
+const rnd=(a,b)=>a+Math.random()*(b-a);
+function pickLevel(){ const pool=[1,1,1,2,2,2,3,3,4,5]; return pool[(Math.random()*pool.length)|0]; }
+
+/* ---- スプライト(各惑星を一度だけ事前描画) --------------------- */
+const SS=2;                              // 内部スーパーサンプル
+const sprites=[];
+function makeSprite(lv){
+  const d=LV[lv], r=d.r;
+  const pad = d.kind==='sun'? r*0.9 : d.kind==='saturn'? r*0.7 : r*0.18;
+  const half=r+pad, size=Math.ceil(half*2*SS);
+  const c=document.createElement('canvas'); c.width=c.height=size;
+  const g=c.getContext('2d');
+  g.scale(SS,SS); g.translate(half,half);
+
+  if(d.kind==='sun'){                                    // 外周グロー
+    const gl=g.createRadialGradient(0,0,r*0.6,0,0,half);
+    gl.addColorStop(0,'rgba(255,190,60,.55)');
+    gl.addColorStop(1,'rgba(255,140,30,0)');
+    g.fillStyle=gl; g.beginPath(); g.arc(0,0,half,0,7); g.fill();
+  }
+  if(d.kind==='saturn'){                                 // 環(うしろ半分)
+    g.save(); g.rotate(-0.3);
+    g.strokeStyle='rgba(214,178,110,.9)'; g.lineWidth=r*0.22;
+    g.beginPath(); g.ellipse(0,0,r*1.5,r*0.5,0,Math.PI*0.04,Math.PI*0.96); g.stroke();
+    g.restore();
+  }
+  /* 本体 */
+  const base=g.createRadialGradient(-r*0.35,-r*0.35,r*0.15,0,0,r*1.25);
+  base.addColorStop(0,d.c1); base.addColorStop(1,d.c2);
+  g.fillStyle=base; g.beginPath(); g.arc(0,0,r,0,7); g.fill();
+
+  g.save(); g.beginPath(); g.arc(0,0,r,0,7); g.clip();   // 模様はクリップ内
+  const F={
+    rock(){ crater('#5a606c',[-0.3,-0.25,.3],[0.35,0.1,.22],[-0.05,0.4,.2]); },
+    moon(){ crater('rgba(140,134,118,.7)',[-0.35,-0.2,.28],[0.3,-0.35,.18],[0.15,0.35,.24],[-0.4,0.3,.15]); },
+    mercury(){ crater('rgba(110,82,58,.65)',[-0.3,-0.3,.25],[0.35,0.05,.2],[-0.1,0.38,.22],[0.1,-0.45,.14]); },
+    mars(){ blob('rgba(120,40,22,.5)',[-0.25,0.1,.45,.3],[0.3,-0.3,.35,.25]);
+            g.fillStyle='rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(0,-r*0.92,r*0.4,r*0.16,0,0,7); g.fill(); },
+    venus(){ band('rgba(255,255,255,.22)',-0.45,.2); band('rgba(170,120,50,.25)',-0.05,.24); band('rgba(255,255,255,.16)',0.4,.18); },
+    earth(){ blob('#3fae5e',[-0.3,-0.2,.5,.35],[0.45,0.15,.4,.3],[-0.15,0.5,.35,.22]);
+             blob('rgba(255,255,255,.55)',[0.1,-0.5,.55,.14],[-0.45,0.15,.45,.12],[0.3,0.45,.4,.1]); },
+    neptune(){ band('rgba(20,28,120,.45)',0.1,.2); band('rgba(255,255,255,.18)',-0.35,.14); },
+    uranus(){ band('rgba(255,255,255,.25)',-0.2,.16); band('rgba(60,140,160,.3)',0.3,.2); },
+    saturn(){ band('rgba(255,255,255,.3)',-0.4,.15); band('rgba(160,110,60,.3)',0.05,.2); band('rgba(255,255,255,.2)',0.45,.14); },
+    jupiter(){ band('rgba(255,255,255,.35)',-0.55,.16); band('rgba(150,70,40,.45)',-0.2,.18);
+               band('rgba(255,240,220,.4)',0.1,.14); band('rgba(150,70,40,.4)',0.4,.18);
+               g.fillStyle='rgba(200,60,40,.85)'; g.beginPath(); g.ellipse(r*0.35,r*0.38,r*0.2,r*0.12,-.2,0,7); g.fill(); },
+    sun(){ band('rgba(255,255,255,.3)',-0.4,.18); band('rgba(255,120,30,.35)',0.25,.22);
+           g.fillStyle='rgba(255,255,255,.5)';
+           g.beginPath(); g.arc(-r*0.4,-r*0.45,r*0.12,0,7); g.fill(); },
+  };
+  function crater(col,...cs){ g.fillStyle=col;
+    for(const[cx,cy,cr]of cs){ g.beginPath(); g.arc(cx*r,cy*r,cr*r,0,7); g.fill(); } }
+  function blob(col,...bs){ g.fillStyle=col;
+    for(const[cx,cy,rx,ry]of bs){ g.beginPath(); g.ellipse(cx*r,cy*r,rx*r,ry*r,rnd(-.6,.6),0,7); g.fill(); } }
+  function band(col,cy,h){ g.fillStyle=col; g.fillRect(-r,(cy-h/2)*r,2*r,h*r); }
+  (F[d.kind]||F.rock)();
+  /* かお */
+  const fr=Math.max(r*0.34,7);
+  g.fillStyle='#fff';
+  g.beginPath(); g.ellipse(-fr*0.9,-fr*0.35,fr*0.42,fr*0.5,0,0,7);
+  g.ellipse( fr*0.9,-fr*0.35,fr*0.42,fr*0.5,0,0,7); g.fill();
+  g.fillStyle='#222433';
+  g.beginPath(); g.arc(-fr*0.82,-fr*0.3,fr*0.2,0,7); g.arc(fr*0.98,-fr*0.3,fr*0.2,0,7); g.fill();
+  g.fillStyle='rgba(255,120,140,.45)';
+  g.beginPath(); g.arc(-fr*1.35,fr*0.35,fr*0.26,0,7); g.arc(fr*1.35,fr*0.35,fr*0.26,0,7); g.fill();
+  g.strokeStyle='#222433'; g.lineWidth=Math.max(1.4,fr*0.14); g.lineCap='round';
+  g.beginPath(); g.arc(0,fr*0.25,fr*0.42,Math.PI*0.15,Math.PI*0.85); g.stroke();
+  g.restore();
+
+  if(d.kind==='saturn'){                                 // 環(まえ半分)
+    g.save(); g.rotate(-0.3);
+    g.strokeStyle='rgba(232,198,130,.95)'; g.lineWidth=r*0.22;
+    g.beginPath(); g.ellipse(0,0,r*1.5,r*0.5,0,Math.PI*1.04,Math.PI*1.96); g.stroke();
+    g.restore();
+  }
+  g.strokeStyle='rgba(10,12,26,.3)'; g.lineWidth=Math.max(1.2,r*0.05);
+  g.beginPath(); g.arc(0,0,r-g.lineWidth/2,0,7); g.stroke();
+  return {canvas:c, half};
+}
+for(let l=1;l<=MAXLV;l++) sprites[l]=makeSprite(l);
+function drawSprite(g,lv,x,y,scale=1){
+  const s=sprites[lv], h=s.half*scale;
+  g.drawImage(s.canvas,x-h,y-h,h*2,h*2);
+}
+
+/* ---- サウンド(WebAudio合成 / 素材ファイルなし) ----------------- */
+let actx=null, muted=false;
+function audio(){
+  if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(_){ } }
+  if(actx&&actx.state==='suspended') actx.resume().catch(()=>{});
+}
+function tone(freq,dur,type,vol,delay=0){
+  if(!actx||muted) return;
+  try{
+    const t=actx.currentTime+delay;
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(t); o.stop(t+dur);
+  }catch(_){}
+}
+const sndDrop =()=>tone(140,.07,'sine',.12);
+const sndMerge=l=>{ const f=560-l*30; tone(f,.12,'triangle',.22); tone(f*1.5,.1,'sine',.1,.02); };
+const sndSun  =()=>{ [523,659,784,1046].forEach((f,i)=>tone(f,.18,'triangle',.2,i*.09)); };
+const sndOver =()=>{ tone(330,.25,'sine',.2); tone(247,.25,'sine',.2,.22); tone(165,.5,'sine',.2,.44); };
+
+/* ---- リサイズ -------------------------------------------------- */
+function resize(){
+  const r=$('#stage').getBoundingClientRect();
+  canvas.width=Math.round(r.width*DPR); canvas.height=Math.round(r.height*DPR);
+  PXS=r.width/LW; LH=r.height/PXS;
+  lineY=Math.max(86,LH*0.155); spawnY=lineY*0.45;
+}
+window.addEventListener('resize',()=>setTimeout(resize,100));
+
+/* ---- 物理 ------------------------------------------------------ */
+function addBody(lv,x,y,vx=0,vy=0,contacted=false){
+  const r=LV[lv].r;
+  const b={id:idSeq++,lv,r,x,y,vx,vy,m:r*r,im:1/(r*r),
+           contacted,danger:0,born:performance.now()};
+  bodies.push(b); return b;
+}
+function physics(dt){
+  const sdt=dt/SUB;
+  for(let s=0;s<SUB;s++){
+    /* 積分 */
+    for(const b of bodies){
+      b.vy+=GRAV*sdt;
+      b.x+=b.vx*sdt; b.y+=b.vy*sdt;
+      b.vx*=0.9995; b.vy*=0.9995;
+    }
+    /* 反復ソルバ */
+    for(let it=0;it<ITER;it++){
+      for(const b of bodies){                          // 壁・床
+        if(b.x-b.r<0){ b.x=b.r; if(b.vx<0)b.vx*=-REST; b.contacted=true; }
+        if(b.x+b.r>LW){ b.x=LW-b.r; if(b.vx>0)b.vx*=-REST; b.contacted=true; }
+        if(b.y+b.r>LH){ b.y=LH-b.r; if(b.vy>0)b.vy*=-REST; b.vx*=0.96; b.contacted=true; }
+      }
+      const merges=[];
+      for(let i=0;i<bodies.length;i++){
+        const a=bodies[i];
+        for(let j=i+1;j<bodies.length;j++){
+          const c=bodies[j];
+          let dx=c.x-a.x, dy=c.y-a.y;
+          const rr=a.r+c.r, d2=dx*dx+dy*dy;
+          if(d2>=rr*rr) continue;
+          a.contacted=c.contacted=true;
+          if(a.lv===c.lv && it===0){ merges.push([a,c]); continue; }
+          let d=Math.sqrt(d2);
+          if(d<0.0001){ d=0.0001; dx=rnd(-1,1)||0.01; dy=-1; }
+          const nx=dx/d, ny=dy/d, pen=rr-d;
+          const corr=Math.max(pen-SLOP,0)*CORR/(a.im+c.im);
+          a.x-=nx*corr*a.im; a.y-=ny*corr*a.im;
+          c.x+=nx*corr*c.im; c.y+=ny*corr*c.im;
+          const rvx=c.vx-a.vx, rvy=c.vy-a.vy;
+          const vn=rvx*nx+rvy*ny;
+          if(vn<0){
+            const jimp=-(1+REST)*vn/(a.im+c.im);
+            a.vx-=jimp*nx*a.im; a.vy-=jimp*ny*a.im;
+            c.vx+=jimp*nx*c.im; c.vy+=jimp*ny*c.im;
+          }
+        }
+      }
+      if(it===0&&merges.length) doMerges(merges);
+    }
+  }
+}
+function doMerges(pairs){
+  const used=new Set();
+  for(const[a,c]of pairs){
+    if(used.has(a.id)||used.has(c.id)) continue;
+    if(!bodies.includes(a)||!bodies.includes(c)) continue;
+    used.add(a.id); used.add(c.id);
+    bodies=bodies.filter(b=>b!==a&&b!==c);
+    const mx=(a.x*a.m+c.x*c.m)/(a.m+c.m);
+    const my=(a.y*a.m+c.y*c.m)/(a.m+c.m);
+    if(a.lv===MAXLV){                                   // 太陽×太陽 → 超新星
+      addScore(SUN_BONUS,mx,my);
+      burst(mx,my,LV[MAXLV],46,2.2); shake=14; sndSun();
+      try{navigator.vibrate&&navigator.vibrate([30,40,60]);}catch(_){}
+      continue;
+    }
+    const nl=a.lv+1;
+    const nb=addBody(nl,mx,my,(a.vx+c.vx)*0.25,Math.min(0,(a.vy+c.vy)*0.25)-30,true);
+    nb.pop=performance.now();
+    addScore(MERGE_PTS[nl],mx,my);
+    burst(mx,my,LV[nl],12+nl*2,1);
+    shake=Math.min(10,2+nl*0.8);
+    sndMerge(nl);
+    try{navigator.vibrate&&navigator.vibrate(10);}catch(_){}
+  }
+}
+function addScore(p,x,y){
+  score+=p;
+  $('#score').textContent=score;
+  texts.push({x,y,vy:-46,life:0.9,max:0.9,str:'+'+p});
+  if(score>best){
+    best=score; $('#best').textContent=best;
+    try{localStorage.setItem('planet-merge-best',String(best));}catch(_){}
+  }
+}
+function burst(x,y,d,n,sp){
+  for(let i=0;i<n;i++){
+    const a=rnd(0,Math.PI*2), v=rnd(60,260)*sp;
+    particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-60,
+      life:rnd(.4,.9),max:.9,r:rnd(1.5,4)*sp,c:Math.random()<.5?d.c1:d.c2});
+  }
+}
+
+/* ---- ゲームオーバー判定 ----------------------------------------- */
+function checkDanger(dt){
+  let any=false;
+  for(const b of bodies){
+    if(b.contacted && b.y-b.r<lineY){ b.danger+=dt; any=true;
+      if(b.danger>1.1){ endGame(); return; }
+    }else b.danger=0;
+  }
+  dangerGlow+=( (any?1:0)-dangerGlow )*Math.min(1,dt*6);
+}
+function endGame(){
+  if(gameOver) return;
+  gameOver=true; holding=null;
+  sndOver(); shake=10;
+  $('#over-score').textContent=score;
+  $('#over-best').textContent='BEST '+best;
+  setTimeout(()=>$('#gameover').classList.remove('hidden'),550);
+}
+
+/* ---- 入力 ------------------------------------------------------ */
+let aiming=false;
+function clampAim(x){
+  const r=holding?LV[holding].r:20;
+  return Math.max(r+2,Math.min(LW-r-2,x));
+}
+function toLX(e){ const r=canvas.getBoundingClientRect(); return (e.clientX-r.left)/r.width*LW; }
+canvas.addEventListener('pointerdown',e=>{
+  e.preventDefault(); audio();
+  if(gameOver) return;
+  canvas.setPointerCapture(e.pointerId);
+  aiming=true; aimX=clampAim(toLX(e));
+},{passive:false});
+canvas.addEventListener('pointermove',e=>{
+  if(!aiming) return; e.preventDefault();
+  aimX=clampAim(toLX(e));
+},{passive:false});
+function pointerUp(e){
+  if(!aiming) return; aiming=false;
+  if(gameOver||holding===null) return;
+  aimX=clampAim(toLX(e));
+  droppedBody=addBody(holding,aimX,spawnY);
+  holding=null; dropTime=performance.now();
+  sndDrop();
+}
+canvas.addEventListener('pointerup',pointerUp);
+canvas.addEventListener('pointercancel',()=>{aiming=false;});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+function refillHand(now){
+  if(gameOver||holding!==null) return;
+  const settled=!droppedBody||droppedBody.contacted||!bodies.includes(droppedBody);
+  if(now-dropTime>280 && (settled||now-dropTime>800)){
+    holding=nextLv; nextLv=pickLevel(); drawNext();
+  }
+}
+function drawNext(){
+  const nc=$('#next-canvas'), g=nc.getContext('2d');
+  g.clearRect(0,0,88,88);
+  const s=sprites[nextLv], k=Math.min(1,36/s.half);
+  g.save(); g.translate(44,44); g.scale(k*2/SS*SS,k*2/SS*SS);
+  g.drawImage(s.canvas,-s.half,-s.half,s.half*2,s.half*2);
+  g.restore();
+}
+
+/* ---- 背景(星空を事前描画) --------------------------------------- */
+let bgC=null;
+function makeBG(){
+  bgC=document.createElement('canvas');
+  bgC.width=canvas.width; bgC.height=canvas.height;
+  const g=bgC.getContext('2d');
+  const gr=g.createLinearGradient(0,0,0,bgC.height);
+  gr.addColorStop(0,'#0c1026'); gr.addColorStop(1,'#070811');
+  g.fillStyle=gr; g.fillRect(0,0,bgC.width,bgC.height);
+  for(let i=0;i<110;i++){
+    g.fillStyle=`rgba(255,255,255,${rnd(.15,.7)})`;
+    g.beginPath(); g.arc(rnd(0,bgC.width),rnd(0,bgC.height),rnd(.5,1.6)*DPR,0,7); g.fill();
+  }
+}
+
+/* ---- 描画 ------------------------------------------------------ */
+function render(now){
+  if(!bgC||bgC.width!==canvas.width) makeBG();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.drawImage(bgC,0,0);
+  const sx=shake>0.2?rnd(-shake,shake):0, sy=shake>0.2?rnd(-shake,shake):0;
+  shake*=0.86;
+  ctx.setTransform(DPR*PXS,0,0,DPR*PXS,sx*DPR,sy*DPR);
+
+  /* 危険ライン */
+  const la=0.25+dangerGlow*0.65+(dangerGlow>0.3?Math.sin(now/120)*0.15:0);
+  ctx.strokeStyle=`rgba(255,90,110,${Math.max(0,la)})`;
+  ctx.lineWidth=2; ctx.setLineDash([8,8]);
+  ctx.beginPath(); ctx.moveTo(0,lineY); ctx.lineTo(LW,lineY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  /* 照準ガイドと手持ちの星 */
+  if(holding!==null&&!gameOver){
+    const r=LV[holding].r;
+    ctx.strokeStyle='rgba(255,255,255,.18)';
+    ctx.lineWidth=1.5; ctx.setLineDash([4,7]);
+    ctx.beginPath(); ctx.moveTo(aimX,spawnY+r); ctx.lineTo(aimX,LH); ctx.stroke();
+    ctx.setLineDash([]);
+    drawSprite(ctx,holding,aimX,spawnY);
+  }
+
+  /* 星(生まれたてはポップ拡大) */
+  for(const b of bodies){
+    let sc=1;
+    if(b.pop){
+      const t=Math.min(1,(now-b.pop)/180);
+      sc=0.6+0.4*t+0.22*Math.sin(t*Math.PI);
+      if(t>=1) delete b.pop;
+    }
+    drawSprite(ctx,b.lv,b.x,b.y,sc);
+  }
+
+  /* パーティクル・スコア表示 */
+  for(const p of particles){
+    ctx.globalAlpha=Math.max(0,p.life/p.max);
+    ctx.fillStyle=p.c;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  ctx.font='700 15px ui-monospace,Menlo,monospace';
+  ctx.textAlign='center';
+  for(const t of texts){
+    ctx.globalAlpha=Math.max(0,t.life/t.max);
+    ctx.fillStyle='#ffd87a';
+    ctx.fillText(t.str,t.x,t.y);
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ---- メインループ ----------------------------------------------- */
+let last=performance.now(), running=true;
+function loop(now){
+  requestAnimationFrame(loop);
+  let dt=Math.min(0.033,(now-last)/1000); last=now;
+  if(!running) dt=0;
+  if(dt>0&&!gameOver){
+    physics(dt);
+    checkDanger(dt);
+    refillHand(now);
+  }
+  for(const p of particles){ p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=600*dt; }
+  particles=particles.filter(p=>p.life>0);
+  for(const t of texts){ t.life-=dt; t.y+=t.vy*dt; }
+  texts=texts.filter(t=>t.life>0);
+  render(now);
+}
+
+/* ---- UI --------------------------------------------------------- */
+function buildChain(){
+  const el=$('#chain');
+  el.innerHTML='';
+  LV.forEach((d,i)=>{
+    if(!d) return;
+    if(i>1){ const a=document.createElement('span'); a.className='arrow'; a.textContent='▶'; el.appendChild(a); }
+    const o=document.createElement('span');
+    o.className='orb'; o.title=d.name; o.setAttribute('aria-label',d.name);
+    const s=8+i*1.7;
+    o.style.width=o.style.height=s+'px';
+    o.style.setProperty('--g',`radial-gradient(circle at 32% 30%, ${d.c1}, ${d.c2})`);
+    el.appendChild(o);
+  });
+}
+function reset(){
+  bodies=[]; particles=[]; texts=[];
+  score=0; $('#score').textContent='0';
+  gameOver=false; shake=0; dangerGlow=0; droppedBody=null;
+  holding=pickLevel(); nextLv=pickLevel(); drawNext();
+  dropTime=-9999;
+  $('#gameover').classList.add('hidden');
+}
+$('#btn-mute').addEventListener('click',e=>{
+  muted=!muted;
+  e.currentTarget.textContent=muted?'🔇':'🔊';
+  e.currentTarget.setAttribute('aria-pressed',muted?'true':'false');
+});
+$('#btn-restart').addEventListener('click',()=>{audio();reset();});
+$('#btn-help').addEventListener('click',()=>$('#help').classList.remove('hidden'));
+$('#start-btn').addEventListener('click',()=>{audio();$('#help').classList.add('hidden');});
+$('#retry-btn').addEventListener('click',()=>{audio();reset();});
+document.addEventListener('visibilitychange',()=>{
+  running=!document.hidden; last=performance.now();
+});
+
+/* ---- 起動 -------------------------------------------------------- */
+resize(); buildChain(); reset();
+requestAnimationFrame(loop);
+
+/* テスト用フック(動作には不要) */
+window.__pm={ get bodies(){return bodies}, get score(){return score},
+  drop(lv,x){ addBody(lv,x,spawnY); } };
+})();
+</script>
+</body>
+</html>
