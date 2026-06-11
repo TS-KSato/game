@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -132,6 +131,7 @@ header{
   font-size:9.5px;letter-spacing:.06em;font-weight:700;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
   touch-action:manipulation;
+  transition: all 0.2s ease;
 }
 .btn svg{width:20px;height:20px;fill:currentColor}
 .btn:active{transform:scale(.94);filter:brightness(1.15)}
@@ -152,11 +152,13 @@ header{
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   transform:translateY(16px);opacity:0;pointer-events:none;
   transition:.28s ease;box-shadow:0 20px 60px rgba(0,0,0,.4);
+  z-index: 10;
 }
 #palette.show{transform:translateY(0);opacity:1;pointer-events:auto}
 .swatch{
   height:40px;border:0;border-radius:12px;position:relative;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.2),0 6px 16px rgba(0,0,0,.3);
+  cursor: pointer;
 }
 .swatch.cur:after{
   content:"";position:absolute;inset:6px;border-radius:8px;
@@ -198,6 +200,7 @@ h1 span{
   background:linear-gradient(135deg,var(--a),var(--b));
   color:#06070c;font-size:13.5px;font-weight:900;letter-spacing:.2em;
   box-shadow:0 0 34px rgba(255,107,139,.25);
+  cursor: pointer;
 }
 .guide{margin-top:14px;color:var(--dim);font-size:10px;line-height:1.6;letter-spacing:.06em;}
 
@@ -262,11 +265,11 @@ h1 span{
       </div>
     </div>
     <div id="toolbar">
-      <button class="btn on" id="playBtn" aria-label="再生">
+      <button class="btn" id="playBtn" aria-label="再生">
         <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
         再生
       </button>
-      <button class="btn" id="trailBtn" aria-label="軌跡">
+      <button class="btn on" id="trailBtn" aria-label="軌跡">
         <svg viewBox="0 0 24 24"><path d="M12 2.5a5.5 5.5 0 0 0-3.096 10.124A7.001 7.001 0 0 0 2 19.5V21h20v-1.5a7.001 7.001 0 0 0-6.904-6.876A5.5 5.5 0 0 0 12 2.5zm0 2a3.5 3.5 0 0 1 3.5 3.5c0 1.905-1.423 3.477-3.266 3.66l-.234.016A3.5 3.5 0 0 1 8.5 8.5c0-1.933 1.567-3.5 3.5-3.5z"/></svg>
         軌跡表示
       </button>
@@ -274,7 +277,7 @@ h1 span{
         <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.35a6.01 6.01 0 0 1-5.65 4.35 6 6 0 0 1-5.06-2.82A6 6 0 0 1 6 12a6 6 0 0 1 3.2-5.32A8.93 8.93 0 0 0 12 3z"/></svg>
         色彩
       </button>
-      <button class="btn" id="soundBtn" aria-label="サウンド">
+      <button class="btn on" id="soundBtn" aria-label="サウンド">
         <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.74 2.5-2.26 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
         音響
       </button>
@@ -299,7 +302,7 @@ h1 span{
       カオスの軌跡と、運動エネルギーに呼応するサイン・ウェーブの共鳴をお楽しみください。
     </p>
     <button class="start" id="startBtn">はじめる</button>
-    <div class="guide">タップ：外力追加 ／ 長押し：軌跡リセット ／ 色彩：カラーテーマ変更</div>
+    <div class="guide">タップ：外力追加 ／ 長押し：軌跡リセット ／ 色彩：テーマ変更</div>
   </div>
 </div>
 
@@ -308,21 +311,22 @@ h1 span{
 <script>
 (()=>{"use strict";
 
-const $=id=>document.getElementById(id);
-const canvas=$("stage");
-const ctx=canvas.getContext("2d",{alpha:false});
+const $ = id => document.getElementById(id);
+const canvas = $("stage");
+const ctx = canvas ? canvas.getContext("2d", {alpha: false}) : null;
 
-let W=0,H=0,DPR=1;
+let W=0, H=0, DPR=1;
 let G=9.81;
-let l1=120,l2=100,m1=40,m2=30;
-let theta1=Math.PI/2,theta2=Math.PI/2;
-let omega1=0,omega2=0;
-let playing=true,showTrail=true,soundOn=true;
+let l1=120, l2=100, m1=40, m2=30;
+let theta1=Math.PI/2, theta2=Math.PI/2;
+let omega1=0, omega2=0;
+
+let playing=false, showTrail=true, soundOn=true;
 let colorTheme=0;
 let trail=[];
 const maxTrail=800;
-let originX=0,originY=0;
-let audio=null,lastSoundEnergy=0;
+let originX=0, originY=0;
+let audio=null, lastSoundEnergy=0;
 let pressTimer=null;
 
 const themes=[
@@ -334,15 +338,16 @@ const themes=[
 ];
 
 function resize(){
+  if(!canvas) return;
   DPR=Math.min(2,window.devicePixelRatio||1);
-  W=innerWidth;H=innerHeight;
+  W=innerWidth; H=innerHeight;
   canvas.width=Math.round(W*DPR);
   canvas.height=Math.round(H*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0);
   originX=W/2;
   originY=H*0.42;
 }
-addEventListener("resize",()=>{setTimeout(resize,80)},{passive:true});
+window.addEventListener("resize",()=>{setTimeout(resize,80)},{passive:true});
 resize();
 
 function initAudio(){
@@ -353,9 +358,12 @@ function initAudio(){
     audio.gain=audio.createGain();
     audio.gain.gain.value=0.08;
     audio.gain.connect(audio.destination);
-  }catch(e){}
+  }catch(e){
+    console.warn("AudioContext unsupported");
+  }
 }
-function playTone(freq,dur=0.1){
+
+function playTone(freq, dur=0.1){
   if(!soundOn || !audio)return;
   try{
     if(audio.state==="suspended")audio.resume();
@@ -377,37 +385,28 @@ function derivs(t1, t2, w1, w2){
   const den2 = l2 * (2 * m1 + m2 - m2 * Math.cos(2 * t1 - 2 * t2));
   const alpha2 = num2 / den2;
 
-  return [w1, alpha1, w2, alpha2];
+  return [w1, w2, alpha1, alpha2]; 
 }
 
 function rk4Step(dt){
-  const [dw1_1, dw2_1, dw4_1, dw4_2] = derivs(theta1, theta2, omega1, omega2);
+  const [k1_t1, k1_t2, k1_w1, k1_w2] = derivs(theta1, theta2, omega1, omega2);
   
-  const t1_2 = theta1 + dw1_1 * dt/2;
-  const t2_2 = theta2 + dw2_1 * dt/2;
-  const w1_2 = omega1 + dw4_1 * dt/2;
-  const w2_2 = omega2 + dw4_2 * dt/2;
+  const [k2_t1, k2_t2, k2_w1, k2_w2] = derivs(
+    theta1 + k1_t1 * dt/2, theta2 + k1_t2 * dt/2, omega1 + k1_w1 * dt/2, omega2 + k1_w2 * dt/2
+  );
   
-  const [dw1_2, dw2_2, dw4_3, dw4_4] = derivs(t1_2, t2_2, w1_2, w2_2);
+  const [k3_t1, k3_t2, k3_w1, k3_w2] = derivs(
+    theta1 + k2_t1 * dt/2, theta2 + k2_t2 * dt/2, omega1 + k2_w1 * dt/2, omega2 + k2_w2 * dt/2
+  );
   
-  const t1_3 = theta1 + dw1_2 * dt/2;
-  const t2_3 = theta2 + dw2_2 * dt/2;
-  const w1_3 = omega1 + dw4_3 * dt/2;
-  const w2_3 = omega2 + dw4_4 * dt/2;
+  const [k4_t1, k4_t2, k4_w1, k4_w2] = derivs(
+    theta1 + k3_t1 * dt, theta2 + k3_t2 * dt, omega1 + k3_w1 * dt, omega2 + k3_w2 * dt
+  );
   
-  const [dw1_3, dw2_3, dw4_5, dw4_6] = derivs(t1_3, t2_3, w1_3, w2_3);
-  
-  const t1_4 = theta1 + dw1_3 * dt;
-  const t2_4 = theta2 + dw2_3 * dt;
-  const w1_4 = omega1 + dw4_5 * dt;
-  const w2_4 = omega2 + dw4_6 * dt;
-  
-  const [dw1_4, dw2_4, dw4_7, dw4_8] = derivs(t1_4, t2_4, w1_4, w2_4);
-  
-  theta1 += (dw1_1 + 2*dw1_2 + 2*dw1_3 + dw1_4) * dt/6;
-  theta2 += (dw2_1 + 2*dw2_2 + 2*dw2_3 + dw2_4) * dt/6;
-  omega1 += (dw4_1 + 2*dw4_3 + 2*dw4_5 + dw4_7) * dt/6;
-  omega2 += (dw4_2 + 2*dw4_4 + 2*dw4_6 + dw4_8) * dt/6;
+  theta1 += (k1_t1 + 2*k2_t1 + 2*k3_t1 + k4_t1) * dt/6;
+  theta2 += (k1_t2 + 2*k2_t2 + 2*k3_t2 + k4_t2) * dt/6;
+  omega1 += (k1_w1 + 2*k2_w1 + 2*k3_w1 + k4_w1) * dt/6;
+  omega2 += (k1_w2 + 2*k2_w2 + 2*k3_w2 + k4_w2) * dt/6;
 }
 
 function updatePhysics(){
@@ -440,11 +439,14 @@ function updatePhysics(){
     }
   }
 
-  $("energyPill").textContent=(energy/1000).toFixed(2);
-  $("trailPill").textContent=trail.length;
+  const ePill = $("energyPill");
+  const tPill = $("trailPill");
+  if(ePill) ePill.textContent=(energy/1000).toFixed(2);
+  if(tPill) tPill.textContent=trail.length;
 }
 
 function render(){
+  if(!ctx) return;
   ctx.fillStyle="#06070c";
   ctx.fillRect(0,0,W,H);
 
@@ -492,14 +494,15 @@ requestAnimationFrame(loop);
 
 function getXY(e){
   const r=canvas.getBoundingClientRect();
-  return {x:e.clientX-r.left,y:e.clientY-r.top};
+  return {x:e.clientX-r.left, y:e.clientY-r.top};
 }
 
-addEventListener("pointerdown",e=>{
+window.addEventListener("pointerdown",e=>{
+  if(!canvas) return;
   if(e.clientY > innerHeight*0.75)return;
   initAudio();
   const {x,y}=getXY(e);
-  const dx=x-originX,dy=y-originY;
+  const dx=x-originX, dy=y-originY;
   omega1 += dx*0.0005;
   omega2 += dy*0.0005;
 
@@ -509,57 +512,128 @@ addEventListener("pointerdown",e=>{
     toast("軌跡をリセットしました");
   },600);
 });
-addEventListener("pointerup",()=>{clearTimeout(pressTimer)});
-addEventListener("pointercancel",()=>{clearTimeout(pressTimer)});
+window.addEventListener("pointerup",()=>{clearTimeout(pressTimer)});
+window.addEventListener("pointercancel",()=>{clearTimeout(pressTimer)});
 
-function bindRange(id,prop,maxVal){
-  const el=$(id);
-  el.oninput=()=>{
-    const v=+el.value;
-    $(id+"Out").textContent=v;
-    if(prop==='l1')l1=v;
-    if(prop==='l2')l2=v;
-    if(prop==='m1')m1=v;
-    if(prop==='m2')m2=v;
+
+// 完全に安全なスライダーのバインディング関数
+function bindRange(inputId, outputId, prop){
+  const el = $(inputId);
+  const out = $(outputId);
+  if(!el) return;
+
+  el.oninput = () => {
+    const v = Number(el.value);
+    if(out) out.textContent = v;
+    if(prop === 'l1') l1 = v;
+    if(prop === 'l2') l2 = v;
+    if(prop === 'm1') m1 = v;
+    if(prop === 'm2') m2 = v;
   };
 }
-bindRange("#l1Input",'l1');
-bindRange("#l2Input",'l2');
-bindRange("#m1Input",'m1');
-bindRange("#m2Input",'m2');
 
-$("playBtn").onclick=()=>{
-  playing=!playing;
-  $("playBtn").classList.toggle("on",playing);
-  $("playBtn").innerHTML=playing?'<svg viewBox="0 0 24 24"><path d="M6 5h3.6v14H6zM13.4 5H17v14h-3.6z"/></svg> 再生':'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> 停止';
-  if(!playing)toast("シミュレーションを一時停止しました");
-  else toast("シミュレーションを再開しました");
-};
-$("trailBtn").onclick=()=>{
-  showTrail=!showTrail;
-  $("trailBtn").classList.toggle("on",showTrail);
-  if(!showTrail)trail=[];
-  toast(`軌跡表示を ${showTrail?'オン':'オフ'} にしました`);
-};
-$("colorBtn").onclick=()=>{
-  colorTheme=(colorTheme+1)%themes.length;
-  toast(`カラーテーマ ${colorTheme+1} に変更`);
-};
-$("soundBtn").onclick=()=>{
-  soundOn=!soundOn;
-  initAudio();
-  $("soundBtn").classList.toggle("on",soundOn);
-  toast(`音響共鳴を ${soundOn?'オン':'オフ'} にしました`);
-};
-$("startBtn").onclick=()=>{
-  $("sheet").classList.add("hidden");
-  initAudio();
-  toast("カオスシミュレーション開始",2000);
-};
+// 確実に存在するID文字列を渡す
+bindRange("l1Input", "l1Out", "l1");
+bindRange("l2Input", "l2Out", "l2");
+bindRange("m1Input", "m1Out", "m1");
+bindRange("m2Input", "m2Out", "m2");
 
-function toast(text,time=1500){
-  const t=$("toast");t.textContent=text;t.classList.add("show");
-  clearTimeout(t.timer);t.timer=setTimeout(()=>t.classList.remove("show"),time);
+function updatePlayBtnUI() {
+  const btn = $("playBtn");
+  if(!btn) return;
+  btn.classList.toggle("on", playing);
+  btn.innerHTML = playing 
+    ? '<svg viewBox="0 0 24 24"><path d="M6 5h3.6v14H6zM13.4 5H17v14h-3.6z"/></svg> 停止' 
+    : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> 再生';
+}
+
+const pBtn = $("playBtn");
+if(pBtn){
+  pBtn.onclick=()=>{
+    playing=!playing;
+    updatePlayBtnUI();
+    if(!playing) toast("シミュレーションを一時停止しました");
+    else toast("シミュレーションを再開しました");
+  };
+}
+
+const tBtn = $("trailBtn");
+if(tBtn){
+  tBtn.onclick=()=>{
+    showTrail=!showTrail;
+    tBtn.classList.toggle("on",showTrail);
+    if(!showTrail)trail=[];
+    toast(`軌跡表示を ${showTrail?'オン':'オフ'} にしました`);
+  };
+}
+
+const cBtn = $("colorBtn");
+if(cBtn){
+  cBtn.onclick=()=>{
+    const pal = $("palette");
+    if(pal) pal.classList.toggle("show");
+  };
+}
+
+function updateThemeUI() {
+  const root = document.documentElement;
+  const t = themes[colorTheme];
+  root.style.setProperty('--a', t[0]);
+  root.style.setProperty('--b', t[1]);
+  if(t[2]) root.style.setProperty('--c', t[2]);
+  
+  document.querySelectorAll('.swatch').forEach(el => el.classList.remove('cur'));
+  const currentSwatch = document.querySelector(`.swatch[data-p="${colorTheme}"]`);
+  if(currentSwatch) currentSwatch.classList.add('cur');
+}
+
+document.querySelectorAll('.swatch').forEach(el => {
+  el.onclick = () => {
+    colorTheme = parseInt(el.getAttribute('data-p'));
+    updateThemeUI();
+    toast(`カラーテーマ ${colorTheme+1} に変更`);
+    const pal = $("palette");
+    if(pal) pal.classList.remove("show");
+  };
+});
+
+const sBtn = $("soundBtn");
+if(sBtn){
+  sBtn.onclick=()=>{
+    soundOn=!soundOn;
+    initAudio();
+    sBtn.classList.toggle("on",soundOn);
+    toast(`音響共鳴を ${soundOn?'オン':'オフ'} にしました`);
+  };
+}
+
+const startBtn = $("startBtn");
+if(startBtn){
+  startBtn.onclick=()=>{
+    const sheet = $("sheet");
+    if(sheet) sheet.classList.add("hidden");
+    
+    setTimeout(()=> {
+      const hint = $("hint");
+      if(hint) hint.classList.add("show");
+    }, 1000);
+    
+    initAudio();
+    
+    playing = true;       
+    updatePlayBtnUI();    
+    
+    toast("カオスシミュレーション開始", 2000);
+  };
+}
+
+function toast(text, time=1500){
+  const t = $("toast");
+  if(!t) return;
+  t.textContent = text;
+  t.classList.add("show");
+  clearTimeout(t.timer);
+  t.timer = setTimeout(() => t.classList.remove("show"), time);
 }
 
 })();
