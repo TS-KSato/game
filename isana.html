@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="無人探査艇イサナ、単独潜航。生成アンビエント音響と動的な光で描く、深海10,911mへの没入型ダイブ。">
+<title>ISANA — 深海信号</title>
+<style>
+:root{
+  --text:#dfeaf2;
+  --dim:#7e93a6;
+  --cyan:#6fe3ff;
+  --amber:#ffc46b;
+  --danger:#ff5a6e;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  position:fixed;inset:0;overflow:hidden;overscroll-behavior:none;background:#02060c;
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,sans-serif;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;
+}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+/* ───── HUD(没入のため最小限・半透明) ───── */
+#hud{position:absolute;inset:0;pointer-events:none;z-index:5}
+#depth{
+  position:absolute;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+  font-family:ui-monospace,Menlo,monospace;font-size:24px;font-weight:700;
+  letter-spacing:.12em;font-variant-numeric:tabular-nums;
+  color:rgba(223,234,242,.92);text-shadow:0 0 16px rgba(111,227,255,.35);
+}
+#depth small{font-size:12px;color:var(--dim);letter-spacing:.2em;margin-left:2px}
+#hull{
+  position:absolute;top:calc(16px + env(safe-area-inset-top));left:14px;display:flex;gap:6px;
+}
+.hp{
+  width:14px;height:14px;transform:rotate(45deg);border-radius:3px;
+  background:linear-gradient(135deg,#9fe8ff,#3a9ec4);
+  box-shadow:0 0 10px rgba(111,227,255,.5);transition:opacity .3s,filter .3s;
+}
+.hp.off{background:#23303c;box-shadow:none;opacity:.45}
+#orbs{
+  position:absolute;top:calc(14px + env(safe-area-inset-top));right:56px;
+  font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--amber);
+  font-variant-numeric:tabular-nums;letter-spacing:.08em;
+  text-shadow:0 0 10px rgba(255,196,107,.5);
+}
+#btn-mute{
+  position:absolute;top:calc(8px + env(safe-area-inset-top));right:10px;pointer-events:auto;
+  width:38px;height:38px;border-radius:50%;border:1px solid rgba(126,147,166,.35);
+  background:rgba(6,14,22,.5);color:var(--text);font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);
+}
+#toast{
+  position:absolute;top:22%;left:50%;transform:translateX(-50%);max-width:86%;
+  text-align:center;font-size:14px;letter-spacing:.18em;line-height:1.9;color:rgba(223,234,242,.95);
+  text-shadow:0 0 18px rgba(111,227,255,.4),0 1px 2px #000;
+  opacity:0;transition:opacity 1.1s;white-space:pre-line;
+}
+#toast.show{opacity:1}
+#toast .m{display:block;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--cyan);letter-spacing:.34em;margin-bottom:4px}
+#flash{
+  position:absolute;inset:0;pointer-events:none;opacity:0;z-index:6;
+  box-shadow:inset 0 0 120px 40px rgba(255,60,80,.85);transition:opacity .5s;
+}
+#flash.on{opacity:1;transition:opacity .06s}
+#vignette{
+  position:absolute;inset:0;pointer-events:none;z-index:4;
+  box-shadow:inset 0 0 140px 50px rgba(0,0,0,.75);
+}
+
+/* ───── オーバーレイ ───── */
+.overlay{
+  position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:24px;
+  background:rgba(2,6,12,.55);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+  opacity:1;transition:opacity .8s;
+}
+.overlay.hidden{opacity:0;pointer-events:none}
+.eyebrow{font-size:10px;letter-spacing:.5em;color:var(--cyan);margin-bottom:14px}
+.title{
+  font-size:52px;font-weight:200;letter-spacing:.42em;text-indent:.42em;line-height:1;
+  text-shadow:0 0 30px rgba(111,227,255,.45);
+}
+.subtitle{font-size:13px;letter-spacing:.32em;color:var(--dim);margin-top:14px}
+.story{
+  font-size:13px;line-height:2.2;color:rgba(223,234,242,.85);margin:34px 0 38px;
+  letter-spacing:.1em;
+}
+.tap{
+  font-size:14px;letter-spacing:.4em;color:var(--text);
+  animation:breathe 2.6s ease-in-out infinite;
+}
+@keyframes breathe{0%,100%{opacity:.35}50%{opacity:1}}
+.result-num{
+  font-family:ui-monospace,Menlo,monospace;font-size:54px;font-weight:700;
+  font-variant-numeric:tabular-nums;letter-spacing:.04em;margin:10px 0 2px;
+  color:var(--cyan);text-shadow:0 0 28px rgba(111,227,255,.5);
+}
+.result-sub{font-size:12px;color:var(--dim);letter-spacing:.2em;margin-bottom:6px}
+.result-row{font-size:13px;color:var(--text);letter-spacing:.12em;margin:3px 0}
+.result-row b{color:var(--amber)}
+.retry{
+  margin-top:36px;pointer-events:auto;cursor:pointer;
+  border:1px solid rgba(111,227,255,.5);background:rgba(111,227,255,.08);
+  color:var(--text);border-radius:999px;padding:14px 42px;
+  font-size:14px;letter-spacing:.3em;text-indent:.3em;
+  transition:transform .12s,background .2s;
+}
+.retry:active{transform:scale(.95);background:rgba(111,227,255,.2)}
+.clear-title{
+  font-size:26px;font-weight:300;letter-spacing:.3em;color:var(--amber);
+  text-shadow:0 0 26px rgba(255,196,107,.5);margin-bottom:8px;
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<canvas id="game" aria-label="深海探査ゲーム画面。指を左右にドラッグして探査艇を操縦します。"></canvas>
+
+<div id="hud">
+  <div id="hull" aria-label="船体強度">
+    <div class="hp"></div><div class="hp"></div><div class="hp"></div>
+  </div>
+  <div id="depth">0<small>m</small></div>
+  <div id="orbs">✦ 0</div>
+  <button id="btn-mute" aria-label="サウンド切替">🔊</button>
+  <div id="toast" role="status"></div>
+</div>
+<div id="vignette"></div>
+<div id="flash"></div>
+
+<div class="overlay" id="ov-title">
+  <div class="eyebrow">DEEP SIGNAL PROJECT</div>
+  <div class="title">ISANA</div>
+  <div class="subtitle">— 深海信号 —</div>
+  <p class="story">海溝の底から、正体不明の信号。<br>無人探査艇〈イサナ〉、単独潜航を開始する。<br>目標深度、一万九百十一メートル。</p>
+  <div class="tap">画面にふれて潜航開始</div>
+</div>
+
+<div class="overlay hidden" id="ov-over">
+  <div class="eyebrow">MISSION LOG</div>
+  <div class="result-sub">到達深度</div>
+  <div class="result-num" id="over-depth">0</div>
+  <div class="result-row">発光体の採取 <b id="over-orbs">0</b></div>
+  <div class="result-row" id="over-best">自己最深 0 m</div>
+  <button class="retry" id="btn-retry">再潜航</button>
+</div>
+
+<div class="overlay hidden" id="ov-clear">
+  <div class="eyebrow">DEPTH 10,911 M — CHALLENGER DEEP</div>
+  <div class="clear-title">最深部、到達</div>
+  <p class="story">信号源を確認。データ回収完了。<br>この海の底にも、まだ光はあった。</p>
+  <div class="result-row">発光体の採取 <b id="clear-orbs">0</b></div>
+  <button class="retry" id="btn-again">もう一度潜る</button>
+</div>
+
+<script>
+(()=>{ 'use strict';
+/* ============================================================
+   ISANA — 深海信号
+   没入型ダイブゲーム / 単一ファイル / 外部依存ゼロ
+   ・手続き生成される海溝地形(通行可能性を保証)
+   ・動的ライティング(暗闇レイヤー+発光体の光抜き)
+   ・WebAudioによる生成アンビエント(ドローン/水流/ソナー)
+   ============================================================ */
+const $=s=>document.querySelector(s);
+const canvas=$('#game'), ctx=canvas.getContext('2d');
+const DPR=Math.min(2,window.devicePixelRatio||1);
+const LW=390;                       // 論理幅
+let LH=800, PXS=1;
+
+const dk=document.createElement('canvas');   // 暗闇レイヤー
+const dctx=dk.getContext('2d');
+
+function resize(){
+  const w=window.innerWidth,h=window.innerHeight;
+  canvas.width=dk.width=Math.round(w*DPR);
+  canvas.height=dk.height=Math.round(h*DPR);
+  PXS=w/LW; LH=h/PXS;
+}
+window.addEventListener('resize',()=>setTimeout(resize,100));
+resize();
+
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+/* ---- 発光スプライト(事前描画して使い回す) -------------------- */
+const glowCache=new Map();
+function glow(color){
+  if(glowCache.has(color)) return glowCache.get(color);
+  const c=document.createElement('canvas'); c.width=c.height=64;
+  const g=c.getContext('2d');
+  const gr=g.createRadialGradient(32,32,0,32,32,32);
+  gr.addColorStop(0,color); gr.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=gr; g.fillRect(0,0,64,64);
+  glowCache.set(color,c); return c;
+}
+function drawGlow(g,color,x,y,r,a=1){
+  g.globalAlpha=a; g.drawImage(glow(color),x-r,y-r,r*2,r*2); g.globalAlpha=1;
+}
+
+/* ---- サウンド(すべてリアルタイム合成) ------------------------- */
+let A=null, master=null, droneF=null, droneG=null, waterG=null, muted=false, pingAt=0;
+function audioInit(){
+  if(A) { if(A.state==='suspended') A.resume().catch(()=>{}); return; }
+  try{
+    A=new (window.AudioContext||window.webkitAudioContext)();
+    master=A.createGain(); master.gain.value=muted?0:1; master.connect(A.destination);
+    /* 低音ドローン(2基のデチューン鋸波 → ローパス) */
+    droneF=A.createBiquadFilter(); droneF.type='lowpass'; droneF.frequency.value=260;
+    droneG=A.createGain(); droneG.gain.value=0.05;
+    droneF.connect(droneG); droneG.connect(master);
+    [55,55.6].forEach(f=>{
+      const o=A.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+      o.connect(droneF); o.start();
+    });
+    /* 水流ノイズ */
+    const len=A.sampleRate*2, buf=A.createBuffer(1,len,A.sampleRate);
+    const d=buf.getChannelData(0); let v=0;
+    for(let i=0;i<len;i++){ v=(v+rnd(-1,1)*0.04)*0.98; d[i]=v*3; }
+    const src=A.createBufferSource(); src.buffer=buf; src.loop=true;
+    const wf=A.createBiquadFilter(); wf.type='lowpass'; wf.frequency.value=420;
+    waterG=A.createGain(); waterG.gain.value=0.05;
+    src.connect(wf); wf.connect(waterG); waterG.connect(master); src.start();
+    /* ソナー用の残響ディレイ */
+    sonarDelay=A.createDelay(1); sonarDelay.delayTime.value=0.42;
+    const fb=A.createGain(); fb.gain.value=0.38;
+    sonarDelay.connect(fb); fb.connect(sonarDelay);
+    sonarDelay.connect(master);
+  }catch(_){}
+}
+let sonarDelay=null;
+function blip(freq,dur,type,vol,delay=0,slideTo=null,dest=null){
+  if(!A) return;
+  try{
+    const t=A.currentTime+delay;
+    const o=A.createOscillator(),g=A.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,t);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t+dur);
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    o.connect(g); g.connect(dest||master);
+    o.start(t); o.stop(t+dur+.02);
+  }catch(_){}
+}
+const sndSonar  =()=>{ if(sonarDelay) blip(920,.5,'sine',.05,0,460,sonarDelay); };
+const sndOrb    =n=>{ const sc=[523,587,659,784,880]; blip(sc[n%5],.16,'triangle',.12); };
+const sndHit    =()=>{ blip(70,.3,'sine',.3); blip(160,.12,'square',.08); };
+const sndMile   =()=>{ blip(392,.4,'sine',.08); blip(523,.6,'sine',.08,.18); };
+const sndClear  =()=>{ [392,523,659,784].forEach((f,i)=>blip(f,.5,'sine',.1,i*.16)); };
+const sndDead   =()=>{ blip(180,.8,'sine',.15,0,55); };
+function setMuted(m){ muted=m; if(master) master.gain.value=m?0:1;
+  $('#btn-mute').textContent=m?'🔇':'🔊'; }
+
+/* ---- 地形(通行可能な回廊を関数で保証) ------------------------- */
+let P=[];                                   // ランごとの位相
+function newPhases(){ P=Array.from({length:6},()=>rnd(0,Math.PI*2)); }
+function corridor(d){                       // d: 深度px → {l,r}
+  const g=clamp(d/1400,0,1);                // 序盤はまっすぐ
+  const prog=clamp(d/100000,0,1);           // 全体進行度
+  const c=LW/2 + g*( Math.sin(d*0.0016+P[0])*78 + Math.sin(d*0.00047+P[1])*52 );
+  let w=lerp(320,150,prog) + Math.sin(d*0.0042+P[2])*22;
+  w=Math.max(142,w);
+  let l=c-w/2, r=c+w/2;
+  if(l<8){ r+=8-l; l=8; } if(r>LW-8){ l-=r-(LW-8); r=LW-8; }
+  return {l,r};
+}
+
+/* ---- ゲーム状態 ------------------------------------------------ */
+const GOAL_M=10911, M2PX=10;                // 1m = 10px
+let state='title';
+let depth=0, sub=null, hp=3, orbCount=0, invul=0;
+let rocks=[], jellies=[], orbs=[], snow=[], bubbles=[];
+let spawnedTo=0, nextRock=400, nextJelly=900, nextOrb=600;
+let mileIdx=0, shake=0, deathAt=0, lightBoost=0;
+let best=0;
+try{ best=parseInt(localStorage.getItem('isana-best')||'0',10)||0; }catch(_){}
+
+const MILES=[
+ [100,'太陽の光が、弱まりはじめる'],
+ [200,'有光層の終わり\nここから先は、薄明の世界'],
+ [500,'マッコウクジラの狩場を通過'],
+ [1000,'漸深層に到達\n完全な暗闇がはじまる'],
+ [2000,'水圧は地上のおよそ200倍\n船体、わずかに軋む'],
+ [3800,'沈没船が眠る深さを越えた'],
+ [6000,'超深海層\n——それでも、生命はいる'],
+ [8000,'魚が生きられるとされる限界深度'],
+ [10000,'人類がたどり着いた、ほとんど果て'],
+];
+
+function start(){
+  newPhases();
+  depth=0; hp=3; orbCount=0; invul=0; mileIdx=0; shake=0; lightBoost=0;
+  rocks=[]; jellies=[]; orbs=[]; bubbles=[];
+  spawnedTo=LH; nextRock=700; nextJelly=1400; nextOrb=900;
+  sub={x:LW/2,vx:0,aim:LW/2};
+  snow=Array.from({length:60},()=>({x:rnd(0,LW),y:rnd(0,LH),s:rnd(.6,1.8),v:rnd(.3,1)}));
+  updateHud();
+  $('#ov-title').classList.add('hidden');
+  $('#ov-over').classList.add('hidden');
+  $('#ov-clear').classList.add('hidden');
+  state='play';
+}
+
+/* ---- スポーン -------------------------------------------------- */
+function spawnAhead(){
+  const target=depth+LH*2;
+  while(spawnedTo<target){
+    spawnedTo+=30;
+    const d=spawnedTo, prog=clamp(d/100000,0,1);
+    if(d>nextRock){
+      nextRock=d+rnd(220,420)*lerp(1,.6,prog);
+      const co=corridor(d), side=Math.random()<.5?-1:1;
+      const r=rnd(16,34);
+      const pd=Math.min(rnd(12,34), (co.r-co.l)-150);   // はみ出し量(回廊を塞がない)
+      if(pd>6){
+        const cx= side<0 ? co.l+pd-r : co.r-pd+r;
+        rocks.push({x:cx,d,r,side});
+      }
+    }
+    if(d>nextJelly && d>2500){
+      nextJelly=d+rnd(420,760)*lerp(1,.5,prog);
+      const co=corridor(d);
+      jellies.push({x:rnd(co.l+34,co.r-34),d,r:rnd(13,20),ph:rnd(0,7),
+        hue:Math.random()<.5?'rgba(120,220,255,':'rgba(255,140,210,'});
+    }
+    if(d>nextOrb){
+      nextOrb=d+rnd(520,860);
+      const co=corridor(d), n=4+(Math.random()*3|0);
+      const ph=rnd(0,7);
+      for(let i=0;i<n;i++){
+        const dd=d+i*54, c2=corridor(dd);
+        const x=clamp((c2.l+c2.r)/2+Math.sin(i*0.9+ph)*((c2.r-c2.l)/2-40),c2.l+26,c2.r-26);
+        orbs.push({x,d:dd,ph:rnd(0,7)});
+      }
+    }
+  }
+  const cut=depth-200;
+  rocks=rocks.filter(o=>o.d>cut); jellies=jellies.filter(o=>o.d>cut); orbs=orbs.filter(o=>o.d>cut);
+}
+
+/* ---- 更新 ------------------------------------------------------ */
+const SUB_R=13, SUBY=()=>LH*0.3;
+function speed(){ return 90+Math.min(230,(depth/M2PX)*0.03); }
+
+function damage(){
+  const now=performance.now();
+  if(now<invul) return;
+  invul=now+1600; hp--; shake=13; sndHit();
+  try{navigator.vibrate&&navigator.vibrate([20,30,20]);}catch(_){}
+  const f=$('#flash'); f.classList.add('on');
+  setTimeout(()=>f.classList.remove('on'),120);
+  updateHud();
+  if(hp<=0){ state='dying'; deathAt=now; sndDead(); }
+}
+
+function update(dt,now){
+  if(state==='play'){
+    depth+=speed()*dt;
+    const m=depth/M2PX;
+    /* マイルストーン */
+    if(mileIdx<MILES.length && m>=MILES[mileIdx][0]){
+      toast(MILES[mileIdx][0],MILES[mileIdx][1]); sndMile(); mileIdx++;
+    }
+    if(m>=GOAL_M){ finishClear(); return; }
+    /* 操縦 */
+    sub.x+=(sub.aim-sub.x)*Math.min(1,dt*9);
+    sub.vx=(sub.aim-sub.x);
+    spawnAhead();
+
+    const sy=SUBY(), sd=depth+sy;
+    /* 壁との衝突(船体の上下3点で判定) */
+    for(const off of [-9,0,9]){
+      const co=corridor(sd+off);
+      if(sub.x-SUB_R<co.l){ sub.x=co.l+SUB_R; damage(); break; }
+      if(sub.x+SUB_R>co.r){ sub.x=co.r-SUB_R; damage(); break; }
+    }
+    /* 岩 */
+    for(const o of rocks){
+      const dy=o.d-sd; if(dy<-60||dy>60) continue;
+      const dx=o.x-sub.x, rr=o.r+SUB_R-2;
+      if(dx*dx+dy*dy<rr*rr){ damage(); sub.x=o.x-Math.sign(dx||1)*(rr+2); break; }
+    }
+    /* クラゲ(ゆらゆら漂う) */
+    for(const j of jellies){
+      j.x+=Math.sin(now/900+j.ph)*8*dt; j.d-=14*dt;
+      const dy=j.d-sd; if(dy<-50||dy>50) continue;
+      const dx=j.x-sub.x, rr=j.r+SUB_R-3;
+      if(dx*dx+dy*dy<rr*rr){ damage(); break; }
+    }
+    /* 発光体の採取 */
+    for(let i=orbs.length-1;i>=0;i--){
+      const o=orbs[i], dy=o.d-sd, dx=o.x-sub.x;
+      if(dx*dx+dy*dy<26*26){
+        orbs.splice(i,1); orbCount++; lightBoost=Math.min(60,lightBoost+22);
+        sndOrb(orbCount); updateHud();
+        try{navigator.vibrate&&navigator.vibrate(6);}catch(_){}
+      }
+    }
+    lightBoost=Math.max(0,lightBoost-12*dt);
+    /* 泡 */
+    if(Math.random()<dt*4) bubbles.push({x:sub.x+rnd(-6,6),y:sy+10,r:rnd(1,3),v:rnd(40,80),vx:rnd(-6,6)});
+    /* ソナー */
+    if(now-pingAt>5200){ pingAt=now; sndSonar(); }
+    /* 音響を深度に追従 */
+    if(droneF){ const k=clamp(m/6000,0,1);
+      droneF.frequency.value=lerp(260,110,k);
+      if(waterG) waterG.gain.value=lerp(0.055,0.025,k);
+    }
+  }
+  else if(state==='dying'){
+    depth+=speed()*0.3*dt;
+    if(now-deathAt>1400) finishOver();
+  }
+  /* 共通パーティクル */
+  const up=(state==='play'?speed():30)*dt;
+  for(const s of snow){ s.y-=up*s.v*0.5+6*dt; if(s.y<-4){ s.y=LH+4; s.x=rnd(0,LW); } }
+  for(const b of bubbles){ b.y-=(b.v+up*0.5)*dt; b.x+=b.vx*dt; }
+  bubbles=bubbles.filter(b=>b.y>-10);
+  shake*=Math.pow(0.02,dt);
+}
+
+function finishOver(){
+  state='over';
+  const m=Math.floor(depth/M2PX);
+  if(m>best){ best=m; try{localStorage.setItem('isana-best',String(best));}catch(_){}}
+  $('#over-depth').textContent=m.toLocaleString('ja-JP')+' m';
+  $('#over-orbs').textContent=orbCount;
+  $('#over-best').textContent='自己最深 '+best.toLocaleString('ja-JP')+' m';
+  $('#ov-over').classList.remove('hidden');
+}
+function finishClear(){
+  state='clear'; sndClear();
+  if(GOAL_M>best){ best=GOAL_M; try{localStorage.setItem('isana-best',String(best));}catch(_){}}
+  $('#clear-orbs').textContent=orbCount;
+  $('#ov-clear').classList.remove('hidden');
+  updateHud();
+}
+
+/* ---- HUD ------------------------------------------------------- */
+let toastT=null;
+function toast(m,text){
+  const t=$('#toast');
+  t.innerHTML=`<span class="m">DEPTH ${m.toLocaleString('ja-JP')} M</span>${text.replace(/\n/g,'<br>')}`;
+  t.classList.add('show');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>t.classList.remove('show'),3600);
+}
+function updateHud(){
+  document.querySelectorAll('.hp').forEach((el,i)=>el.classList.toggle('off',i>=hp));
+  $('#orbs').textContent='✦ '+orbCount;
+}
+
+/* ---- 描画 ------------------------------------------------------ */
+function bgColor(m){     // 深度で水の色が変わる
+  const k1=clamp(m/200,0,1), k2=clamp((m-200)/1800,0,1);
+  const r=lerp(lerp(20,8,k1),2,k2), g=lerp(lerp(90,38,k1),6,k2), b=lerp(lerp(150,80,k1),16,k2);
+  return [r|0,g|0,b|0];
+}
+function wallPath(g,side,scroll,scale,fn){
+  g.beginPath();
+  g.moveTo(side<0?-4:LW+4,-6);
+  for(let y=-6;y<=LH+6;y+=14){
+    const co=fn(scroll+y*scale);
+    g.lineTo(side<0?co.l:co.r,y);
+  }
+  g.lineTo(side<0?-4:LW+4,LH+6);
+  g.closePath();
+}
+function render(now){
+  const m=depth/M2PX;
+  const [br,bg2,bb]=bgColor(m);
+  ctx.setTransform(1,0,0,1,0,0);
+  const grd=ctx.createLinearGradient(0,0,0,canvas.height);
+  grd.addColorStop(0,`rgb(${br},${bg2},${bb})`);
+  grd.addColorStop(1,`rgb(${Math.max(0,br-8)},${Math.max(0,bg2-14)},${Math.max(0,bb-22)})`);
+  ctx.fillStyle=grd; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  const sx=shake>0.3?rnd(-shake,shake):0;
+  ctx.setTransform(DPR*PXS,0,0,DPR*PXS,sx*DPR,0);
+
+  /* 表層の光条 */
+  if(m<260){
+    const a=(1-m/260)*0.16;
+    ctx.fillStyle=`rgba(220,245,255,${a})`;
+    for(let i=0;i<4;i++){
+      const x=((i*137+now*0.012)%(LW+160))-80;
+      ctx.save(); ctx.translate(x,0); ctx.rotate(0.3);
+      ctx.fillRect(0,-40,26+i*8,LH*1.4); ctx.restore();
+    }
+  }
+  /* 遠景の岩(パララックス) */
+  ctx.fillStyle='rgba(8,18,32,.55)';
+  wallPath(ctx,-1,depth*0.5+3000,0.5,d=>{const c=corridor(d);return{l:c.l*0.7,r:0};}); ctx.fill();
+  wallPath(ctx, 1,depth*0.5+3000,0.5,d=>{const c=corridor(d);return{l:0,r:LW-(LW-c.r)*0.7};}); ctx.fill();
+
+  /* マリンスノー */
+  ctx.fillStyle='rgba(200,225,240,.5)';
+  for(const s of snow){ ctx.fillRect(s.x,s.y,s.s,s.s); }
+
+  const sy=SUBY(), sd=depth+sy;
+
+  /* 発光体 */
+  for(const o of orbs){
+    const y=o.d-depth; if(y<-30||y>LH+30) continue;
+    const p=0.7+0.3*Math.sin(now/300+o.ph);
+    drawGlow(ctx,'rgba(255,196,107,.9)',o.x,y,16*p,.9);
+    ctx.fillStyle='#ffe9c0';
+    ctx.beginPath(); ctx.arc(o.x,y,3.2,0,7); ctx.fill();
+  }
+  /* クラゲ */
+  for(const j of jellies){
+    const y=j.d-depth; if(y<-60||y>LH+60) continue;
+    const sw=Math.sin(now/450+j.ph);
+    drawGlow(ctx,j.hue+'0.55)',j.x,y,j.r*2.6,.8);
+    ctx.fillStyle=j.hue+'0.85)';
+    ctx.beginPath();
+    ctx.arc(j.x,y,j.r,Math.PI,0);
+    ctx.quadraticCurveTo(j.x+j.r*0.6,y+j.r*0.5,j.x+j.r*0.3,y+j.r*0.4);
+    ctx.quadraticCurveTo(j.x,y+j.r*0.7,j.x-j.r*0.3,y+j.r*0.4);
+    ctx.quadraticCurveTo(j.x-j.r*0.6,y+j.r*0.5,j.x-j.r,y);
+    ctx.fill();
+    ctx.strokeStyle=j.hue+'0.5)'; ctx.lineWidth=1.4; ctx.lineCap='round';
+    for(let k=-1;k<=1;k++){
+      ctx.beginPath(); ctx.moveTo(j.x+k*j.r*0.5,y+j.r*0.4);
+      ctx.quadraticCurveTo(j.x+k*j.r*0.5+sw*6,y+j.r*1.4,j.x+k*j.r*0.5-sw*5,y+j.r*2.2);
+      ctx.stroke();
+    }
+  }
+  /* 海溝の壁 */
+  const wgrad=ctx.createLinearGradient(0,0,0,LH);
+  const wk=clamp(m/2000,0,1);
+  wgrad.addColorStop(0,`rgb(${lerp(16,7,wk)|0},${lerp(30,12,wk)|0},${lerp(48,20,wk)|0})`);
+  wgrad.addColorStop(1,`rgb(${lerp(10,4,wk)|0},${lerp(20,8,wk)|0},${lerp(34,13,wk)|0})`);
+  ctx.fillStyle=wgrad;
+  wallPath(ctx,-1,depth,1,corridor); ctx.fill();
+  wallPath(ctx, 1,depth,1,corridor); ctx.fill();
+  /* 岩 */
+  for(const o of rocks){
+    const y=o.d-depth; if(y<-50||y>LH+50) continue;
+    ctx.fillStyle=wgrad;
+    ctx.beginPath(); ctx.arc(o.x,y,o.r,0,7); ctx.fill();
+    ctx.fillStyle='rgba(120,160,190,.12)';
+    ctx.beginPath(); ctx.ellipse(o.x-o.r*0.3,y-o.r*0.35,o.r*0.5,o.r*0.3,-.5,0,7); ctx.fill();
+  }
+  /* 泡 */
+  ctx.strokeStyle='rgba(190,225,245,.5)'; ctx.lineWidth=1;
+  for(const b of bubbles){ ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.stroke(); }
+
+  /* 探査艇イサナ */
+  if(state==='play'||state==='dying'){
+    const blink=performance.now()<invul && (now/90|0)%2===0;
+    const flick=state==='dying'?(Math.random()<0.5?0.2:1):1;
+    if(!blink){
+      ctx.save(); ctx.translate(sub.x,sy); ctx.rotate(clamp(sub.vx*0.012,-.3,.3));
+      /* 前照灯の水中散乱 */
+      ctx.globalAlpha=0.1*flick;
+      const cone=ctx.createLinearGradient(0,0,0,170);
+      cone.addColorStop(0,'rgba(190,240,255,1)'); cone.addColorStop(1,'rgba(190,240,255,0)');
+      ctx.fillStyle=cone;
+      ctx.beginPath(); ctx.moveTo(-7,8); ctx.lineTo(7,8); ctx.lineTo(46,176); ctx.lineTo(-46,176); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1;
+      /* 船体 */
+      ctx.fillStyle='#33424f';
+      ctx.beginPath(); ctx.ellipse(0,0,11,15,0,0,7); ctx.fill();
+      ctx.fillStyle='#22303c';
+      ctx.beginPath(); ctx.ellipse(0,4,8.5,10,0,0,7); ctx.fill();
+      ctx.fillStyle='rgba(140,230,255,.95)';                     // 観測窓
+      ctx.beginPath(); ctx.arc(0,-4,4.4,0,7); ctx.fill();
+      drawGlow(ctx,'rgba(140,230,255,.8)',0,-4,9,.8*flick);
+      ctx.fillStyle='#46586a';                                    // フィン
+      ctx.beginPath(); ctx.moveTo(-11,2); ctx.lineTo(-17,9); ctx.lineTo(-10,10); ctx.closePath();
+      ctx.moveTo(11,2); ctx.lineTo(17,9); ctx.lineTo(10,10); ctx.closePath(); ctx.fill();
+      const pr=Math.sin(now/40)*5;                                // スクリュー
+      ctx.strokeStyle='#7e93a6'; ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(-pr,16.5); ctx.lineTo(pr,16.5); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /* ── 暗闇レイヤー:深いほど闇、光源の周りだけ抜く ── */
+  const dark=clamp((m-120)/900,0,1)*0.93;
+  if(dark>0.02){
+    dctx.setTransform(1,0,0,1,0,0);
+    dctx.clearRect(0,0,dk.width,dk.height);
+    dctx.fillStyle=`rgba(1,3,8,${dark})`;
+    dctx.fillRect(0,0,dk.width,dk.height);
+    dctx.setTransform(DPR*PXS,0,0,DPR*PXS,sx*DPR,0);
+    dctx.globalCompositeOperation='destination-out';
+    const punch=(x,y,r,a)=>{
+      const g2=dctx.createRadialGradient(x,y,0,x,y,r);
+      g2.addColorStop(0,`rgba(0,0,0,${a})`); g2.addColorStop(1,'rgba(0,0,0,0)');
+      dctx.fillStyle=g2; dctx.beginPath(); dctx.arc(x,y,r,0,7); dctx.fill();
+    };
+    if(state==='play'||state==='dying'){
+      const flick=state==='dying'?rnd(0.2,0.7):1;
+      const R=(150+lightBoost)*flick;
+      punch(sub.x,sy,R,1);                       // 艇のまわり
+      punch(sub.x,sy+R*0.85,R*0.95,0.85);        // 前照灯の先
+    }
+    for(const o of orbs){ const y=o.d-depth; if(y>-30&&y<LH+30) punch(o.x,y,34,.95); }
+    for(const j of jellies){ const y=j.d-depth; if(y>-40&&y<LH+40) punch(j.x,y,j.r*3.2,.85); }
+    dctx.globalCompositeOperation='source-over';
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.drawImage(dk,0,0);
+  }
+}
+
+/* ---- 入力 ------------------------------------------------------ */
+let dragging=false;
+function toLX(e){ return e.clientX/window.innerWidth*LW; }
+canvas.addEventListener('pointerdown',e=>{
+  e.preventDefault(); audioInit();
+  if(state==='title'){ start(); return; }
+  if(state!=='play') return;
+  dragging=true; canvas.setPointerCapture(e.pointerId);
+  sub.aim=clamp(toLX(e),SUB_R+4,LW-SUB_R-4);
+},{passive:false});
+canvas.addEventListener('pointermove',e=>{
+  if(!dragging||state!=='play') return; e.preventDefault();
+  sub.aim=clamp(toLX(e),SUB_R+4,LW-SUB_R-4);
+},{passive:false});
+['pointerup','pointercancel'].forEach(ev=>canvas.addEventListener(ev,()=>dragging=false));
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+$('#ov-title').addEventListener('pointerdown',e=>{e.preventDefault();audioInit();start();},{passive:false});
+$('#btn-retry').addEventListener('click',()=>{audioInit();start();});
+$('#btn-again').addEventListener('click',()=>{audioInit();start();});
+$('#btn-mute').addEventListener('click',()=>setMuted(!muted));
+
+/* ---- ループ ----------------------------------------------------- */
+let last=performance.now(), running=true;
+const depthEl=$('#depth');
+let hudAt=0;
+function loop(now){
+  requestAnimationFrame(loop);
+  let dt=Math.min(0.033,(now-last)/1000); last=now;
+  if(!running) dt=0;
+  if(dt>0) update(dt,now);
+  render(now);
+  if(now-hudAt>80){
+    hudAt=now;
+    depthEl.innerHTML=Math.floor(depth/M2PX).toLocaleString('ja-JP')+'<small>m</small>';
+  }
+}
+document.addEventListener('visibilitychange',()=>{
+  running=!document.hidden; last=performance.now();
+  if(A){ document.hidden?A.suspend().catch(()=>{}):A.resume().catch(()=>{}); }
+});
+requestAnimationFrame(loop);
+
+/* テスト用フック(動作には不要) */
+window.__isana={
+  start, get state(){return state}, get depth(){return depth},
+  get hp(){return hp}, set aim(x){ if(sub) sub.aim=x; },
+  get sub(){return sub}, corridor,
+};
+})();
+</script>
+</body>
+</html>
