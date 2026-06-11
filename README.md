@@ -8,3 +8,4 @@
 - `chaospendulum.html`: Gemini 3.1 Flash-Liteを使用して作成したコーディング
 - `aethersilk.html`: Gemini 3.1 Proを使用して作成したコーディング
 - `mochibounce.html`: Gemini 3.1 Proを使用して作成したコーディング
+- `kerohop.html`: Claudefable5を使用して作成したコーディング
