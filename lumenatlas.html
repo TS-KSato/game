@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#080914">
+<meta name="description" content="外部依存ゼロで動作するスマートフォン専用のインタラクティブ光彫刻エディタ。">
+<title>LUMEN ATLAS — 光の地図帳</title>
+<style>
+:root{
+  --bg:#080914;
+  --panel:rgba(16,18,34,.72);
+  --panel2:rgba(30,34,58,.76);
+  --line:rgba(255,255,255,.13);
+  --text:#f4f6ff;
+  --dim:#9aa3c7;
+  --a:#71f6ff;
+  --b:#b28cff;
+  --c:#ffd36d;
+  --d:#ff6fae;
+  --ok:#76ffb4;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+body{
+  position:fixed;inset:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Segoe UI",sans-serif;
+  color:var(--text);
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  touch-action:none;
+}
+#stage{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+  background:#080914;
+  touch-action:none;
+}
+#grain{
+  position:absolute;inset:0;pointer-events:none;opacity:.23;mix-blend-mode:soft-light;
+  background-image:
+    radial-gradient(circle at 20% 20%,rgba(255,255,255,.18) 0 1px,transparent 1px),
+    radial-gradient(circle at 80% 70%,rgba(255,255,255,.11) 0 1px,transparent 1px);
+  background-size:17px 19px,23px 29px;
+}
+#app{
+  position:absolute;inset:0;pointer-events:none;
+  padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 10px);
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+header{
+  pointer-events:none;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;
+}
+.brand{
+  background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.04));
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:10px 12px;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 12px 40px rgba(0,0,0,.25);
+}
+.brand b{
+  display:block;font-size:14px;letter-spacing:.16em;font-weight:850;
+  background:linear-gradient(90deg,var(--a),var(--b),var(--d));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.brand span{
+  display:block;margin-top:3px;font-size:9px;letter-spacing:.22em;color:var(--dim);
+}
+#stats{
+  pointer-events:none;
+  display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;
+  max-width:178px;
+}
+.pill{
+  min-width:48px;text-align:center;
+  padding:7px 8px;border-radius:999px;border:1px solid var(--line);
+  background:rgba(10,12,25,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  font-size:10px;letter-spacing:.08em;color:var(--dim);
+  box-shadow:0 8px 28px rgba(0,0,0,.2);
+}
+.pill b{
+  display:block;color:var(--text);font-size:13px;line-height:1.1;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;
+}
+#hint{
+  align-self:center;
+  max-width:92%;
+  text-align:center;
+  pointer-events:none;
+  opacity:0;transform:translateY(8px);
+  transition:.45s ease;
+  padding:10px 15px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(8,9,20,.55);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  color:rgba(244,246,255,.9);
+  font-size:12px;letter-spacing:.1em;line-height:1.55;
+  box-shadow:0 10px 36px rgba(0,0,0,.28);
+}
+#hint.show{opacity:1;transform:translateY(0)}
+#toolbar{
+  pointer-events:auto;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:8px;
+  background:rgba(7,8,18,.58);
+  border:1px solid var(--line);
+  padding:8px;
+  border-radius:24px;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:0 18px 60px rgba(0,0,0,.38);
+}
+.btn{
+  height:54px;border:0;border-radius:17px;
+  background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.045));
+  color:var(--text);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-size:9.5px;letter-spacing:.08em;font-weight:700;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);
+  touch-action:manipulation;
+}
+.btn svg{width:22px;height:22px;fill:currentColor;filter:drop-shadow(0 0 8px rgba(113,246,255,.2))}
+.btn:active{transform:scale(.95);filter:brightness(1.18)}
+.btn.on{
+  color:#071018;
+  background:linear-gradient(135deg,var(--a),var(--b));
+  box-shadow:0 0 24px rgba(113,246,255,.28);
+}
+#palette{
+  pointer-events:auto;
+  position:absolute;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 84px);
+  display:grid;grid-template-columns:repeat(5,1fr);gap:8px;
+  padding:9px;border-radius:21px;
+  background:rgba(7,8,18,.62);border:1px solid var(--line);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  transform:translateY(18px);opacity:0;pointer-events:none;
+  transition:.28s ease;
+  box-shadow:0 18px 60px rgba(0,0,0,.36);
+}
+#palette.show{transform:translateY(0);opacity:1;pointer-events:auto}
+.swatch{
+  height:44px;border:0;border-radius:14px;position:relative;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.22),0 8px 20px rgba(0,0,0,.25);
+}
+.swatch.cur:after{
+  content:"";position:absolute;inset:7px;border-radius:10px;
+  border:2px solid rgba(255,255,255,.9);
+}
+#sheet{
+  position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;
+  padding:28px;
+  background:
+    radial-gradient(circle at 50% 26%,rgba(113,246,255,.16),transparent 42%),
+    radial-gradient(circle at 60% 80%,rgba(178,140,255,.13),transparent 48%),
+    rgba(5,6,15,.72);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:opacity .6s ease;
+}
+#sheet.hidden{opacity:0;pointer-events:none}
+.card{
+  width:min(100%,370px);
+  border:1px solid rgba(255,255,255,.16);
+  background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.045));
+  border-radius:30px;
+  padding:26px 22px 22px;
+  box-shadow:0 28px 90px rgba(0,0,0,.45);
+  text-align:center;
+}
+.eyebrow{
+  color:var(--a);font-size:10px;letter-spacing:.36em;margin-bottom:12px;
+}
+h1{
+  font-size:44px;line-height:.98;letter-spacing:.08em;font-weight:250;
+  text-shadow:0 0 30px rgba(113,246,255,.34);
+}
+h1 span{
+  display:block;font-size:15px;letter-spacing:.48em;text-indent:.48em;margin-top:9px;color:var(--dim);
+}
+.card p{
+  margin:24px 0 22px;color:rgba(244,246,255,.82);
+  font-size:13px;line-height:2.05;letter-spacing:.08em;
+}
+.start{
+  width:100%;height:56px;border:0;border-radius:18px;
+  background:linear-gradient(135deg,var(--a),var(--b));
+  color:#071018;font-size:14px;font-weight:900;letter-spacing:.22em;
+  box-shadow:0 0 34px rgba(113,246,255,.24);
+}
+.guide{
+  margin-top:13px;color:var(--dim);font-size:10.5px;line-height:1.7;letter-spacing:.08em;
+}
+#toast{
+  position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 78px);
+  transform:translate(-50%,-8px);
+  max-width:88%;padding:11px 16px;border-radius:999px;
+  color:var(--text);background:rgba(8,9,20,.72);border:1px solid var(--line);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  font-size:12px;letter-spacing:.09em;line-height:1.45;text-align:center;
+  opacity:0;transition:.28s ease;pointer-events:none;z-index:12;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#poster{
+  position:absolute;inset:0;z-index:20;background:rgba(4,5,12,.72);
+  display:none;align-items:center;justify-content:center;padding:18px;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+#poster.show{display:flex}
+.posterBox{
+  width:100%;max-width:390px;
+  border-radius:28px;border:1px solid var(--line);
+  background:rgba(14,16,31,.92);
+  padding:12px;
+  box-shadow:0 28px 100px rgba(0,0,0,.56);
+}
+#posterImg{
+  width:100%;display:block;border-radius:20px;background:#050610;
+}
+.posterActions{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;
+}
+.posterActions a,.posterActions button{
+  height:48px;border:0;border-radius:15px;
+  color:var(--text);background:rgba(255,255,255,.09);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);
+  font-size:12px;font-weight:800;letter-spacing:.12em;
+  text-decoration:none;display:flex;align-items:center;justify-content:center;
+}
+.posterActions a{
+  background:linear-gradient(135deg,var(--a),var(--b));color:#071018;
+}
+@media (max-height:720px){
+  .btn{height:48px;border-radius:15px}
+  #palette{bottom:calc(env(safe-area-inset-bottom) + 76px)}
+  .brand{padding:8px 10px}
+  h1{font-size:38px}
+  .card p{margin:18px 0}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="光の地図を描くキャンバス"></canvas>
+<div id="grain"></div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <b>LUMEN ATLAS</b>
+      <span>TOUCH LIGHT CARTOGRAPHY</span>
+    </div>
+    <div id="stats">
+      <div class="pill"><b id="nodes">0</b>NODES</div>
+      <div class="pill"><b id="energy">0</b>LIGHT</div>
+      <div class="pill"><b id="modeName">DRAW</b>MODE</div>
+    </div>
+  </header>
+
+  <div id="hint">一本指で描く。長押しで星雲を咲かせる。二本指で風を送る。</div>
+
+  <div id="toolbar">
+    <button class="btn on" id="drawBtn" aria-label="描く">
+      <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.8 9.95l-3.75-3.75L3 17.25zm17.7-10.1a1 1 0 0 0 0-1.41l-2.44-2.44a1 1 0 0 0-1.41 0l-1.9 1.9 3.75 3.75 2-1.8z"/></svg>
+      描く
+    </button>
+    <button class="btn" id="windBtn" aria-label="風">
+      <svg viewBox="0 0 24 24"><path d="M4 9h10.5a2.5 2.5 0 1 0-2.3-3.5l-1.8-.8A4.5 4.5 0 1 1 14.5 11H4V9zm0 4h14a3 3 0 1 1-2.7 4.3l1.8-.9A1 1 0 1 0 18 15H4v-2zm0 4h8.5a2.5 2.5 0 1 1-2.3 3.5l1.8-.8A.5.5 0 1 0 12.5 19H4v-2z"/></svg>
+      風
+    </button>
+    <button class="btn" id="eraseBtn" aria-label="消す">
+      <svg viewBox="0 0 24 24"><path d="M16.24 3.56a2 2 0 0 1 2.83 0l1.37 1.37a2 2 0 0 1 0 2.83L10.2 18H21v2H8.2a3 3 0 0 1-2.12-.88l-2.52-2.51a2 2 0 0 1 0-2.83L16.24 3.56zM5 15.2l2.8 2.8h.57l5.52-5.52-3.37-3.37L5 14.63v.57z"/></svg>
+      消す
+    </button>
+    <button class="btn" id="seedBtn" aria-label="生成">
+      <svg viewBox="0 0 24 24"><path d="M12 2l1.4 5.2L18 4.3l-2.9 4.6L20.3 10l-5.2 1.4L18 16l-4.6-2.9L12 18.3l-1.4-5.2L6 16l2.9-4.6L3.7 10l5.2-1.1L6 4.3l4.6 2.9L12 2zm0 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+      星図
+    </button>
+    <button class="btn" id="moreBtn" aria-label="メニュー">
+      <svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+      記録
+    </button>
+  </div>
+</div>
+
+<div id="palette">
+  <button class="swatch cur" data-p="0" style="background:linear-gradient(135deg,#71f6ff,#4b7dff)"></button>
+  <button class="swatch" data-p="1" style="background:linear-gradient(135deg,#b28cff,#ff6fae)"></button>
+  <button class="swatch" data-p="2" style="background:linear-gradient(135deg,#ffd36d,#ff7d4d)"></button>
+  <button class="swatch" data-p="3" style="background:linear-gradient(135deg,#76ffb4,#58ffe8)"></button>
+  <button class="swatch" data-p="4" style="background:linear-gradient(135deg,#ffffff,#c6d0ff)"></button>
+</div>
+
+<div id="sheet">
+  <div class="card">
+    <div class="eyebrow">OFFLINE MOBILE CANVAS</div>
+    <h1>LUMEN<br>ATLAS<span>光の地図帳</span></h1>
+    <p>
+      指先で光の航路を描き、粒子の流れを育てる<br>
+      スマートフォン専用のインタラクティブ作品です。<br>
+      外部画像・外部API・ライブラリは使っていません。
+    </p>
+    <button class="start" id="startBtn">はじめる</button>
+    <div class="guide">長押し：星雲生成 ／ 二本指：風 ／ 記録：ポスター保存</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="poster">
+  <div class="posterBox">
+    <img id="posterImg" alt="生成された光の地図ポスター">
+    <div class="posterActions">
+      <a id="download" download="lumen-atlas.png">PNG保存</a>
+      <button id="closePoster">戻る</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=>{"use strict";
+
+const canvas=document.getElementById("stage");
+const ctx=canvas.getContext("2d",{alpha:false});
+const off=document.createElement("canvas");
+const octx=off.getContext("2d");
+const bloom=document.createElement("canvas");
+const bctx=bloom.getContext("2d");
+const $=id=>document.getElementById(id);
+const rand=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const TAU=Math.PI*2;
+
+let W=0,H=0,DPR=1,logicalW=390,logicalH=844;
+let mode="draw",palette=0,started=false,frame=0,last=performance.now();
+let pointer=new Map(),lastTap=0,pressTimer=null,pressPoint=null;
+let particles=[],paths=[],bursts=[],stars=[],ripples=[];
+let wind={x:0,y:0,tx:0,ty:0};
+let audio=null,muted=false,dirty=false,autoSaveTimer=0;
+
+const palettes=[
+  {a:"#71f6ff",b:"#4b7dff",rgb:[113,246,255],name:"cyan"},
+  {a:"#b28cff",b:"#ff6fae",rgb:[255,111,174],name:"violet"},
+  {a:"#ffd36d",b:"#ff7d4d",rgb:[255,211,109],name:"amber"},
+  {a:"#76ffb4",b:"#58ffe8",rgb:[118,255,180],name:"green"},
+  {a:"#ffffff",b:"#c6d0ff",rgb:[236,240,255],name:"white"}
+];
+
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  W=innerWidth;H=innerHeight;
+  canvas.width=off.width=bloom.width=Math.round(W*DPR);
+  canvas.height=off.height=bloom.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  octx.setTransform(DPR,0,0,DPR,0,0);
+  bctx.setTransform(DPR,0,0,DPR,0,0);
+  logicalW=W;logicalH=H;
+  makeStars();
+  redrawOffscreen();
+}
+addEventListener("resize",()=>setTimeout(resize,80),{passive:true});
+resize();
+
+function makeStars(){
+  stars=[];
+  const n=Math.floor((W*H)/11500);
+  for(let i=0;i<n;i++){
+    stars.push({
+      x:Math.random()*W,y:Math.random()*H,
+      r:rand(.25,1.25),a:rand(.16,.78),
+      tw:rand(.5,2.2),ph:rand(0,TAU)
+    });
+  }
+}
+
+function initAudio(){
+  if(audio) { if(audio.ac.state==="suspended") audio.ac.resume(); return; }
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    const ac=new AC();
+    const master=ac.createGain();master.gain.value=muted?0:.72;
+    const comp=ac.createDynamicsCompressor();
+    comp.threshold.value=-18;comp.ratio.value=3;comp.attack.value=.006;comp.release.value=.18;
+    master.connect(comp).connect(ac.destination);
+
+    const delay=ac.createDelay(1.2);delay.delayTime.value=.34;
+    const fb=ac.createGain();fb.gain.value=.28;
+    const df=ac.createBiquadFilter();df.type="lowpass";df.frequency.value=2900;
+    delay.connect(df).connect(fb).connect(delay);
+    delay.connect(master);
+
+    const drone=ac.createGain();drone.gain.value=.028;
+    const filter=ac.createBiquadFilter();filter.type="lowpass";filter.frequency.value=410;
+    filter.connect(drone).connect(master);
+    [55,82.5,110].forEach((f,i)=>{
+      const o=ac.createOscillator();o.type=i===0?"sine":"triangle";
+      o.frequency.value=f;o.detune.value=(i-1)*5;
+      const g=ac.createGain();g.gain.value=i===0?.7:.28;
+      o.connect(g).connect(filter);o.start();
+    });
+
+    audio={ac,master,delay,filter};
+  }catch(e){}
+}
+function tone(freq,dur=.35,type="sine",gain=.08,delay=0){
+  if(!audio)return;
+  const ac=audio.ac,t=ac.currentTime+delay;
+  const o=ac.createOscillator(),g=ac.createGain(),p=ac.createStereoPanner();
+  o.type=type;o.frequency.setValueAtTime(freq,t);
+  o.frequency.exponentialRampToValueAtTime(freq*(.96+Math.random()*.08),t+dur);
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.linearRampToValueAtTime(gain,t+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  p.pan.value=rand(-.45,.45);
+  o.connect(g).connect(p);
+  p.connect(audio.master);
+  p.connect(audio.delay);
+  o.start(t);o.stop(t+dur+.05);
+}
+function chime(x,y,kind=0){
+  if(!audio)return;
+  const scale=[261.63,293.66,329.63,392,440,523.25,587.33,659.25,783.99];
+  const i=Math.floor(clamp(x/W,0,.999)*scale.length);
+  const base=scale[i]*(kind?1.5:1);
+  tone(base,.24+Math.random()*.18,kind?"triangle":"sine",.055);
+  if(kind) tone(base*2,.42,"sine",.025,.04);
+}
+function vibrate(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
+
+function toast(text){
+  const t=$("toast");t.textContent=text;t.classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer=setTimeout(()=>t.classList.remove("show"),1900);
+}
+function hint(text,time=2600){
+  const h=$("hint");h.textContent=text;h.classList.add("show");
+  clearTimeout(h.timer);h.timer=setTimeout(()=>h.classList.remove("show"),time);
+}
+
+class Path{
+  constructor(colorIndex){
+    this.c=colorIndex;this.pts=[];this.life=1;this.seed=Math.random()*999;
+  }
+  add(x,y,force=1){
+    const last=this.pts[this.pts.length-1];
+    if(last){
+      const dx=x-last.x,dy=y-last.y;
+      if(dx*dx+dy*dy<10)return;
+    }
+    this.pts.push({x,y,f:force,t:performance.now()});
+    if(this.pts.length>180)this.pts.shift();
+    dirty=true;
+  }
+}
+class Particle{
+  constructor(x,y,c,energy=1){
+    const p=palettes[c].rgb;
+    this.x=x;this.y=y;this.px=x;this.py=y;
+    const a=rand(0,TAU),s=rand(.25,2.2)*energy;
+    this.vx=Math.cos(a)*s;this.vy=Math.sin(a)*s;
+    this.r=rand(1.1,3.2)*energy;
+    this.c=c;this.life=rand(1.8,4.8)*energy;
+    this.max=this.life;this.spin=rand(-1,1);
+    this.rgb=p;this.lock=Math.random()<.16;
+  }
+  step(dt){
+    this.px=this.x;this.py=this.y;
+    const cx=W/2,cy=H/2;
+    const dx=cx-this.x,dy=cy-this.y,d=Math.hypot(dx,dy)+1;
+    const swirl=(this.lock?.018:.008);
+    this.vx+=(-dy/d)*swirl*this.spin + wind.x*.028;
+    this.vy+=( dx/d)*swirl*this.spin + wind.y*.028;
+    this.vx*=.988;this.vy*=.988;
+    this.x+=this.vx*dt*60;this.y+=this.vy*dt*60;
+    if(this.x<-40)this.x=W+40;if(this.x>W+40)this.x=-40;
+    if(this.y<-40)this.y=H+40;if(this.y>H+40)this.y=-40;
+    this.life-=dt;
+  }
+}
+class Burst{
+  constructor(x,y,c,power=1){
+    this.x=x;this.y=y;this.c=c;this.r=0;this.life=.9;this.power=power;
+  }
+  step(dt){this.r+=dt*360*this.power;this.life-=dt;}
+}
+class Ripple{
+  constructor(x,y){this.x=x;this.y=y;this.r=0;this.life=1;}
+  step(dt){this.r+=dt*520;this.life-=dt*1.4;}
+}
+
+function addBurst(x,y,c=palette,power=1){
+  bursts.push(new Burst(x,y,c,power));
+  ripples.push(new Ripple(x,y));
+  const count=Math.floor(34*power);
+  for(let i=0;i<count;i++)particles.push(new Particle(x+rand(-8,8),y+rand(-8,8),c,rand(.75,1.35)*power));
+  if(particles.length>850)particles.splice(0,particles.length-850);
+  chime(x,y,1);vibrate([12,18,10]);dirty=true;
+}
+
+function addStrokeParticle(x,y,c,force=1){
+  for(let i=0;i<2;i++){
+    particles.push(new Particle(x+rand(-3,3),y+rand(-3,3),c,force));
+  }
+  if(particles.length>850)particles.splice(0,particles.length-850);
+}
+
+function eraseAt(x,y,r=34){
+  const rr=r*r;
+  let removed=0;
+  for(const path of paths){
+    const before=path.pts.length;
+    path.pts=path.pts.filter(p=>(p.x-x)*(p.x-x)+(p.y-y)*(p.y-y)>rr);
+    removed+=before-path.pts.length;
+  }
+  particles=particles.filter(p=>(p.x-x)*(p.x-x)+(p.y-y)*(p.y-y)>rr*.72);
+  ripples.push(new Ripple(x,y));
+  if(removed)dirty=true;
+}
+
+function redrawOffscreen(){
+  octx.setTransform(DPR,0,0,DPR,0,0);
+  octx.clearRect(0,0,W,H);
+  octx.lineCap="round";octx.lineJoin="round";
+  for(const path of paths){
+    if(path.pts.length<2)continue;
+    const pal=palettes[path.c];
+    for(let pass=0;pass<3;pass++){
+      octx.beginPath();
+      for(let i=0;i<path.pts.length;i++){
+        const p=path.pts[i];
+        if(i===0)octx.moveTo(p.x,p.y);
+        else{
+          const prev=path.pts[i-1];
+          const mx=(prev.x+p.x)/2,my=(prev.y+p.y)/2;
+          octx.quadraticCurveTo(prev.x,prev.y,mx,my);
+        }
+      }
+      if(pass===0){
+        octx.globalAlpha=.12;octx.strokeStyle=pal.b;octx.lineWidth=18;
+        octx.shadowBlur=26;octx.shadowColor=pal.a;
+      }else if(pass===1){
+        octx.globalAlpha=.42;octx.strokeStyle=pal.a;octx.lineWidth=6;
+        octx.shadowBlur=18;octx.shadowColor=pal.a;
+      }else{
+        octx.globalAlpha=.92;octx.strokeStyle="rgba(255,255,255,.9)";octx.lineWidth=1.15;
+        octx.shadowBlur=8;octx.shadowColor=pal.b;
+      }
+      octx.stroke();
+    }
+    octx.shadowBlur=0;octx.globalAlpha=1;
+    for(let i=8;i<path.pts.length;i+=18){
+      const p=path.pts[i];
+      octx.globalAlpha=.8;
+      octx.fillStyle=pal.a;
+      octx.beginPath();octx.arc(p.x,p.y,1.5+Math.sin(i)*.8,0,TAU);octx.fill();
+    }
+    octx.globalAlpha=1;
+  }
+}
+
+function renderBackground(t){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#090a18");
+  g.addColorStop(.46,"#070916");
+  g.addColorStop(1,"#03040a");
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  const rg=ctx.createRadialGradient(W*.5,H*.36,0,W*.5,H*.36,Math.max(W,H)*.72);
+  rg.addColorStop(0,"rgba(91,117,255,.13)");
+  rg.addColorStop(.45,"rgba(91,117,255,.035)");
+  rg.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  ctx.globalCompositeOperation="lighter";
+  for(const s of stars){
+    const a=s.a*(.68+.32*Math.sin(t*s.tw+s.ph));
+    ctx.fillStyle=`rgba(220,235,255,${a})`;
+    ctx.beginPath();ctx.arc(s.x+Math.sin(t*.08+s.ph)*4,s.y,s.r,0,TAU);ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawConstellationLines(){
+  if(particles.length<2)return;
+  ctx.save();
+  ctx.globalCompositeOperation="lighter";
+  const maxD=42,step=Math.max(1,Math.floor(particles.length/210));
+  for(let i=0;i<particles.length;i+=step){
+    const a=particles[i];
+    for(let j=i+step;j<particles.length;j+=step){
+      const b=particles[j],dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy;
+      if(d2<maxD*maxD){
+        const al=(1-d2/(maxD*maxD))*0.08*Math.min(a.life/a.max,b.life/b.max);
+        ctx.strokeStyle=`rgba(160,220,255,${al})`;
+        ctx.lineWidth=.75;
+        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function render(t){
+  renderBackground(t);
+  ctx.drawImage(off,0,0,W,H);
+
+  bctx.setTransform(DPR,0,0,DPR,0,0);
+  bctx.clearRect(0,0,W,H);
+  bctx.globalCompositeOperation="lighter";
+
+  for(const r of ripples){
+    const a=Math.max(0,r.life);
+    bctx.strokeStyle=`rgba(180,230,255,${.18*a})`;
+    bctx.lineWidth=1.5;
+    bctx.beginPath();bctx.arc(r.x,r.y,r.r,0,TAU);bctx.stroke();
+  }
+
+  for(const b of bursts){
+    const pal=palettes[b.c],a=Math.max(0,b.life);
+    const grd=bctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
+    grd.addColorStop(0,`rgba(${pal.rgb[0]},${pal.rgb[1]},${pal.rgb[2]},${.22*a})`);
+    grd.addColorStop(.36,`rgba(${pal.rgb[0]},${pal.rgb[1]},${pal.rgb[2]},${.09*a})`);
+    grd.addColorStop(1,"rgba(0,0,0,0)");
+    bctx.fillStyle=grd;bctx.beginPath();bctx.arc(b.x,b.y,b.r,0,TAU);bctx.fill();
+  }
+
+  for(const p of particles){
+    const a=Math.max(0,p.life/p.max);
+    bctx.strokeStyle=`rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},${.24*a})`;
+    bctx.lineWidth=p.r*.8;
+    bctx.beginPath();bctx.moveTo(p.px,p.py);bctx.lineTo(p.x,p.y);bctx.stroke();
+
+    const grd=bctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*8);
+    grd.addColorStop(0,`rgba(255,255,255,${.62*a})`);
+    grd.addColorStop(.18,`rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},${.46*a})`);
+    grd.addColorStop(1,"rgba(0,0,0,0)");
+    bctx.fillStyle=grd;bctx.beginPath();bctx.arc(p.x,p.y,p.r*8,0,TAU);bctx.fill();
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation="lighter";
+  ctx.filter="blur(9px)";
+  ctx.drawImage(bloom,0,0,W,H);
+  ctx.filter="none";
+  ctx.drawImage(bloom,0,0,W,H);
+  ctx.restore();
+
+  drawConstellationLines();
+
+  ctx.save();
+  ctx.globalCompositeOperation="multiply";
+  const vg=ctx.createRadialGradient(W/2,H*.42,Math.min(W,H)*.15,W/2,H*.5,Math.max(W,H)*.72);
+  vg.addColorStop(0,"rgba(255,255,255,1)");
+  vg.addColorStop(.66,"rgba(210,220,255,.86)");
+  vg.addColorStop(1,"rgba(10,10,20,.18)");
+  ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
+
+function step(now){
+  const dt=Math.min(.033,(now-last)/1000||.016);last=now;frame++;
+  wind.x=lerp(wind.x,wind.tx,.08);wind.y=lerp(wind.y,wind.ty,.08);
+  wind.tx*=.94;wind.ty*=.94;
+
+  for(const p of particles)p.step(dt);
+  particles=particles.filter(p=>p.life>0);
+
+  for(const b of bursts)b.step(dt);
+  bursts=bursts.filter(b=>b.life>0);
+
+  for(const r of ripples)r.step(dt);
+  ripples=ripples.filter(r=>r.life>0);
+
+  if(dirty){redrawOffscreen();dirty=false;scheduleSave();}
+  render(now/1000);
+  updateStats();
+  requestAnimationFrame(step);
+}
+requestAnimationFrame(step);
+
+function getXY(e){
+  const r=canvas.getBoundingClientRect();
+  return {x:e.clientX-r.left,y:e.clientY-r.top};
+}
+
+function beginDraw(id,x,y){
+  const path=new Path(palette);
+  path.add(x,y,1);
+  paths.push(path);
+  pointer.set(id,{x,y,lx:x,ly:y,path,mode});
+  addStrokeParticle(x,y,palette,1);
+}
+function pointerDown(e){
+  e.preventDefault();
+  initAudio();
+  const {x,y}=getXY(e);
+  const now=performance.now();
+  if(now-lastTap<280){togglePalette();lastTap=0;return;}
+  lastTap=now;
+
+  if(pointer.size>=1 || e.pointerType==="touch" && pointer.size===1){
+    pointer.set(e.pointerId,{x,y,lx:x,ly:y,path:null,mode:"wind"});
+    modeButton("wind",false);
+    hint("二本指の動きで、粒子に風を送ります",1200);
+    return;
+  }
+
+  if(mode==="erase"){
+    pointer.set(e.pointerId,{x,y,lx:x,ly:y,path:null,mode:"erase"});
+    eraseAt(x,y,42);chime(x,y,0);vibrate(8);
+    return;
+  }
+  if(mode==="wind"){
+    pointer.set(e.pointerId,{x,y,lx:x,ly:y,path:null,mode:"wind"});
+    return;
+  }
+
+  beginDraw(e.pointerId,x,y);
+  chime(x,y,0);
+
+  clearTimeout(pressTimer);
+  pressPoint={id:e.pointerId,x,y,t:now};
+  pressTimer=setTimeout(()=>{
+    const p=pointer.get(e.pointerId);
+    if(p && Math.hypot(p.x-x,p.y-y)<15){
+      addBurst(x,y,palette,1.65);
+      hint("星雲が生まれました",1100);
+    }
+  },520);
+}
+function pointerMove(e){
+  if(!pointer.has(e.pointerId))return;
+  e.preventDefault();
+  const p=pointer.get(e.pointerId),{x,y}=getXY(e);
+  const dx=x-p.x,dy=y-p.y;
+  p.lx=p.x;p.ly=p.y;p.x=x;p.y=y;
+  if(pressPoint && pressPoint.id===e.pointerId && Math.hypot(x-pressPoint.x,y-pressPoint.y)>16){
+    clearTimeout(pressTimer);pressPoint=null;
+  }
+
+  if(pointer.size>=2 || p.mode==="wind"){
+    wind.tx+=dx*.5;wind.ty+=dy*.5;
+    for(let i=0;i<2;i++)particles.push(new Particle(x+rand(-8,8),y+rand(-8,8),palette,.8));
+    return;
+  }
+  if(p.mode==="erase"){
+    eraseAt(x,y,40);
+    return;
+  }
+  if(p.path){
+    const force=clamp(Math.hypot(dx,dy)/18,.55,1.9);
+    p.path.add(x,y,force);
+    addStrokeParticle(x,y,p.path.c,force);
+  }
+}
+function pointerUp(e){
+  if(!pointer.has(e.pointerId))return;
+  const p=pointer.get(e.pointerId);
+  pointer.delete(e.pointerId);
+  clearTimeout(pressTimer);pressPoint=null;
+  if(p.path && p.path.pts.length>2){
+    const q=p.path.pts[p.path.pts.length-1];
+    ripples.push(new Ripple(q.x,q.y));
+  }
+}
+canvas.addEventListener("pointerdown",pointerDown,{passive:false});
+canvas.addEventListener("pointermove",pointerMove,{passive:false});
+canvas.addEventListener("pointerup",pointerUp,{passive:false});
+canvas.addEventListener("pointercancel",pointerUp,{passive:false});
+
+function modeButton(m,permanent=true){
+  if(permanent)mode=m;
+  $("drawBtn").classList.toggle("on",mode==="draw");
+  $("windBtn").classList.toggle("on",mode==="wind");
+  $("eraseBtn").classList.toggle("on",mode==="erase");
+  $("modeName").textContent=mode.toUpperCase();
+}
+$("drawBtn").onclick=()=>{modeButton("draw");hint("一本指で光の航路を描きます")};
+$("windBtn").onclick=()=>{modeButton("wind");hint("指をすべらせると、粒子に風を送ります")};
+$("eraseBtn").onclick=()=>{modeButton("erase");hint("なぞった場所の光を消します")};
+$("seedBtn").onclick=()=>generateAtlas();
+$("moreBtn").onclick=()=>showPoster();
+$("startBtn").onclick=()=>{
+  started=true;$("sheet").classList.add("hidden");initAudio();
+  hint("一本指で描く。長押しで星雲。二本指で風。",3600);
+  if(paths.length===0 && particles.length===0)setTimeout(generateAtlas,420);
+};
+
+function togglePalette(){
+  $("palette").classList.toggle("show");
+  hint("色を選べます。もう一度ダブルタップでも開閉できます",1400);
+}
+document.querySelectorAll(".swatch").forEach(btn=>{
+  btn.onclick=()=>{
+    palette=+btn.dataset.p;
+    document.querySelectorAll(".swatch").forEach(b=>b.classList.toggle("cur",b===btn));
+    $("palette").classList.remove("show");
+    chime(W*(palette+.5)/5,H*.8,1);
+  };
+});
+
+function generateAtlas(){
+  initAudio();
+  const keep=paths.length>0 || particles.length>80;
+  if(!keep){paths=[];particles=[];}
+  const cx=W/2,cy=H*.47;
+  const rings=3+Math.floor(Math.random()*2);
+  for(let r=0;r<rings;r++){
+    const path=new Path((palette+r)%palettes.length);
+    const rad=Math.min(W,H)*(0.12+r*.085)+rand(-8,8);
+    const turns=70+r*22;
+    const wob=rand(.08,.22);
+    for(let i=0;i<turns;i++){
+      const a=i/(turns-1)*TAU*(.72+Math.random()*.55)+rand(-.025,.025);
+      const rr=rad*(1+Math.sin(a*(2+r)+rand(-.2,.2))*wob);
+      const x=cx+Math.cos(a)*rr+rand(-4,4);
+      const y=cy+Math.sin(a)*rr*rand(.72,.96)+rand(-4,4);
+      path.add(x,y,1);
+      if(i%7===0)addStrokeParticle(x,y,path.c,1.2);
+    }
+    paths.push(path);
+  }
+  const n=55+Math.floor(Math.random()*35);
+  for(let i=0;i<n;i++){
+    const a=Math.random()*TAU,rr=Math.pow(Math.random(),.65)*Math.min(W,H)*.42;
+    particles.push(new Particle(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr*.9,(palette+i)%palettes.length,rand(.8,1.4)));
+  }
+  addBurst(cx+rand(-30,30),cy+rand(-30,30),palette,1.25);
+  dirty=true;
+  hint("現在の色を起点に、星図を生成しました",1800);
+}
+
+function updateStats(){
+  if(frame%10)return;
+  $("nodes").textContent=particles.length;
+  $("energy").textContent=Math.min(999,Math.floor(paths.reduce((s,p)=>s+p.pts.length,0)/2+particles.length*.7));
+  $("modeName").textContent=mode.toUpperCase();
+}
+
+function scheduleSave(){
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer=setTimeout(saveState,500);
+}
+function saveState(){
+  try{
+    const slim=paths.slice(-28).map(p=>({
+      c:p.c,
+      pts:p.pts.filter((_,i)=>i%2===0).slice(-90).map(q=>[Math.round(q.x/W*1000),Math.round(q.y/H*1000)])
+    }));
+    localStorage.setItem("lumen-atlas-v1",JSON.stringify({palette,paths:slim}));
+  }catch(e){}
+}
+function loadState(){
+  try{
+    const raw=localStorage.getItem("lumen-atlas-v1");
+    if(!raw)return;
+    const data=JSON.parse(raw);
+    palette=data.palette||0;
+    document.querySelectorAll(".swatch").forEach(b=>b.classList.toggle("cur",+b.dataset.p===palette));
+    paths=(data.paths||[]).map(sp=>{
+      const p=new Path(sp.c||0);
+      p.pts=(sp.pts||[]).map(q=>({x:q[0]/1000*W,y:q[1]/1000*H,f:1,t:0}));
+      return p;
+    });
+    dirty=true;
+  }catch(e){}
+}
+setTimeout(loadState,120);
+
+function makePosterCanvas(){
+  const pw=1080,ph=1920;
+  const c=document.createElement("canvas"),g=c.getContext("2d");
+  c.width=pw;c.height=ph;
+
+  const grad=g.createLinearGradient(0,0,0,ph);
+  grad.addColorStop(0,"#0b0d1d");grad.addColorStop(.48,"#070914");grad.addColorStop(1,"#03040a");
+  g.fillStyle=grad;g.fillRect(0,0,pw,ph);
+
+  g.save();
+  g.scale(pw/W,ph/H);
+  g.drawImage(off,0,0,W,H);
+  g.globalCompositeOperation="lighter";
+  g.filter="blur(12px)";
+  g.drawImage(bloom,0,0,W,H);
+  g.filter="none";
+  g.drawImage(bloom,0,0,W,H);
+  g.restore();
+
+  const main=palettes[palette];
+  g.save();
+  g.globalCompositeOperation="lighter";
+  const rg=g.createRadialGradient(pw*.5,ph*.45,0,pw*.5,ph*.45,pw*.62);
+  rg.addColorStop(0,`rgba(${main.rgb[0]},${main.rgb[1]},${main.rgb[2]},.16)`);
+  rg.addColorStop(1,"rgba(0,0,0,0)");
+  g.fillStyle=rg;g.fillRect(0,0,pw,ph);
+  g.restore();
+
+  g.strokeStyle="rgba(255,255,255,.22)";
+  g.lineWidth=2;
+  g.strokeRect(54,54,pw-108,ph-108);
+
+  g.fillStyle="rgba(255,255,255,.92)";
+  g.font="700 48px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+  g.letterSpacing="8px";
+  g.fillText("LUMEN ATLAS",78,142);
+
+  g.fillStyle="rgba(210,220,255,.62)";
+  g.font="28px -apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif";
+  g.fillText("光の地図帳 / OFFLINE TOUCH CARTOGRAPHY",78,188);
+
+  const date=new Date();
+  const id=String(Math.abs(hash(JSON.stringify(paths).slice(0,8000)))).slice(0,6);
+  g.font="24px ui-monospace,SFMono-Regular,Menlo,monospace";
+  g.fillStyle="rgba(255,255,255,.58)";
+  g.fillText(`NODES ${particles.length.toString().padStart(3,"0")}  MAP ID ${id}`,78,ph-124);
+  g.fillText(`${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,"0")}.${String(date.getDate()).padStart(2,"0")}`,78,ph-86);
+
+  g.save();
+  g.translate(pw-122,ph-166);
+  g.strokeStyle=`rgba(${main.rgb[0]},${main.rgb[1]},${main.rgb[2]},.9)`;
+  g.lineWidth=5;
+  g.beginPath();g.arc(0,0,42,0,TAU);g.stroke();
+  g.beginPath();g.moveTo(-24,0);g.lineTo(24,0);g.moveTo(0,-24);g.lineTo(0,24);g.stroke();
+  g.restore();
+
+  return c;
+}
+function hash(str){
+  let h=2166136261;
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}
+  return h>>>0;
+}
+function showPoster(){
+  if(paths.length===0 && particles.length<10){hint("先に光の地図を描くか、星図を生成してください");return;}
+  const pc=makePosterCanvas();
+  const url=pc.toDataURL("image/png");
+  $("posterImg").src=url;
+  $("download").href=url;
+  $("poster").classList.add("show");
+  chime(W*.5,H*.5,1);
+}
+$("closePoster").onclick=()=>$("poster").classList.remove("show");
+
+let lastShake=0;
+addEventListener("devicemotion",e=>{
+  const a=e.accelerationIncludingGravity;if(!a)return;
+  const m=Math.abs(a.x||0)+Math.abs(a.y||0)+Math.abs(a.z||0);
+  const now=performance.now();
+  if(m>34 && now-lastShake>1600 && started){
+    lastShake=now;
+    wind.tx+=rand(-35,35);wind.ty+=rand(-35,35);
+    addBurst(rand(W*.2,W*.8),rand(H*.25,H*.75),palette,1.1);
+    hint("端末の動きで光が揺れました",1200);
+  }
+},{passive:true});
+
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) saveState(); });
+
+setInterval(()=>{
+  if(!audio)return;
+  const t=performance.now()/1000;
+  const k=(Math.sin(t*.15)+1)/2;
+  audio.filter.frequency.setTargetAtTime(260+k*360,audio.ac.currentTime,.6);
+},900);
+
+})();
+</script>
+</body>
+</html>
